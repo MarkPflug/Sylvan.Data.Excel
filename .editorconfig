@@ -1,0 +1,19 @@
+root = true
+
+[*.cs]
+indent_style = tab
+
+dotnet_style_qualification_for_field = true
+dotnet_style_qualification_for_property = true
+dotnet_style_qualification_for_method = true
+dotnet_style_qualification_for_event = true
+
+dotnet_style_require_accessibility_modifiers = never
+
+# CA1028: If possible, make the underlying type of PrimitiveType System.Int32 instead of byte.
+dotnet_diagnostic.CA1028.severity = none
+
+
+[*.{xml,props,targets}]
+intent_style = space
+indent_size = 2

@@ -1,0 +1,31 @@
+<Project>
+  <PropertyGroup>
+    <OutputPath>$(MSBuildThisFileDirectory)bin\$(Configuration)</OutputPath>
+    <PackageOutputPath>$(MSBuildThisFileDirectory)packages\</PackageOutputPath>
+    <Owner>Mark Pflug</Owner>
+    <Authors>$(Owner)</Authors>
+    <PackageIconUrl>https://markpflug.github.io/Sylvan.png</PackageIconUrl>
+    <PackageIcon>Sylvan.png</PackageIcon>
+    <Copyright>© 2021 $(Owner)</Copyright>
+    <PackageLicenseFile>license.txt</PackageLicenseFile>
+    <LangVersion>9.0</LangVersion>
+
+    <RepositoryUrl>https://github.com/MarkPflug/Sylvan.Data.Excel</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageProjectUrl>$(RepositoryUrl)</PackageProjectUrl>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <WarningsNotAsErrors>CS1030;CA1835;$(WarningsNotAsErrors)</WarningsNotAsErrors>
+  
+    <IsTestProject Condition="$(MSBuildProjectName.EndsWith('.Tests')) == 'true'">true</IsTestProject>
+    <SourceControlInformationFeatureSupported>true</SourceControlInformationFeatureSupported>      
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="$(MSBuildThisFileDirectory)license.txt" Pack="true" PackagePath="">
+      <Visible>false</Visible>
+    </None>
+    <None Include="$(MSBuildThisFileDirectory)Sylvan.png" Pack="true" PackagePath="">
+      <Visible>false</Visible>
+    </None>
+  </ItemGroup>
+
+</Project>
