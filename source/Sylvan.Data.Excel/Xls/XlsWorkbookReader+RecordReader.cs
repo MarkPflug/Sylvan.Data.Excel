@@ -153,7 +153,7 @@ namespace Sylvan.Data.Excel
 					{
 						// TODO: should add a little headroom here. I'm finding this gets repeatedly resized
 						// as ever-larger strings are encountered.
-						strBuffer = new char[strLen];
+						Array.Resize(ref strBuffer, strLen);
 					}
 
 					// one of the following needs to be true
@@ -234,10 +234,8 @@ namespace Sylvan.Data.Excel
 
 			public async Task<string> ReadStringAsync(int length, bool compressed)
 			{
-
 				Debug.WriteLine("ReadString");
-				await ReadStringBufferAsync(length, compressed);
-				var str = new string(strBuffer, 0, length);
+				var str = await ReadStringBufferAsync(length, compressed);
 				return str;
 			}
 
