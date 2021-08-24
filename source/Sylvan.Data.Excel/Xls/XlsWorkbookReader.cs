@@ -130,6 +130,8 @@ namespace Sylvan.Data.Excel
 			return cell.type switch
 			{
 				CellType.Null => ExcelDataType.Null,
+				CellType.Boolean => ExcelDataType.Boolean,
+				CellType.Error => ExcelDataType.Error,
 				CellType.Double => ExcelDataType.Numeric,
 				CellType.String => ExcelDataType.String,
 				_ => ExcelDataType.Null
@@ -516,6 +518,8 @@ namespace Sylvan.Data.Excel
 			//var chn = reader.ReadInt32();
 			//var flen = reader.ReadUInt16();
 
+			// if the 2 MSB of the value are 0xff, then the stored value
+			// is not a number, but is a string, boolean, or error
 			if ((val & 0xffff_0000_0000_0000ul) == 0xffff_0000_0000_0000ul)
 			{
 				var rtype = (int)(val & 0xff);
@@ -846,6 +850,8 @@ namespace Sylvan.Data.Excel
 					return double.Parse(cell.str!);
 				case CellType.Double:
 					return cell.dVal;
+				case CellType.Error:
+					throw Error(ordinal);
 			}
 
 			throw new FormatException();
@@ -885,6 +891,12 @@ namespace Sylvan.Data.Excel
 		public override ReadOnlyCollection<DbColumn> GetColumnSchema()
 		{
 			return this.columnSchema;
+		}
+
+		ExcelFormulaException Error(int ordinal)
+		{
+			var cell = GetCell(ordinal);
+			return new ExcelFormulaException(ordinal, RowNumber, (ExcelErrorCode)cell.val);
 		}
 
 		public override bool GetBoolean(int ordinal)

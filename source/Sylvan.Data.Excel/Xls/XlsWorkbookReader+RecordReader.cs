@@ -11,7 +11,7 @@ namespace Sylvan.Data.Excel
 	{
 		sealed class RecordReader
 		{
-			const int BufferSize = 0x100000;
+			const int BufferSize = 0x40000;
 
 			Stream stream;
 

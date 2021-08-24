@@ -68,15 +68,15 @@ namespace Sylvan.Data.Excel
 		}
 
 		[Fact]
-		public void Numbers()
+		public void TestCsv()
 		{
-			using var r = ExcelDataReader.Create("Data/Xls/Numbers.xls", new ExcelDataReaderOptions { Schema = ExcelSchema.NoHeaders });
-			r.Read();
-			Assert.Equal("3.3", r.GetString(0));
-			Assert.Equal("1E+77", r.GetString(1));
-			Assert.Equal("3.33", r.GetString(2));
-			Assert.Equal("3.333", r.GetString(3));
-			Assert.Equal("3.3333", r.GetString(4));
+			using var edr = ExcelDataReader.Create("/data/excel/65K_Records_Data.xls");
+			do
+			{
+				var sheetName = edr.WorksheetName;
+				using var cdw = CsvDataWriter.Create("data-" + sheetName + ".csv");
+				cdw.Write(edr);
+			} while (edr.NextResult());
 		}
 	}
 }
