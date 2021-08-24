@@ -120,7 +120,7 @@ namespace Sylvan.Data.Excel
 					{
 						var id = int.Parse(xf.GetAttribute("numFmtId"));
 						var apply = xf.HasAttribute("applyNumberFormat");
-						xfMap[idx] = apply ? id : -1;
+						xfMap[idx] = apply ? id : 0;
 						idx++;
 					}
 				}
@@ -637,7 +637,14 @@ namespace Sylvan.Data.Excel
 
 		public override ExcelFormat? GetFormat(int ordinal)
 		{
-			throw new NotImplementedException();
+			var fi = values[ordinal];
+			var idx = fi.xfIdx;
+			
+			idx = idx == -1 ? 0 : xfMap[idx];
+			if(this.formats.TryGetValue(idx, out var fmt)) {
+				return fmt;
+			}
+			return null;
 		}
 
 		public override int FieldCount
