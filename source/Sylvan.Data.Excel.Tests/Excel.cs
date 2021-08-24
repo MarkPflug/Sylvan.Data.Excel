@@ -9,7 +9,7 @@ namespace Sylvan.Data.Excel
 {
 	public sealed class XlsxTests : ExcelTests
 	{
-		const string Format = "data/xlsx/{0}.xlsx";
+		const string Format = "Data/Xlsx/{0}.xlsx";
 
 		protected override string GetFile(string name)
 		{
@@ -21,7 +21,7 @@ namespace Sylvan.Data.Excel
 	// containing the same content. The expectation is
 	public class ExcelTests
 	{
-		const string Format = "data/xls/{0}.xls";
+		const string Format = "Data/Xls/{0}.xls";
 		//const string Format = "data/xlsx/{0}.xlsx";
 
 		protected virtual string GetFile([CallerMemberName] string name = "")
@@ -143,10 +143,10 @@ namespace Sylvan.Data.Excel
 		}
 
 		[Fact]
-		public void TestGap()
+		public void Gap()
 		{
 			var opts = new ExcelDataReaderOptions { GetErrorAsNull = true };
-			var file = GetFile("gap");
+			var file = GetFile();
 			using var edr = ExcelDataReader.Create(file, opts);
 			var sw = new StringWriter();
 			var csvW = CsvDataWriter.Create(sw);
