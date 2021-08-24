@@ -121,7 +121,7 @@ namespace Sylvan.Data.Excel
 		[Fact]
 		public void FormatTest()
 		{
-			var file = GetFile("test");
+			var file = GetFile("Test");
 			using var edr = ExcelDataReader.Create(file, noHeaders);
 			var sw = new StringWriter();
 			var csvW = CsvDataWriter.Create(sw);
@@ -134,7 +134,7 @@ namespace Sylvan.Data.Excel
 		[Fact]
 		public void TestHeaders()
 		{
-			var file = GetFile("test");
+			var file = GetFile("Test");
 			using var edr = ExcelDataReader.Create(file);
 			var sw = new StringWriter();
 			var csvW = CsvDataWriter.Create(sw);
