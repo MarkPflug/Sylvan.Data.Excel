@@ -182,8 +182,7 @@ namespace Sylvan.Data.Excel
 				}
 			}
 
-			this.hasRows = InitializeSheet();
-			rowNumber = 0;
+			this.hasRows = InitializeSheet();			
 			return true;
 		}
 
@@ -200,7 +199,6 @@ namespace Sylvan.Data.Excel
 			this.hasHeaders = schema.HasHeaders(currentSheetName);
 			if (hasHeaders)
 			{
-
 				if (!NextRow())
 				{
 					return false;
@@ -234,7 +232,6 @@ namespace Sylvan.Data.Excel
 					this.GetString(i);
 				}
 			}
-
 			if (!NextRow())
 			{
 				return false;
@@ -243,6 +240,7 @@ namespace Sylvan.Data.Excel
 			var c = ParseRowValues();
 			count = count == -1 ? c : count;
 
+			this.rowNumber = hasHeaders ? 0 : -1;
 			this.colCount = count;
 			LoadSchema();
 			this.state = State.Initialized;
@@ -261,26 +259,36 @@ namespace Sylvan.Data.Excel
 
 		struct CellPosition
 		{
-			//public int Column;
-			//public int Row;
+			public int Column;
+			public int Row;
 
-			public static int Parse(ReadOnlySpan<char> str)
+			public static CellPosition Parse(ReadOnlySpan<char> str)
 			{
-				int c = -1;
-				for (int i = 0; i < str.Length; i++)
+				int col = -1;
+				int row = 0;
+				int i = 0;
+				char c;
+				for (; i < str.Length; i++)
 				{
-					var cc = str[i];
-					var v = cc - 'A';
+					c = str[i];
+					var v = c - 'A';
 					if ((uint)v < 26u)
 					{
-						c = ((c + 1) * 26) + v;
+						col = ((col + 1) * 26) + v;
 					}
 					else
 					{
 						break;
 					}
 				}
-				return c;
+
+				for (; i < str.Length; i++)
+				{
+					c = str[i];
+					var v = c - '0';
+					row = row * 10 + v;
+				}
+				return new CellPosition() { Column = col, Row = row - 1};
 			}
 
 			public static int ParseCol(ReadOnlySpan<char> str, int i)
@@ -314,6 +322,8 @@ namespace Sylvan.Data.Excel
 			rowNumber++;
 			if (state == State.Open)
 			{
+				if (rowNumber <= parsedRow)
+					return true;
 				if (NextRow())
 				{
 					ParseRowValues();
@@ -338,6 +348,8 @@ namespace Sylvan.Data.Excel
 
 		char[] valueBuffer = new char[64];
 
+		int parsedRow = -1;
+
 		int ParseRowValues()
 		{
 			var ci = CultureInfo.InvariantCulture;
@@ -345,7 +357,7 @@ namespace Sylvan.Data.Excel
 			FieldInfo[] values = this.values;
 
 			Array.Clear(this.values, 0, this.values.Length);
-			int col;
+			CellPosition pos;
 			if (!reader.ReadToDescendant("c", ns))
 			{
 				return 0;
@@ -355,10 +367,10 @@ namespace Sylvan.Data.Excel
 			{
 				reader.MoveToAttribute("r");
 				int len = reader.ReadValueChunk(valueBuffer, 0, valueBuffer.Length);
-				col = CellPosition.Parse(valueBuffer.AsSpan(0, len));
-				if (col >= values.Length)
+				pos = CellPosition.Parse(valueBuffer.AsSpan(0, len));
+				if (pos.Column >= values.Length)
 				{
-					Array.Resize(ref values, col + 8);
+					Array.Resize(ref values, pos.Column + 8);
 					this.values = values;
 				}
 
@@ -378,7 +390,7 @@ namespace Sylvan.Data.Excel
 					throw new NotSupportedException();
 				}
 
-				ref FieldInfo fi = ref values[col];
+				ref FieldInfo fi = ref values[pos.Column];
 
 				bool exists = reader.MoveToAttribute("t");
 				if (exists)
@@ -449,7 +461,8 @@ namespace Sylvan.Data.Excel
 				} while (reader.Read());
 
 			} while (reader.ReadToNextSibling("c", ns));
-			return col + 1;
+			this.parsedRow = pos.Row;
+			return pos.Column + 1;
 		}
 
 		enum CellType
@@ -485,6 +498,8 @@ namespace Sylvan.Data.Excel
 
 		public override ExcelDataType GetExcelDataType(int ordinal)
 		{
+			if (rowNumber < parsedRow)
+				return ExcelDataType.Null;
 			return values[ordinal].type;
 		}
 
@@ -549,16 +564,19 @@ namespace Sylvan.Data.Excel
 
 		public override double GetDouble(int ordinal)
 		{
-			ref var fi = ref values[ordinal];
-			var type = fi.type;
-			switch (type)
+			if (rowNumber == parsedRow)
 			{
-				case ExcelDataType.Numeric:
-					return fi.numValue;
-				case ExcelDataType.String:
-					return double.Parse(fi.strValue);
-				case ExcelDataType.Error:
-					throw Error(ordinal);
+				ref var fi = ref values[ordinal];
+				var type = fi.type;
+				switch (type)
+				{
+					case ExcelDataType.Numeric:
+						return fi.numValue;
+					case ExcelDataType.String:
+						return double.Parse(fi.strValue);
+					case ExcelDataType.Error:
+						throw Error(ordinal);
+				}
 			}
 			throw new InvalidCastException();
 		}
@@ -570,6 +588,10 @@ namespace Sylvan.Data.Excel
 
 		public override string GetString(int ordinal)
 		{
+			if(rowNumber < parsedRow)
+			{
+				return string.Empty;
+			}
 			ref var fi = ref values[ordinal];
 			switch (fi.type)
 			{

@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Data.Common;
 using System.IO;
@@ -135,7 +134,6 @@ namespace Sylvan.Data.Excel
 		public sealed override object this[int ordinal] => this.GetValue(ordinal);
 		public sealed override object this[string name] => this.GetValue(this.GetOrdinal(name));
 
-
 		public sealed override string GetDataTypeName(int ordinal)
 		{
 			return this.GetFieldType(ordinal).Name;
@@ -151,15 +149,13 @@ namespace Sylvan.Data.Excel
 
 		public abstract ExcelFormat? GetFormat(int ordinal);
 
-		//public abstract string? GetFormula(int ordinal);
-
 		public abstract int RowNumber { get; }
 
 		/// <summary>
 		/// Gets the value of the column as a DateTime.
 		/// </summary>
 		/// <remarks>
-		/// When called on cells containging a string value, will attempt to parse the string as a DateTime.
+		/// When called on cells containing a string value, will attempt to parse the string as a DateTime.
 		/// When called on a cell containing a number value, will convert the numeric value to a DateTime.
 		/// </remarks>
 		public override DateTime GetDateTime(int ordinal)
@@ -321,6 +317,5 @@ namespace Sylvan.Data.Excel
 		{
 			throw new NotSupportedException();
 		}
-
 	}
 }
