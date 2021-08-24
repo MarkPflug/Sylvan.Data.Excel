@@ -27,14 +27,17 @@ namespace Sylvan.Data.Excel
 
 		State state;
 		bool hasRows;
+		bool hasHeaders;
 		IExcelSchemaProvider schema;
 		int rowNumber;
+		Dictionary<int, string> sheetNames;
 
 		struct FieldInfo
 		{
 			public ExcelDataType type;
 			public string strValue;
 			public double numValue;
+			public int xfIdx;
 		}
 
 		public override int RowCount => rowCount;
@@ -43,24 +46,91 @@ namespace Sylvan.Data.Excel
 		{
 			this.colCount = 0;
 			this.rowCount = 0;
-			this.headers = new string[8];
 			this.values = Array.Empty<FieldInfo>();
+			this.headers = Array.Empty<string>();
 			this.schema = opts.Schema;
 
 			this.stream = iStream;
 			package = new ZipArchive(iStream, ZipArchiveMode.Read);
-			
+
 			var ssPart = package.GetEntry("xl/sharedStrings.xml");
-			if (ssPart == null)
+			var stylePart = package.GetEntry("xl/styles.xml");
+
+			var sheetsPart = package.GetEntry("xl/workbook.xml");
+			if (sheetsPart == null)
 				throw new InvalidDataException();
 
-			using (Stream ssStream = ssPart.Open())
+			if (ssPart == null)
 			{
-				ss = new SharedStrings(XmlReader.Create(ssStream));
+				ss = SharedStrings.Empty;
 			}
+			else
+			{
+				using (Stream ssStream = ssPart.Open())
+				{
+					ss = new SharedStrings(XmlReader.Create(ssStream));
+				}
+			}
+
+			this.sheetNames = new Dictionary<int, string>();
+
+			using (Stream sheetsStream = sheetsPart.Open())
+			{
+				// quick and dirty, good enough, this doc should be small.
+				var doc = new XmlDocument();
+				doc.Load(sheetsStream);
+				var nsm = new XmlNamespaceManager(doc.NameTable);
+				nsm.AddNamespace("x", sheetNS);
+				var nodes = doc.SelectNodes("/x:workbook/x:sheets/x:sheet", nsm);
+				foreach (XmlElement sheetElem in nodes)
+				{
+					var id = int.Parse(sheetElem.GetAttribute("sheetId"));
+					var name = sheetElem.GetAttribute("name");
+					sheetNames.Add(id, name);
+				}
+			}
+
+			if (stylePart == null)
+			{
+				throw new InvalidDataException();
+			}
+			else
+			{
+				using (Stream styleStream = stylePart.Open())
+				{
+					var doc = new XmlDocument();
+					doc.Load(styleStream);
+					var nsm = new XmlNamespaceManager(doc.NameTable);
+					nsm.AddNamespace("x", sheetNS);
+					var nodes = doc.SelectNodes("/x:styleSheet/x:numFmts/x:numFmt", nsm);
+					this.formats = ExcelFormat.CreateFormatCollection();
+					foreach (XmlElement fmt in nodes)
+					{
+						var id = int.Parse(fmt.GetAttribute("numFmtId"));
+						var str = fmt.GetAttribute("formatCode");
+						var ef = new ExcelFormat(str);
+						formats.Add(id, ef);
+					}
+
+					XmlElement xfsElem = (XmlElement)doc.SelectSingleNode("/x:styleSheet/x:cellXfs", nsm);
+					var c = int.Parse(xfsElem.GetAttribute("count"));
+					this.xfMap = new int[c];
+					int idx = 0;
+					foreach (XmlElement xf in xfsElem.ChildNodes)
+					{
+						var id = int.Parse(xf.GetAttribute("numFmtId"));
+						var apply = xf.HasAttribute("applyNumberFormat");
+						xfMap[idx] = apply ? id : -1;
+						idx++;
+					}
+				}
+			}
+
 			this.ns = sheetNS;
 			NextResult();
 		}
+		Dictionary<int, ExcelFormat> formats;
+		int[] xfMap;
 
 		public override bool IsClosed
 		{
@@ -127,9 +197,10 @@ namespace Sylvan.Data.Excel
 				this.state = State.Closed;
 				throw new InvalidOperationException();
 			}
-
-			if (schema.HasHeaders(currentSheetName))
+			this.hasHeaders = schema.HasHeaders(currentSheetName);
+			if (hasHeaders)
 			{
+
 				if (!NextRow())
 				{
 					return false;
@@ -307,6 +378,8 @@ namespace Sylvan.Data.Excel
 					throw new NotSupportedException();
 				}
 
+				ref FieldInfo fi = ref values[col];
+
 				bool exists = reader.MoveToAttribute("t");
 				if (exists)
 				{
@@ -315,14 +388,21 @@ namespace Sylvan.Data.Excel
 					type = GetCellType(valueBuffer, len);
 				}
 
+				exists = reader.MoveToAttribute("s");
+				int xfIdx = 0;
+				if (exists)
+				{
+					xfIdx = reader.ReadContentAsInt();
+				}
+				fi.xfIdx = xfIdx;
+
 				int strLen;
 				reader.MoveToElement();
 
 				if (reader.ReadToDescendant("v"))
 				{
 					reader.Read();
-					ref FieldInfo fi = ref values[col];
-
+					fi.xfIdx = xfIdx;
 					switch (type)
 					{
 						case CellType.Numeric:
@@ -420,7 +500,7 @@ namespace Sylvan.Data.Excel
 			var cols = new List<DbColumn>();
 			for (int i = 0; i < colCount; i++)
 			{
-				string? header = headers[i];
+				string? header = hasHeaders ? headers[i] : null;
 				var col = schema.GetColumn(currentSheetName, header, i);
 				var ecs = new ExcelColumn(header, i, col);
 				cols.Add(ecs);
@@ -498,9 +578,27 @@ namespace Sylvan.Data.Excel
 				case ExcelDataType.Boolean:
 					return fi.strValue[0] == '0' ? "FALSE" : "TRUE";
 				case ExcelDataType.Numeric:
-					return fi.numValue.ToString();
+					return FormatVal(fi.xfIdx, fi.numValue);
 			}
 			return fi.strValue;
+		}
+
+		string FormatVal(int xfIdx, double val)
+		{
+			var fmtIdx = this.xfMap[xfIdx];
+			if (fmtIdx == -1)
+			{
+				return val.ToString();
+			}
+
+			if (formats.TryGetValue(fmtIdx, out var fmt))
+			{
+				return fmt.FormatValue(val, 1900);
+			}
+			else
+			{
+				throw new FormatException();
+			}
 		}
 
 		public override object GetValue(int ordinal)
@@ -547,8 +645,9 @@ namespace Sylvan.Data.Excel
 			get { return this.colCount; }
 		}
 
-		public override int WorksheetCount => throw new NotImplementedException();
-		public override string WorksheetName => throw new NotImplementedException();
+		public override int WorksheetCount => this.sheetNames.Count;
+
+		public override string WorksheetName => this.sheetNames[this.sheetIdx];
 
 		internal override int DateEpochYear => 1900;
 
@@ -557,6 +656,19 @@ namespace Sylvan.Data.Excel
 
 	sealed class SharedStrings
 	{
+		internal static SharedStrings Empty;
+
+		static SharedStrings()
+		{
+			Empty = new SharedStrings();
+		}
+
+		private SharedStrings()
+		{
+			this.count = 0;
+			this.stringData = Array.Empty<string>();
+		}
+
 		int count;
 		string[] stringData;
 
@@ -603,7 +715,7 @@ namespace Sylvan.Data.Excel
 
 		public string GetString(int i)
 		{
-			if ((uint) i >= count)
+			if ((uint)i >= count)
 				throw new ArgumentOutOfRangeException(nameof(i));
 
 			return stringData[i];

@@ -5,7 +5,17 @@ This provides read-only, row by row, forward-only access to the data.
 There is no support for creating or editing Excel files.
 Provides a familiar API via DbDataReader, which is ideal for accessing rectangular, columnar data sets.
 
-Basic usage:
+## Installing
+
+This library is still a pre-release version and you will likely encounter issues while using it.
+If you do find bugs, please report an issue. However, be aware that I will be unlikely to be able 
+to fix an issue unless an excel file exhibiting the problem is provided with the issue.
+
+[Sylvan.Data.Excel Nuget Package](https://www.nuget.org/packages/Sylvan.Data.Excel/)
+
+`Install-Package Sylvan.Data.Excel -IncludePrerelease`
+
+## Basic Usage
 ```C#
 
 // ExcelDataReader derives from System.Data.DbDataReader
