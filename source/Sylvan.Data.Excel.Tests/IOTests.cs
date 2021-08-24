@@ -5,20 +5,27 @@ using Xunit;
 
 namespace Sylvan.Data.Excel
 {
-	public class IOTests
+	public
+		class IOTests
 	{
+		public IOTests()
+		{
+			using (var file = File.Create("test.bin"))
+			{
+				file.SetLength(0x10000000);// 256MB
+			}
+		}
+
 		[Theory]
-		[InlineData(1)]
 		[InlineData(0x200)]
 		[InlineData(0x1000)]
 		[InlineData(0x10000)]
 		[InlineData(0x100000)]
 		public async Task ReadPerf(int size)
 		{
-			var file = "/data/excel/vehicles_xls.xls";
-			//using var stream = File.OpenRead(file);
-			using var stream = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.Read, size);
-			await Process(stream);
+			// experimenting with IO differences between net5.0 and net6.0
+			using var stream = File.OpenRead("test.bin");
+			await Process(stream, size);
 		}
 
 		static async Task Process(Stream s, int batchSize = 0x100000)

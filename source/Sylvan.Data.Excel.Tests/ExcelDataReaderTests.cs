@@ -5,7 +5,12 @@ using Xunit;
 
 namespace Sylvan.Data.Excel
 {
-	public class ExcelDataReaderTests
+
+#pragma warning disable xUnit1000 // Test classes must be public
+	// suppress these tests that depend on external files.
+	//public
+	class ExcelDataReaderTests
+#pragma warning restore xUnit1000 // Test classes must be public
 	{
 		static ExcelDataReaderTests()
 		{
@@ -15,7 +20,7 @@ namespace Sylvan.Data.Excel
 		[Fact]
 		public void TestBig()
 		{
-			//var file = @"\data\excel\65K_Records_Data.xls";
+			//var file = @"/data/excel/65K_Records_Data.xls";
 			var file = "/data/excel/vehicles_xls.xls";
 
 			using var r = ExcelDataReader.Create(file);
@@ -28,7 +33,7 @@ namespace Sylvan.Data.Excel
 		[Fact]
 		public void Test1()
 		{
-			using var r = ExcelDataReader.Create("C:/users/mark/downloads/pkdx.xls");
+			using var r = ExcelDataReader.Create("/data/excel/pkdx.xls");
 
 			while (r.Read()) { }
 			Assert.True(r.NextResult());
@@ -40,7 +45,7 @@ namespace Sylvan.Data.Excel
 		[Fact]
 		public void Test2()
 		{
-			using var r = ExcelDataReader.Create("C:/users/mark/downloads/pkdx.xls");
+			using var r = ExcelDataReader.Create("/data/excel/pkdx.xls");
 
 			Assert.True(r.NextResult());
 			while (r.Read()) { }
@@ -51,8 +56,7 @@ namespace Sylvan.Data.Excel
 		[Fact]
 		public void Test3()
 		{
-			//using var r = ExcelDataReader.Create("C:/users/mark/downloads/pkdx.xls");
-			using var r = ExcelDataReader.Create("C:/users/mark/downloads/us-mr2010-01.xls");
+			using var r = ExcelDataReader.Create("/data/excel/us-mr2010-01.xls");
 			var sw = new StringWriter();
 			using (var csv = CsvDataWriter.Create(sw))
 			{
