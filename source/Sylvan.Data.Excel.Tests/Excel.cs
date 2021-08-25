@@ -122,9 +122,20 @@ namespace Sylvan.Data.Excel
 		{
 			var file = GetFile();
 			using var edr = ExcelDataReader.Create(file, noHeaders);
+			int row = 0;
+			ExcelFormat fmt;
 			while (edr.Read())
 			{
-				var fmt = edr.GetFormat(3);
+				fmt = edr.GetFormat(1);
+				if(!edr.IsDBNull(1))
+					Assert.Equal(FormatKind.Number, fmt.Kind);
+				fmt = edr.GetFormat(2);
+				if (!edr.IsDBNull(2))
+					Assert.Equal(FormatKind.Date, fmt.Kind);
+				fmt = edr.GetFormat(3);
+				if (!edr.IsDBNull(3))
+					Assert.Equal(FormatKind.Time, fmt.Kind);
+				row++;
 			}
 		}
 
