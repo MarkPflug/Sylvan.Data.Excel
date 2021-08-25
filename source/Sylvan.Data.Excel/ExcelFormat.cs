@@ -52,7 +52,13 @@ namespace Sylvan.Data.Excel
 
 		static FormatKind DetermineKind(string spec)
 		{
-			bool containsTimeElements = false;
+			// TODO: this whole function could use some cleanup/rework.
+			// passes test cases for now at least.
+
+			bool hasTimeElements = false;
+			bool hasNumberElements = false;
+
+			int count;
 			for (int i = 0; i < spec.Length; i++)
 			{
 				var c = spec[i];
@@ -70,26 +76,80 @@ namespace Sylvan.Data.Excel
 							}
 						}
 						break;
+					case 'a':
+					case 'p':
+						if (i + 1 < spec.Length)
+						{
+							c = char.ToLowerInvariant(spec[i + 1]);
+							if (c == 'm')
+							{
+								i++;
+							}
+						}
+						break;
 					case '\\':
 						i++;
 						break;
 					case '0':
 					case '#':
-						return FormatKind.Number;
+						hasNumberElements = true;
+						break;
 					case 'y':
 					case 'd':
 						return FormatKind.Date;
-					case 'h':
+					case ':':
+						i++;
+						count = 0;
+						for (; i < spec.Length; i++)
+						{
+							c = spec[i];
+							if(c == 'm')
+							{
+								count++;
+								continue;
+							}
+						}
+						if(count > 0)
+						{
+							hasTimeElements = true;
+						}
+						break;
 					case 'm':
+						count = 1;
+						bool time = false;
+						for (var j = i + 1; j < spec.Length; j++)
+						{
+							c = spec[j];
+							if (c == 'm')
+							{
+								count++;
+								i = j;
+								continue;
+							}
+							if (c == ':')
+							{
+								i = j;
+								hasTimeElements = true;
+								time = true;
+								break;
+							}
+							break;
+						}
+						if (time)
+							break;
+
+						return FormatKind.Date;
+					case 'h':
 					case 's':
-						containsTimeElements = true;
+						hasTimeElements = true;
 						break;
 				}
 			}
-			return
-				containsTimeElements
-				? FormatKind.Time
-				: FormatKind.String;
+			if (hasTimeElements)
+				return FormatKind.Time;
+			if (hasNumberElements)
+				return FormatKind.Number;
+			return FormatKind.String;
 		}
 
 		internal ExcelFormat(string spec)

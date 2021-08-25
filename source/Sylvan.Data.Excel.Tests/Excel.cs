@@ -9,11 +9,11 @@ namespace Sylvan.Data.Excel
 {
 	public sealed class XlsxTests : ExcelTests
 	{
-		const string Format = "Data/Xlsx/{0}.xlsx";
+		const string FileFormat = "Data/Xlsx/{0}.xlsx";
 
 		protected override string GetFile(string name)
 		{
-			return string.Format(Format, name);
+			return string.Format(FileFormat, name);
 		}
 	}
 
@@ -21,12 +21,12 @@ namespace Sylvan.Data.Excel
 	// containing the same content. The expectation is
 	public class ExcelTests
 	{
-		const string Format = "Data/Xls/{0}.xls";
+		const string FileFormat = "Data/Xls/{0}.xls";
 		//const string Format = "data/xlsx/{0}.xlsx";
 
 		protected virtual string GetFile([CallerMemberName] string name = "")
 		{
-			var file = string.Format(Format, name);
+			var file = string.Format(FileFormat, name);
 			Assert.True(File.Exists(file), "Test data file " + file + " does not exist");
 			return file;
 		}
@@ -102,11 +102,11 @@ namespace Sylvan.Data.Excel
 					Assert.Throws<FormatException>(() => edr.GetDateTime(1));
 					Assert.Throws<FormatException>(() => edr.GetDateTime(2));
 					Assert.Throws<FormatException>(() => edr.GetDateTime(3));
-				} 
+				}
 				else
 				{
 					var dt = epoch.AddDays(value - 1);
-					
+
 					var dt1 = edr.GetDateTime(1);
 					Assert.Equal(dt, dt1);
 					var dt2 = edr.GetDateTime(2);
@@ -117,41 +117,46 @@ namespace Sylvan.Data.Excel
 			}
 		}
 
-
 		[Fact]
-		public void FormatTest()
+		public void Format()
 		{
-			var file = GetFile("Test");
+			var file = GetFile();
 			using var edr = ExcelDataReader.Create(file, noHeaders);
-			var sw = new StringWriter();
-			var csvW = CsvDataWriter.Create(sw);
-			csvW.Write(edr);
-			var str = sw.ToString();
-		}
-
-		
-
-		[Fact]
-		public void TestHeaders()
-		{
-			var file = GetFile("Test");
-			using var edr = ExcelDataReader.Create(file);
-			var sw = new StringWriter();
-			var csvW = CsvDataWriter.Create(sw);
-			csvW.Write(edr);
-			var str = sw.ToString();
+			int row = 0;
+			ExcelFormat fmt;
+			while (edr.Read())
+			{
+				fmt = edr.GetFormat(1);
+				if(!edr.IsDBNull(1))
+					Assert.Equal(FormatKind.Number, fmt.Kind);
+				fmt = edr.GetFormat(2);
+				if (!edr.IsDBNull(2))
+					Assert.Equal(FormatKind.Date, fmt.Kind);
+				fmt = edr.GetFormat(3);
+				if (!edr.IsDBNull(3))
+					Assert.Equal(FormatKind.Time, fmt.Kind);
+				row++;
+			}
 		}
 
 		[Fact]
 		public void Gap()
 		{
-			var opts = new ExcelDataReaderOptions { GetErrorAsNull = true };
 			var file = GetFile();
-			using var edr = ExcelDataReader.Create(file, opts);
-			var sw = new StringWriter();
-			var csvW = CsvDataWriter.Create(sw);
-			csvW.Write(edr);
-			var str = sw.ToString();
+			using var edr = ExcelDataReader.Create(file, noHeaders);
+			for (int i = 0; i < 41; i++)
+			{
+				edr.Read();
+				var str = edr.GetString(0);
+				if (i % 10 == 0)
+				{
+					Assert.Equal("" + ((char)('a' + i / 10)), str);
+				}
+				else
+				{
+					Assert.Equal("", str);
+				}
+			}
 		}
 
 		[Fact]
