@@ -91,6 +91,7 @@ namespace Sylvan.Data.Excel
 
 			public DbColumn? GetColumn(string? name, int ordinal)
 			{
+				// TODO:
 				throw new NotImplementedException();
 			}
 		}

@@ -857,6 +857,13 @@ namespace Sylvan.Data.Excel
 			throw new FormatException();
 		}
 
+		internal override DateTime GetDateTimeValue(int ordinal)
+		{
+			// only xlsx persists date values this way.
+			// in xls files date/time are always stored as formatted numeric values.
+			throw new NotSupportedException();
+		}
+
 		public override object GetValue(int ordinal)
 		{
 			int rowOffset = this.rowBatch[batchIdx].firstColIdx;
