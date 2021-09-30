@@ -54,9 +54,3 @@ do
 } while(edr.NextResult());
 
 ```
-
-## Tests
-
-Many of the tests will currently fail because they depend on larger data files that I chose to
-keep external to the repository. I intend to use a git sub-module or some other solution to keep them
-separate from this repo.
