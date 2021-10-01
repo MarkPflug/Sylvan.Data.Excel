@@ -276,12 +276,7 @@ namespace Sylvan.Data.Excel
 
 		bool NextRow()
 		{
-			if (reader!.ReadToFollowing("row", ns))
-			{
-				return true;
-			}
-
-			return false;
+			return reader!.ReadToFollowing("row", ns);
 		}
 
 		struct CellPosition
@@ -313,35 +308,14 @@ namespace Sylvan.Data.Excel
 				{
 					c = str[i];
 					var v = c - '0';
+					if ((uint)v >= 10)
+					{
+						throw new FormatException();
+					}
 					row = row * 10 + v;
 				}
 				return new CellPosition() { Column = col, Row = row - 1 };
-			}
-
-			public static int ParseCol(ReadOnlySpan<char> str, int i)
-			{
-				switch (i)
-				{
-					case 1:
-						return (int)(str[0] - 'A');
-					case 2:
-						return (int)
-							(
-								(str[0] - 'A' + 1) * 26 +
-								str[1] - 'A'
-							);
-					case 3:
-						return (int)
-							(
-								(str[0] - 'A' + 1) * 26 +
-								(str[1] - 'A' + 1) * 26 +
-								str[2] - 'A'
-							);
-
-					default:
-						throw new IOException();
-				}
-			}
+			}			
 		}
 
 		public override bool Read()
@@ -382,6 +356,7 @@ namespace Sylvan.Data.Excel
 			var ci = NumberFormatInfo.InvariantInfo;
 			XmlReader reader = this.reader!;
 			FieldInfo[] values = this.values;
+			int len;
 
 			Array.Clear(this.values, 0, this.values.Length);
 			CellPosition pos;
@@ -401,9 +376,9 @@ namespace Sylvan.Data.Excel
 					var n = reader.Name;
 					if (ReferenceEquals(n, refName))
 					{
-						//var len = reader.ReadValueChunk(valueBuffer, 0, valueBuffer.Length);
-						//pos = CellPosition.Parse(valueBuffer.AsSpan(0, len));
-						pos = CellPosition.Parse(reader.Value);
+						len = reader.ReadValueChunk(valueBuffer, 0, valueBuffer.Length);
+						pos = CellPosition.Parse(valueBuffer.AsSpan(0, len));
+						//pos = CellPosition.Parse(reader.Value);
 						if (pos.Column >= values.Length)
 						{
 							Array.Resize(ref values, pos.Column + 8);
@@ -413,12 +388,17 @@ namespace Sylvan.Data.Excel
 					else
 					if (ReferenceEquals(n, typeName))
 					{
-						var len = reader.ReadValueChunk(valueBuffer, 0, valueBuffer.Length);
+						len = reader.ReadValueChunk(valueBuffer, 0, valueBuffer.Length);
 						type = GetCellType(valueBuffer, len);
 					}
+					else
 					if (ReferenceEquals(n, styleName))
 					{
-						xfIdx = reader.ReadContentAsInt();
+						len = reader.ReadValueChunk(valueBuffer, 0, valueBuffer.Length);
+						if (!int.TryParse(valueBuffer.AsSpan(0, len), NumberStyles.Integer, ci, out xfIdx))
+						{
+							throw new FormatException();
+						}
 					}
 				}
 
@@ -443,7 +423,6 @@ namespace Sylvan.Data.Excel
 				ref FieldInfo fi = ref values[pos.Column];
 				fi.xfIdx = xfIdx;
 
-				int strLen = 0;
 				reader.MoveToElement();
 				var depth = reader.Depth;
 
@@ -454,10 +433,10 @@ namespace Sylvan.Data.Excel
 					{
 						case CellType.Numeric:
 							fi.type = ExcelDataType.Numeric;
-							strLen = reader.ReadValueChunk(valueBuffer, 0, valueBuffer.Length);
-							if (strLen < valueBuffer.Length)
+							len = reader.ReadValueChunk(valueBuffer, 0, valueBuffer.Length);
+							if (len < valueBuffer.Length)
 							{
-								fi.numValue = double.Parse(valueBuffer.AsSpan(0, strLen), NumberStyles.Float, ci);
+								fi.numValue = double.Parse(valueBuffer.AsSpan(0, len), NumberStyles.Float, ci);
 							}
 							else
 							{
@@ -465,10 +444,10 @@ namespace Sylvan.Data.Excel
 							}
 							break;
 						case CellType.Date:
-							strLen = reader.ReadValueChunk(valueBuffer, 0, valueBuffer.Length);
-							if (strLen < valueBuffer.Length)
+							len = reader.ReadValueChunk(valueBuffer, 0, valueBuffer.Length);
+							if (len < valueBuffer.Length)
 							{
-								if (!IsoDate.TryParse(valueBuffer.AsSpan(0, strLen), out fi.dtValue))
+								if (!IsoDate.TryParse(valueBuffer.AsSpan(0, len), out fi.dtValue))
 								{
 									throw new FormatException();
 								}
@@ -480,10 +459,10 @@ namespace Sylvan.Data.Excel
 							fi.type = ExcelDataType.DateTime;
 							break;
 						case CellType.SharedString:
-							strLen = reader.ReadValueChunk(valueBuffer, 0, valueBuffer.Length);
-							if (strLen >= valueBuffer.Length)
+							len = reader.ReadValueChunk(valueBuffer, 0, valueBuffer.Length);
+							if (len >= valueBuffer.Length)
 								throw new FormatException();
-							var strIdx = int.Parse(valueBuffer.AsSpan(0, strLen), NumberStyles.Integer, ci);
+							var strIdx = int.Parse(valueBuffer.AsSpan(0, len), NumberStyles.Integer, ci);
 							fi.strValue = ss.GetString(strIdx);
 							fi.type = ExcelDataType.String;
 							break;

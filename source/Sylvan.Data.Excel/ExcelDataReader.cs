@@ -205,7 +205,7 @@ namespace Sylvan.Data.Excel
 						? dt
 						: throw new FormatException();
 				case ExcelDataType.DateTime:
-					return GetDateTime(ordinal);
+					return GetDateTimeValue(ordinal);
 				case ExcelDataType.String:
 				default:
 					var str = GetString(ordinal);
