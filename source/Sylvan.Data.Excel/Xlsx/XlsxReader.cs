@@ -5,6 +5,7 @@ using System.Data.Common;
 using System.Globalization;
 using System.IO;
 using System.IO.Compression;
+using System.Text;
 using System.Xml;
 
 namespace Sylvan.Data.Excel
@@ -37,6 +38,7 @@ namespace Sylvan.Data.Excel
 			public ExcelDataType type;
 			public string strValue;
 			public double numValue;
+			public DateTime dtValue;
 			public int xfIdx;
 		}
 
@@ -49,6 +51,8 @@ namespace Sylvan.Data.Excel
 			this.values = Array.Empty<FieldInfo>();
 			this.headers = Array.Empty<string>();
 			this.schema = opts.Schema;
+
+			this.refName = this.styleName = this.typeName = string.Empty;
 
 			this.stream = iStream;
 			package = new ZipArchive(iStream, ZipArchiveMode.Read);
@@ -113,15 +117,26 @@ namespace Sylvan.Data.Excel
 					}
 
 					XmlElement xfsElem = (XmlElement)doc.SelectSingleNode("/x:styleSheet/x:cellXfs", nsm);
-					var c = int.Parse(xfsElem.GetAttribute("count"));
-					this.xfMap = new int[c];
-					int idx = 0;
-					foreach (XmlElement xf in xfsElem.ChildNodes)
+					if (xfsElem != null)
 					{
-						var id = int.Parse(xf.GetAttribute("numFmtId"));
-						var apply = xf.HasAttribute("applyNumberFormat");
-						xfMap[idx] = apply ? id : 0;
-						idx++;
+						var c =
+							xfsElem.HasAttribute("count")
+							? int.Parse(xfsElem.GetAttribute("count"))
+							: 0;
+
+						this.xfMap = new int[c];
+						int idx = 0;
+						foreach (XmlElement xf in xfsElem.ChildNodes)
+						{
+							var id = int.Parse(xf.GetAttribute("numFmtId"));
+							var apply = xf.HasAttribute("applyNumberFormat");
+							xfMap[idx] = apply ? id : 0;
+							idx++;
+						}
+					}
+					else
+					{
+						this.xfMap = Array.Empty<int>();
 					}
 				}
 			}
@@ -145,11 +160,18 @@ namespace Sylvan.Data.Excel
 
 		XmlReaderSettings settings = new XmlReaderSettings()
 		{
-			CheckCharacters = false
+			CheckCharacters = false,
+			ValidationType = ValidationType.None,
+			ValidationFlags = System.Xml.Schema.XmlSchemaValidationFlags.None,
 		};
 
 		const string sheetNS = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
 		string ns;
+
+
+		string refName;
+		string typeName;
+		string styleName;
 
 		public override bool NextResult()
 		{
@@ -161,7 +183,12 @@ namespace Sylvan.Data.Excel
 				return false;
 			this.stream = sheetPart.Open();
 
-			this.reader = XmlReader.Create(stream, settings);
+			var tr = new StreamReader(this.stream, Encoding.Default, true, 0x10000);
+
+			this.reader = XmlReader.Create(tr, settings);
+			refName = this.reader.NameTable.Add("r");
+			typeName = this.reader.NameTable.Add("t");
+			styleName = this.reader.NameTable.Add("s");
 
 			// worksheet
 			while (!reader.IsStartElement("worksheet") && reader.Read()) ;
@@ -182,7 +209,7 @@ namespace Sylvan.Data.Excel
 				}
 			}
 
-			this.hasRows = InitializeSheet();			
+			this.hasRows = InitializeSheet();
 			return true;
 		}
 
@@ -249,12 +276,7 @@ namespace Sylvan.Data.Excel
 
 		bool NextRow()
 		{
-			if (reader!.ReadToFollowing("row", ns))
-			{
-				return true;
-			}
-
-			return false;
+			return reader!.ReadToFollowing("row", ns);
 		}
 
 		struct CellPosition
@@ -286,35 +308,14 @@ namespace Sylvan.Data.Excel
 				{
 					c = str[i];
 					var v = c - '0';
+					if ((uint)v >= 10)
+					{
+						throw new FormatException();
+					}
 					row = row * 10 + v;
 				}
-				return new CellPosition() { Column = col, Row = row - 1};
-			}
-
-			public static int ParseCol(ReadOnlySpan<char> str, int i)
-			{
-				switch (i)
-				{
-					case 1:
-						return (int)(str[0] - 'A');
-					case 2:
-						return (int)
-							(
-								(str[0] - 'A' + 1) * 26 +
-								str[1] - 'A'
-							);
-					case 3:
-						return (int)
-							(
-								(str[0] - 'A' + 1) * 26 +
-								(str[1] - 'A' + 1) * 26 +
-								str[2] - 'A'
-							);
-
-					default:
-						throw new IOException();
-				}
-			}
+				return new CellPosition() { Column = col, Row = row - 1 };
+			}			
 		}
 
 		public override bool Read()
@@ -352,9 +353,10 @@ namespace Sylvan.Data.Excel
 
 		int ParseRowValues()
 		{
-			var ci = CultureInfo.InvariantCulture;
+			var ci = NumberFormatInfo.InvariantInfo;
 			XmlReader reader = this.reader!;
 			FieldInfo[] values = this.values;
+			int len;
 
 			Array.Clear(this.values, 0, this.values.Length);
 			CellPosition pos;
@@ -365,16 +367,40 @@ namespace Sylvan.Data.Excel
 
 			do
 			{
-				reader.MoveToAttribute("r");
-				int len = reader.ReadValueChunk(valueBuffer, 0, valueBuffer.Length);
-				pos = CellPosition.Parse(valueBuffer.AsSpan(0, len));
-				if (pos.Column >= values.Length)
-				{
-					Array.Resize(ref values, pos.Column + 8);
-					this.values = values;
-				}
-
+				pos.Column = 0;
+				pos.Row = 0;
 				CellType type = CellType.Numeric;
+				int xfIdx = 0;
+				while (reader.MoveToNextAttribute())
+				{
+					var n = reader.Name;
+					if (ReferenceEquals(n, refName))
+					{
+						len = reader.ReadValueChunk(valueBuffer, 0, valueBuffer.Length);
+						pos = CellPosition.Parse(valueBuffer.AsSpan(0, len));
+						//pos = CellPosition.Parse(reader.Value);
+						if (pos.Column >= values.Length)
+						{
+							Array.Resize(ref values, pos.Column + 8);
+							this.values = values;
+						}
+					}
+					else
+					if (ReferenceEquals(n, typeName))
+					{
+						len = reader.ReadValueChunk(valueBuffer, 0, valueBuffer.Length);
+						type = GetCellType(valueBuffer, len);
+					}
+					else
+					if (ReferenceEquals(n, styleName))
+					{
+						len = reader.ReadValueChunk(valueBuffer, 0, valueBuffer.Length);
+						if (!int.TryParse(valueBuffer.AsSpan(0, len), NumberStyles.Integer, ci, out xfIdx))
+						{
+							throw new FormatException();
+						}
+					}
+				}
 
 				static CellType GetCellType(char[] b, int l)
 				{
@@ -386,52 +412,57 @@ namespace Sylvan.Data.Excel
 							return CellType.Error;
 						case 's':
 							return l == 1 ? CellType.SharedString : CellType.String;
+						case 'd':
+							return CellType.Date;
+						default:
+							// TODO:
+							throw new NotSupportedException();
 					}
-					throw new NotSupportedException();
 				}
 
 				ref FieldInfo fi = ref values[pos.Column];
-
-				bool exists = reader.MoveToAttribute("t");
-				if (exists)
-				{
-					len = reader.ReadValueChunk(valueBuffer, 0, valueBuffer.Length);
-
-					type = GetCellType(valueBuffer, len);
-				}
-
-				exists = reader.MoveToAttribute("s");
-				int xfIdx = 0;
-				if (exists)
-				{
-					xfIdx = reader.ReadContentAsInt();
-				}
 				fi.xfIdx = xfIdx;
 
-				int strLen;
 				reader.MoveToElement();
+				var depth = reader.Depth;
 
 				if (reader.ReadToDescendant("v"))
 				{
 					reader.Read();
-					fi.xfIdx = xfIdx;
 					switch (type)
 					{
 						case CellType.Numeric:
-							strLen = reader.ReadValueChunk(valueBuffer, 0, valueBuffer.Length);
-							if (strLen < valueBuffer.Length)
+							fi.type = ExcelDataType.Numeric;
+							len = reader.ReadValueChunk(valueBuffer, 0, valueBuffer.Length);
+							if (len < valueBuffer.Length)
 							{
-								fi.numValue = double.Parse(valueBuffer.AsSpan(0, strLen), provider: ci);
+								fi.numValue = double.Parse(valueBuffer.AsSpan(0, len), NumberStyles.Float, ci);
 							}
 							else
 							{
-								fi.numValue = double.Parse(reader.ReadContentAsString(), ci);
+								fi.numValue = double.Parse(reader.ReadContentAsString(), NumberStyles.Float, ci);
 							}
-							fi.type = ExcelDataType.Numeric;
+							break;
+						case CellType.Date:
+							len = reader.ReadValueChunk(valueBuffer, 0, valueBuffer.Length);
+							if (len < valueBuffer.Length)
+							{
+								if (!IsoDate.TryParse(valueBuffer.AsSpan(0, len), out fi.dtValue))
+								{
+									throw new FormatException();
+								}
+							}
+							else
+							{
+								throw new FormatException();
+							}
+							fi.type = ExcelDataType.DateTime;
 							break;
 						case CellType.SharedString:
-							strLen = reader.ReadValueChunk(valueBuffer, 0, valueBuffer.Length);
-							var strIdx = int.Parse(valueBuffer.AsSpan(0, strLen), provider: ci);
+							len = reader.ReadValueChunk(valueBuffer, 0, valueBuffer.Length);
+							if (len >= valueBuffer.Length)
+								throw new FormatException();
+							var strIdx = int.Parse(valueBuffer.AsSpan(0, len), NumberStyles.Integer, ci);
 							fi.strValue = ss.GetString(strIdx);
 							fi.type = ExcelDataType.String;
 							break;
@@ -451,14 +482,11 @@ namespace Sylvan.Data.Excel
 							throw new InvalidDataException();
 					}
 				}
-				do
+
+				while (reader.Depth > depth)
 				{
-					var t = reader.NodeType;
-					if ((t == XmlNodeType.EndElement || t == XmlNodeType.Element) && reader.LocalName == "c")
-					{
-						break;
-					}
-				} while (reader.Read());
+					reader.Read();
+				}
 
 			} while (reader.ReadToNextSibling("c", ns));
 			this.parsedRow = pos.Row;
@@ -472,6 +500,7 @@ namespace Sylvan.Data.Excel
 			SharedString,
 			Boolean,
 			Error,
+			Date,
 		}
 
 		public override string GetName(int ordinal)
@@ -562,6 +591,11 @@ namespace Sylvan.Data.Excel
 			throw new InvalidCastException();
 		}
 
+		internal override DateTime GetDateTimeValue(int ordinal)
+		{
+			return this.values[ordinal].dtValue;
+		}
+
 		public override double GetDouble(int ordinal)
 		{
 			if (rowNumber == parsedRow)
@@ -588,7 +622,7 @@ namespace Sylvan.Data.Excel
 
 		public override string GetString(int ordinal)
 		{
-			if(rowNumber < parsedRow)
+			if (rowNumber < parsedRow)
 			{
 				return string.Empty;
 			}
@@ -607,7 +641,7 @@ namespace Sylvan.Data.Excel
 
 		string FormatVal(int xfIdx, double val)
 		{
-			var fmtIdx = this.xfMap[xfIdx];
+			var fmtIdx = xfIdx >= this.xfMap.Length ? -1 : this.xfMap[xfIdx];
 			if (fmtIdx == -1)
 			{
 				return val.ToString();
@@ -661,9 +695,10 @@ namespace Sylvan.Data.Excel
 		{
 			var fi = values[ordinal];
 			var idx = fi.xfIdx;
-			
-			idx = idx == -1 ? 0 : xfMap[idx];
-			if(this.formats.TryGetValue(idx, out var fmt)) {
+
+			idx = idx <= 0 ? 0 : xfMap[idx];
+			if (this.formats.TryGetValue(idx, out var fmt))
+			{
 				return fmt;
 			}
 			return null;

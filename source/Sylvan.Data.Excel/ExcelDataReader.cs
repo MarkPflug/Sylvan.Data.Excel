@@ -6,19 +6,51 @@ using System.IO;
 
 namespace Sylvan.Data.Excel
 {
+
+	/// <summary>
+	/// The type of workbook.
+	/// </summary>
 	public enum ExcelWorkbookType
 	{
+		/// <summary>
+		/// An .xls file.
+		/// </summary>
 		Excel,
+		/// <summary>
+		/// An .xlsx file.
+		/// </summary>
 		OpenExcel,
-		OpenExcelBinary,
+		///// <summary>
+		///// An .xslb file.
+		///// </summary>
+		//OpenExcelBinary,
 	}
 
+	/// <summary>
+	/// Represents in internal data types supported by Excel.
+	/// </summary>
 	public enum ExcelDataType
 	{
 		Null = 0,
+		/// <summary>
+		/// A numeric value. This is also used to represent DateTime values.
+		/// </summary>
 		Numeric,
+		/// <summary>
+		/// A DateTime value. This is an uncommonly used representation in .xlsx files.
+		/// </summary>
+		DateTime,
+		/// <summary>
+		/// A text field.
+		/// </summary>
 		String,
+		/// <summary>
+		/// A formula cell that contains a boolean.
+		/// </summary>
 		Boolean,
+		/// <summary>
+		/// A formula cell that contains an error.
+		/// </summary>
 		Error,
 	}
 
@@ -61,8 +93,7 @@ namespace Sylvan.Data.Excel
 
 			if (StringComparer.OrdinalIgnoreCase.Equals(".xls", ext))
 			{
-				var s = File.OpenRead(filename);
-				//var s = new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.Read, 0x100000);
+				var s = new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.Read, 1);
 				var pkg = new Ole2Package(s);
 				var part = pkg.GetEntry("Workbook\0");
 				if (part == null)
@@ -73,7 +104,7 @@ namespace Sylvan.Data.Excel
 
 			if (StringComparer.OrdinalIgnoreCase.Equals(".xlsx", ext))
 			{
-				var s = new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.Read, 0x10000);
+				var s = new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.Read, 1);
 				return new XlsxWorkbookReader(s, options);
 			}
 			throw new NotSupportedException();
@@ -173,12 +204,16 @@ namespace Sylvan.Data.Excel
 					return TryGetDate(val, DateEpochYear, out var dt)
 						? dt
 						: throw new FormatException();
+				case ExcelDataType.DateTime:
+					return GetDateTimeValue(ordinal);
 				case ExcelDataType.String:
 				default:
 					var str = GetString(ordinal);
 					return DateTime.Parse(str);
 			}
 		}
+
+		internal abstract DateTime GetDateTimeValue(int ordinal);
 
 		internal static bool TryGetDate(double value, int epoch, out DateTime dt)
 		{
