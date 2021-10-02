@@ -276,7 +276,7 @@ namespace Sylvan.Data.Excel
 
 		bool NextRow()
 		{
-			return reader!.ReadToFollowing("row", ns);
+			return reader!.ReadToFollowing("row");
 		}
 
 		struct CellPosition
@@ -359,16 +359,14 @@ namespace Sylvan.Data.Excel
 			int len;
 
 			Array.Clear(this.values, 0, this.values.Length);
-			CellPosition pos;
-			if (!reader.ReadToDescendant("c", ns))
+			CellPosition pos = default;
+			if (!reader.ReadToDescendant("c"))
 			{
 				return 0;
 			}
 
 			do
 			{
-				pos.Column = 0;
-				pos.Row = 0;
 				CellType type = CellType.Numeric;
 				int xfIdx = 0;
 				while (reader.MoveToNextAttribute())
@@ -488,7 +486,7 @@ namespace Sylvan.Data.Excel
 					reader.Read();
 				}
 
-			} while (reader.ReadToNextSibling("c", ns));
+			} while (reader.ReadToNextSibling("c"));
 			this.parsedRow = pos.Row;
 			return pos.Column + 1;
 		}
@@ -740,30 +738,27 @@ namespace Sylvan.Data.Excel
 
 		public SharedStrings(XmlReader reader)
 		{
-			bool s;
 			while (!reader.IsStartElement("sst") && reader.Read()) ;
-			var ns = reader.NamespaceURI;
 
 			string countStr = reader.GetAttribute("uniqueCount")!;
-			var count = 0;
 			if (countStr == null)
 			{
 				stringData = Array.Empty<string>();
 				return;
 			}
-			s = reader.Read();
+			reader.Read();
 
-			count = int.Parse(countStr);
+			var count = int.Parse(countStr);
 			this.count = count;
 			this.stringData = new string[this.count];
 
 			for (int i = 0; i < count; i++)
 			{
-				reader.ReadStartElement("si", ns);
+				reader.ReadStartElement("si");
 
 				var empty = reader.IsEmptyElement;
 
-				reader.ReadStartElement("t", ns);
+				reader.ReadStartElement("t");
 				var str = empty ? "" : reader.ReadContentAsString();
 				this.stringData[i] = str;
 				if (!empty)
