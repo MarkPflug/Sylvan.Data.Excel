@@ -3,7 +3,7 @@
   <PropertyGroup>
     <TargetFramework>netstandard2.1</TargetFramework>
     <VersionPrefix>0.1.0</VersionPrefix>
-    <VersionSuffix>B0004</VersionSuffix>
+    <VersionSuffix>B0005</VersionSuffix>
     <Description>A .NET library for reading Excel data files.</Description>
     <PackageTags>excel;xls;xlsx;datareader</PackageTags>
     <Nullable>enable</Nullable>
