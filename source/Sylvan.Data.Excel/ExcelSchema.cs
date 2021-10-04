@@ -31,7 +31,6 @@ namespace Sylvan.Data.Excel
 		{
 			var name = hasHeaders ? columName : ExcelSchema.GetExcelColumnName(ordinal);
 			return new DefaultExcelSchemaColumn(name);
-
 		}
 
 		public bool HasHeaders(string sheetName)
@@ -40,7 +39,10 @@ namespace Sylvan.Data.Excel
 		}
 	}
 
-	public class ExcelSchema : IExcelSchemaProvider
+	/// <summary>
+	/// An implementation of IExcelSchemaProvider that allows defining per-column types.
+	/// </summary>
+	public sealed class ExcelSchema : IExcelSchemaProvider
 	{
 		/// <summary>
 		/// A schema that expects each sheet to have a header row, and describes
@@ -66,11 +68,19 @@ namespace Sylvan.Data.Excel
 		Dictionary<string, SheetInfo>? sheets;
 		SheetInfo? defaultSchema;
 
+		/// <summary>
+		/// Creates a new ExcelSchema instance.
+		/// </summary>
+		/// <param name="hasHeaders">Indicates if the sheet contains a header row.</param>
+		/// <param name="columns">The schema column definitions for the sheet.</param>
 		public ExcelSchema(bool hasHeaders, IEnumerable<DbColumn> columns)
 		{
 			this.defaultSchema = new SheetInfo(string.Empty, hasHeaders, columns);
 		}
 
+		/// <summary>
+		/// Creates a new ExcelSchema instance.
+		/// </summary>
 		public ExcelSchema()
 		{
 			this.defaultSchema = null;
@@ -96,6 +106,13 @@ namespace Sylvan.Data.Excel
 			}
 		}
 
+		/// <summary>
+		/// Adds a schema for a specific sheet.
+		/// </summary>
+		/// <param name="sheetName">The name of the sheet the schema applies to.</param>
+		/// <param name="hasHeaders">Incidates if the sheet has a header row.</param>
+		/// <param name="columns">The schema column definitions for the sheet.</param>
+		/// <exception cref="ArgumentNullException">If the sheet name is null.</exception>
 		public ExcelSchema Add(string sheetName, bool hasHeaders, IEnumerable<DbColumn> columns)
 		{
 			if (sheetName == null) throw new ArgumentNullException(nameof(sheetName));
@@ -107,6 +124,7 @@ namespace Sylvan.Data.Excel
 			return this;
 		}
 
+		/// <inheritdoc/>
 		public DbColumn? GetColumn(string sheetName, string? columnName, int ordinal)
 		{
 			if (sheets != null)
@@ -135,6 +153,7 @@ namespace Sylvan.Data.Excel
 			return DefaultExcelSchema.DefaultColumnSchema;
 		}
 
+		/// <inheritdoc/>
 		public bool HasHeaders(string sheetName)
 		{
 			if (sheets != null && sheets.TryGetValue(sheetName, out SheetInfo? info))

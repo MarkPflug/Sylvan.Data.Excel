@@ -44,6 +44,8 @@ namespace Sylvan.Data.Excel
 
 		public override int RowCount => rowCount;
 
+		public override ExcelWorkbookType WorkbookType => ExcelWorkbookType.ExcelXml;
+
 		public XlsxWorkbookReader(Stream iStream, ExcelDataReaderOptions opts)
 		{
 			this.colCount = 0;
