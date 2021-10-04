@@ -6,108 +6,60 @@ using System.IO;
 
 namespace Sylvan.Data.Excel
 {
-
 	/// <summary>
-	/// The type of workbook.
+	/// A DbDataReader implementation that reads data from an Excel file.
 	/// </summary>
-	public enum ExcelWorkbookType
-	{
-		/// <summary>
-		/// An .xls file.
-		/// </summary>
-		Excel,
-		/// <summary>
-		/// An .xlsx file.
-		/// </summary>
-		OpenExcel,
-		///// <summary>
-		///// An .xslb file.
-		///// </summary>
-		//OpenExcelBinary,
-	}
-
-	/// <summary>
-	/// Represents in internal data types supported by Excel.
-	/// </summary>
-	public enum ExcelDataType
-	{
-		Null = 0,
-		/// <summary>
-		/// A numeric value. This is also used to represent DateTime values.
-		/// </summary>
-		Numeric,
-		/// <summary>
-		/// A DateTime value. This is an uncommonly used representation in .xlsx files.
-		/// </summary>
-		DateTime,
-		/// <summary>
-		/// A text field.
-		/// </summary>
-		String,
-		/// <summary>
-		/// A formula cell that contains a boolean.
-		/// </summary>
-		Boolean,
-		/// <summary>
-		/// A formula cell that contains an error.
-		/// </summary>
-		Error,
-	}
-
-	public sealed class ExcelDataReaderOptions
-	{
-		internal static readonly ExcelDataReaderOptions Default = new ExcelDataReaderOptions();
-
-		public ExcelDataReaderOptions()
-		{
-			this.Schema = ExcelSchema.Default;
-			this.GetNullAsEmptyString = true;
-		}
-
-		public IExcelSchemaProvider Schema { get; set; }
-
-		/// <summary>
-		/// Indicates if GetString will return an emtpy string
-		/// when the underlying value is null. If false, GetString
-		/// will throw an exception when the underlying value is null.
-		/// The default is true.
-		/// </summary>
-		public bool GetNullAsEmptyString { get; set; }
-
-		/// <summary>
-		/// Indicates if GetString will throw an ExcelFormulaException or return a string value
-		/// when accesing a cell containing a formula error.
-		/// </summary>
-		public bool GetErrorAsNull { get; set; }
-	}
-
 	public abstract class ExcelDataReader : DbDataReader, IDisposable, IDbColumnSchemaGenerator
 	{
-		public static long counter = 0;
-
+		/// <summary>
+		/// Creates a new ExcelDataReader.
+		/// </summary>
+		/// <param name="filename">The name of the file to open.</param>
+		/// <param name="options">An optional ExcelDataReaderOptions instance.</param>
+		/// <returns>The ExcelDataReader.</returns>
+		/// <exception cref="ArgumentException">If the filename refers to a file of an unknown type.</exception>
 		public static ExcelDataReader Create(string filename, ExcelDataReaderOptions? options = null)
+		{
+			var ext = Path.GetExtension(filename);
+			var s = new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.Read, 1);
+			switch(ext)
+			{
+				case ".xls":
+					return Create(s, ExcelWorkbookType.Excel, options);
+				case ".xlsx":
+				case ".xlsm":
+					return Create(s, ExcelWorkbookType.ExcelXml, options);
+				default:
+					s.Close();
+					throw new ArgumentException(nameof(filename));
+			}
+		}
+
+		/// <summary>
+		/// Creates a new ExcelDataReader instance.
+		/// </summary>
+		/// <param name="stream">A stream containing the Excel file contents. </param>
+		/// <param name="fileType">The type of file represented by the stream.</param>
+		/// <param name="options">An optional ExcelDataReaderOptions instance.</param>
+		/// <returns>The ExcelDataReader.</returns>
+		public static ExcelDataReader Create(Stream stream, ExcelWorkbookType fileType, ExcelDataReaderOptions? options = null)
 		{
 			options = options ?? ExcelDataReaderOptions.Default;
 
-			var ext = Path.GetExtension(filename);
-
-			if (StringComparer.OrdinalIgnoreCase.Equals(".xls", ext))
+			switch(fileType)
 			{
-				var s = new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.Read, 1);
-				var pkg = new Ole2Package(s);
-				var part = pkg.GetEntry("Workbook\0");
-				if (part == null)
-					throw new InvalidDataException();
-				var ps = part.Open();
-				return XlsWorkbookReader.CreateAsync(ps, options).GetAwaiter().GetResult();
+				case ExcelWorkbookType.Excel:
+					var pkg = new Ole2Package(stream);
+					var part = pkg.GetEntry("Workbook\0");
+					if (part == null)
+						throw new InvalidDataException();
+					var ps = part.Open();
+					return XlsWorkbookReader.CreateAsync(ps, options).GetAwaiter().GetResult();
+				case ExcelWorkbookType.ExcelXml:
+					return new XlsxWorkbookReader(stream, options);
+				default:
+					throw new ArgumentException(nameof(fileType));
 			}
-
-			if (StringComparer.OrdinalIgnoreCase.Equals(".xlsx", ext))
-			{
-				var s = new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.Read, 1);
-				return new XlsxWorkbookReader(s, options);
-			}
-			throw new NotSupportedException();
 		}
 
 		/// <summary>
@@ -119,6 +71,11 @@ namespace Sylvan.Data.Excel
 		/// Gets the name of the current worksheet.
 		/// </summary>
 		public abstract string WorksheetName { get; }
+
+		/// <summary>
+		/// Gets the type of workbook being read.
+		/// </summary>
+		public abstract ExcelWorkbookType WorkbookType { get; }
 
 		/// <summary>
 		/// Gets the number of rows in the current sheet.
@@ -142,8 +99,12 @@ namespace Sylvan.Data.Excel
 		/// <returns>An ExcelDataType.</returns>
 		public abstract ExcelDataType GetExcelDataType(int ordinal);
 
+		/// <summary>
+		/// Gets the column schema
+		/// </summary>
 		public abstract ReadOnlyCollection<DbColumn> GetColumnSchema();
 
+		/// <inheritdoc/>
 		public sealed override int GetValues(object[] values)
 		{
 			var c = Math.Min(values.Length, this.FieldCount);
@@ -155,31 +116,50 @@ namespace Sylvan.Data.Excel
 			return c;
 		}
 
+		/// <inheritdoc/>
 		public sealed override IEnumerator GetEnumerator()
 		{
 			throw new NotSupportedException();
 		}
 
+		/// <inheritdoc/>
 		public sealed override int Depth => 0;
 
+		/// <inheritdoc/>
 		public sealed override object this[int ordinal] => this.GetValue(ordinal);
+		
+		/// <inheritdoc/>
 		public sealed override object this[string name] => this.GetValue(this.GetOrdinal(name));
 
+		/// <inheritdoc/>
 		public sealed override string GetDataTypeName(int ordinal)
 		{
 			return this.GetFieldType(ordinal).Name;
 		}
 
+		/// <inheritdoc/>
 		public sealed override int RecordsAffected => 0;
 
+		/// <inheritdoc/>
 		public sealed override bool HasRows => this.RowCount != 0;
 
 		internal abstract int DateEpochYear { get; }
 
+		/// <summary>
+		/// Gets the <see cref="ExcelErrorCode"/> of the error in the given cell.
+		/// </summary>
 		public abstract ExcelErrorCode GetFormulaError(int ordinal);
 
+		/// <summary>
+		/// Gets the <see cref="ExcelFormat"/> of the format for the given cell.
+		/// </summary>
+		/// <param name="ordinal"></param>
+		/// <returns></returns>
 		public abstract ExcelFormat? GetFormat(int ordinal);
 
+		/// <summary>
+		/// Gets the number of the current row being read.
+		/// </summary>
 		public abstract int RowNumber { get; }
 
 		/// <summary>
@@ -253,11 +233,13 @@ namespace Sylvan.Data.Excel
 		/// <returns>A string representing the value of the column.</returns>
 		public abstract override string GetString(int ordinal);
 
+		/// <inheritdoc/>
 		public override float GetFloat(int ordinal)
 		{
 			return (float)GetDouble(ordinal);
 		}
 
+		/// <inheritdoc/>
 		public override short GetInt16(int ordinal)
 		{
 			var i = GetInt32(ordinal);
@@ -267,6 +249,7 @@ namespace Sylvan.Data.Excel
 				: throw new InvalidCastException();
 		}
 
+		/// <inheritdoc/>
 		public override int GetInt32(int ordinal)
 		{
 			var type = GetExcelDataType(ordinal);
@@ -285,6 +268,7 @@ namespace Sylvan.Data.Excel
 			throw new InvalidCastException();
 		}
 
+		/// <inheritdoc/>
 		public override long GetInt64(int ordinal)
 		{
 			var type = GetExcelDataType(ordinal);
@@ -303,6 +287,7 @@ namespace Sylvan.Data.Excel
 			throw new InvalidCastException();
 		}
 
+		/// <inheritdoc/>
 		public override decimal GetDecimal(int ordinal)
 		{
 			try
@@ -315,6 +300,7 @@ namespace Sylvan.Data.Excel
 			}
 		}
 
+		/// <inheritdoc/>
 		public sealed override Guid GetGuid(int ordinal)
 		{
 			var val = this.GetString(ordinal);
@@ -323,31 +309,37 @@ namespace Sylvan.Data.Excel
 				: throw new InvalidCastException();
 		}
 
+		/// <inheritdoc/>
 		public sealed override byte GetByte(int ordinal)
 		{
 			throw new NotSupportedException();
 		}
 
+		/// <inheritdoc/>
 		public sealed override long GetBytes(int ordinal, long dataOffset, byte[]? buffer, int bufferOffset, int length)
 		{
 			throw new NotSupportedException();
 		}
 
+		/// <inheritdoc/>
 		public sealed override char GetChar(int ordinal)
 		{
 			throw new NotSupportedException();
 		}
 
+		/// <inheritdoc/>
 		public sealed override long GetChars(int ordinal, long dataOffset, char[]? buffer, int bufferOffset, int length)
 		{
 			throw new NotSupportedException();
 		}
 
+		/// <inheritdoc/>
 		public sealed override Stream GetStream(int ordinal)
 		{
 			throw new NotSupportedException();
 		}
 
+		/// <inheritdoc/>
 		public sealed override TextReader GetTextReader(int ordinal)
 		{
 			throw new NotSupportedException();

@@ -88,6 +88,8 @@ namespace Sylvan.Data.Excel
 
 		public override int WorksheetCount => this.sheets.Count;
 
+		public override ExcelWorkbookType WorkbookType => ExcelWorkbookType.Excel;
+
 		public override string WorksheetName
 		{
 			get
@@ -120,7 +122,6 @@ namespace Sylvan.Data.Excel
 				return (ExcelErrorCode)cell.val;
 			throw new InvalidOperationException();
 		}
-
 
 		public override int RowNumber => rowNumber;
 
@@ -301,7 +302,7 @@ namespace Sylvan.Data.Excel
 				if (reader.Type == RecordType.BOF)
 				{
 					BOFType type = ReadBOF();
-					switch(type)
+					switch (type)
 					{
 						case BOFType.Worksheet:
 						case BOFType.Biff4MacroSheet:
@@ -312,8 +313,8 @@ namespace Sylvan.Data.Excel
 			}
 			throw new InvalidDataException();//"Expected sheetBOF"
 
-			go:			
-			
+		go:
+
 			//if (type != BOFType.Worksheet)
 			//	throw new InvalidDataException("unexpected object type, expected sheet.");
 
@@ -340,7 +341,7 @@ namespace Sylvan.Data.Excel
 						break;
 				}
 			}
-			done:
+		done:
 			await NextRowBatch().ConfigureAwait(false);
 
 			return LoadSchema();
@@ -843,7 +844,7 @@ namespace Sylvan.Data.Excel
 
 		public override double GetDouble(int ordinal)
 		{
-			ref var cell = ref GetCell (ordinal);
+			ref var cell = ref GetCell(ordinal);
 			switch (cell.type)
 			{
 				case CellType.String:
@@ -1101,7 +1102,7 @@ namespace Sylvan.Data.Excel
 			String,
 			Double,
 			Boolean,
-			Error,			
+			Error,
 		}
 	}
 }

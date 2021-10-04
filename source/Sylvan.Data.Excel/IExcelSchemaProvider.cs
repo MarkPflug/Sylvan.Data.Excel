@@ -2,6 +2,10 @@
 
 namespace Sylvan.Data.Excel
 {
+
+	/// <summary>
+	/// Provides schema information for an Excel data file.
+	/// </summary>
 	public interface IExcelSchemaProvider
 	{
 		/// <summary>
