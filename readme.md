@@ -1,11 +1,11 @@
 # Sylvan.Data.Excel
 
-The .NET library for reading Excel data files in .xls and .xlsx format.
+The cross-platform .NET library for reading Excel data files in .xls and .xlsx format.
 Provides readonly, row by row, forward-only access to the data.
 There is no support for creating or editing Excel files.
 Provides a familiar API via `DbDataReader`, which is ideal for accessing rectangular, tabular data sets.
 
-Supports .xls and .xlsx formats.
+This library is currently the [fastest and lowest allocating](https://github.com/MarkPflug/Benchmarks/blob/main/docs/ExcelBenchmarks.md) library for reading Excel data files in the .NET ecosystem.
 
 ## Installing
 
@@ -15,7 +15,7 @@ to fix an issue unless an Excel file exhibiting the problem is provided with the
 
 [Sylvan.Data.Excel Nuget Package](https://www.nuget.org/packages/Sylvan.Data.Excel/)
 
-`Install-Package Sylvan.Data.Excel -IncludePrerelease`
+`Install-Package Sylvan.Data.Excel`
 
 ## Basic Usage
 ```C#
