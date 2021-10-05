@@ -143,7 +143,6 @@ namespace Sylvan.Data.Excel
 				}
 			}
 
-			this.ns = sheetNS;
 			NextResult();
 		}
 		Dictionary<int, ExcelFormat> formats;
@@ -168,8 +167,6 @@ namespace Sylvan.Data.Excel
 		};
 
 		const string sheetNS = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
-		string ns;
-
 
 		string refName;
 		string typeName;
@@ -193,8 +190,10 @@ namespace Sylvan.Data.Excel
 			styleName = this.reader.NameTable.Add("s");
 
 			// worksheet
-			while (!reader.IsStartElement("worksheet") && reader.Read()) ;
-			this.ns = reader.NamespaceURI;
+			while (!reader.IsStartElement("worksheet") && reader.Read())
+			{
+			}
+
 			while (reader.Read())
 			{
 				if (reader.NodeType == XmlNodeType.Element)
@@ -635,6 +634,8 @@ namespace Sylvan.Data.Excel
 					return fi.strValue[0] == '0' ? "FALSE" : "TRUE";
 				case ExcelDataType.Numeric:
 					return FormatVal(fi.xfIdx, fi.numValue);
+				case ExcelDataType.DateTime:
+					return IsoDate.ToStringIso(fi.dtValue);
 			}
 			return fi.strValue;
 		}
@@ -672,6 +673,8 @@ namespace Sylvan.Data.Excel
 					return GetDouble(ordinal);
 				case ExcelDataType.String:
 					return GetString(ordinal);
+				case ExcelDataType.DateTime:
+					return GetDateTime(ordinal);
 			}
 			throw new NotSupportedException();
 		}
