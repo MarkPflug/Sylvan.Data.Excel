@@ -101,8 +101,24 @@ namespace Sylvan.Data.Excel
 
 			public DbColumn? GetColumn(string? name, int ordinal)
 			{
-				// TODO:
-				throw new NotImplementedException();
+				if (name != null)
+				{
+					foreach (var col in Columns)
+					{
+						if (StringComparer.OrdinalIgnoreCase.Equals(col.ColumnName, name))
+						{
+							return col;
+						}
+					}
+				}
+				else
+				{
+					if (ordinal < Columns.Length)
+					{
+						return Columns[ordinal];
+					}
+				}
+				return null;
 			}
 		}
 

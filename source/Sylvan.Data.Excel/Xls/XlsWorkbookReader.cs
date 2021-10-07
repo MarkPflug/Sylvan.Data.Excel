@@ -194,13 +194,14 @@ namespace Sylvan.Data.Excel
 					return false;
 				}
 			}
+			
 			rowNumber++;
-			return true;
+			return rowBatch[batchIdx].anyPopulated;
 		}
 
 		public override bool Read()
 		{
-			return ReadAsync().GetAwaiter().GetResult();
+			return ReadAsync(CancellationToken.None).GetAwaiter().GetResult();
 		}
 
 		public override string GetName(int ordinal)
@@ -451,7 +452,7 @@ namespace Sylvan.Data.Excel
 				int rk = reader.ReadInt32();
 
 				double rkVal = RKVal(rk);
-				SetRowData(rowIdx, colIdx++, rkVal, ixfe);
+				SetRowData(rowIdx, colIdx++, new CellData(rkVal, ixfe));
 			}
 		}
 
@@ -461,7 +462,7 @@ namespace Sylvan.Data.Excel
 			int colIdx = reader.ReadUInt16();
 			int xfIdx = reader.ReadUInt16();
 			string str = await reader.ReadByteString(2);
-			SetRowData(rowIdx, colIdx, str);
+			SetRowData(rowIdx, colIdx, new CellData(str));
 		}
 
 		void ParseLabelSST()
@@ -471,7 +472,7 @@ namespace Sylvan.Data.Excel
 			int xfIdx = reader.ReadUInt16();
 			int strIdx = reader.ReadInt32();
 
-			SetRowData(rowIdx, colIdx, sst[strIdx]);
+			SetRowData(rowIdx, colIdx, new CellData(sst[strIdx]));
 		}
 
 		void ParseRK()
@@ -482,7 +483,7 @@ namespace Sylvan.Data.Excel
 			int rk = reader.ReadInt32();
 
 			double rkVal = RKVal(rk);
-			SetRowData(rowIdx, colIdx, rkVal, xfIdx);
+			SetRowData(rowIdx, colIdx, new CellData(rkVal, xfIdx));
 		}
 
 		void ParseNumber()
@@ -498,7 +499,7 @@ namespace Sylvan.Data.Excel
 				val = ((long)uL) | ((long)uH << 32);
 			}
 			double d = BitConverter.Int64BitsToDouble(val);
-			SetRowData(rowIdx, colIdx, d, xfIdx);
+			SetRowData(rowIdx, colIdx, new CellData(d, xfIdx));
 		}
 
 		async Task ParseFormula()
@@ -533,7 +534,7 @@ namespace Sylvan.Data.Excel
 						int len = reader.ReadUInt16();
 						byte kind = reader.ReadByte();
 						var str = await reader.ReadStringAsync(len, kind == 0);
-						SetRowData(rowIdx, colIdx, str);
+						SetRowData(rowIdx, colIdx, new CellData(str));
 						break;
 					case 1: // boolean
 						SetRowData(rowIdx, colIdx, new CellData(rval, CellType.Boolean));
@@ -548,7 +549,7 @@ namespace Sylvan.Data.Excel
 			else
 			{
 				double d = BitConverter.Int64BitsToDouble((long)val);
-				SetRowData(rowIdx, colIdx, d, xfIdx);
+				SetRowData(rowIdx, colIdx, new CellData(d, xfIdx));
 			}
 		}
 
@@ -593,36 +594,43 @@ namespace Sylvan.Data.Excel
 
 		void SetRowData(int rowIdx, int colIdx, CellData cd)
 		{
-			ref var cell = ref GetCell(rowIdx, colIdx);
-			cell = cd;
-		}
-
-		void SetRowData(int rowIdx, int colIdx, double d, ushort ifx)
-		{
-			ref var cell = ref GetCell(rowIdx, colIdx);
-			cell.dVal = d;
-			cell.type = CellType.Double;
-			cell.ifx = ifx;
-		}
-
-		void SetRowData(int rowIdx, int colIdx, string str)
-		{
-			ref var cell = ref GetCell(rowIdx, colIdx);
-			cell.str = str;
-			cell.type = CellType.String;
-		}
-
-		ref CellData GetCell(int rowIdx, int colIdx)
-		{
 			int offset = rowIdx - batchOffset;
 
 			if (offset < 0 || offset >= RowBatchSize)
 				throw new IOException(); //cell refers to row that is not in the current batch
 
 			ref var rb = ref rowBatch[offset];
+			rb.anyPopulated |= cd.type != CellType.Null;
 			int rowOff = rb.firstColIdx;
-			return ref rowDatas[offset][colIdx - rowOff];
+			rowDatas[offset][colIdx - rowOff] = cd;
 		}
+
+		//void SetRowData(int rowIdx, int colIdx, double d, ushort ifx)
+		//{
+		//	ref var cell = ref GetCell(rowIdx, colIdx);
+		//	cell.dVal = d;
+		//	cell.type = CellType.Double;
+		//	cell.ifx = ifx;
+		//}
+
+		//void SetRowData(int rowIdx, int colIdx, string str)
+		//{
+		//	ref var cell = ref GetCell(rowIdx, colIdx);
+		//	cell.str = str;
+		//	cell.type = CellType.String;
+		//}
+
+		//ref CellData GetCell(int rowIdx, int colIdx)
+		//{
+		//	int offset = rowIdx - batchOffset;
+
+		//	if (offset < 0 || offset >= RowBatchSize)
+		//		throw new IOException(); //cell refers to row that is not in the current batch
+
+		//	ref var rb = ref rowBatch[offset];
+		//	int rowOff = rb.firstColIdx;
+		//	return ref rowDatas[offset][colIdx - rowOff];
+		//}
 
 		async Task<bool> NextRowBatch()
 		{
