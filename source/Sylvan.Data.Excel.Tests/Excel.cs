@@ -127,7 +127,7 @@ namespace Sylvan.Data.Excel
 			while (edr.Read())
 			{
 				fmt = edr.GetFormat(1);
-				if(!edr.IsDBNull(1))
+				if (!edr.IsDBNull(1))
 					Assert.Equal(FormatKind.Number, fmt.Kind);
 				fmt = edr.GetFormat(2);
 				if (!edr.IsDBNull(2))
@@ -237,6 +237,44 @@ namespace Sylvan.Data.Excel
 			Assert.Equal("b", edr.GetString(1));
 			Assert.Equal(ExcelDataType.String, edr.GetExcelDataType(2));
 			Assert.Equal("ab", edr.GetString(2));
+		}
+
+		[Fact]
+		public void Schema()
+		{
+			var schemaText = File.ReadAllText("Data/Schema.txt");
+			var schema = Data.Schema.Parse(schemaText);
+
+			var opts =
+				new ExcelDataReaderOptions
+				{
+					GetErrorAsNull = true,
+					Schema = new ExcelSchema(true, schema),
+				};
+
+			var file = GetFile();
+
+			using var edr = ExcelDataReader.Create(file, opts);
+
+			Assert.Equal(typeof(int), edr.GetFieldType(0));
+			Assert.Equal(typeof(string), edr.GetFieldType(1));
+			Assert.Equal(typeof(DateTime), edr.GetFieldType(2));
+			Assert.Equal(typeof(decimal), edr.GetFieldType(3));
+			Assert.Equal(typeof(string), edr.GetFieldType(4));
+			Assert.Equal(typeof(bool), edr.GetFieldType(5));
+			Assert.Equal(typeof(double), edr.GetFieldType(6));
+			Assert.Equal(typeof(double), edr.GetFieldType(7));
+
+			var colSchema = edr.GetColumnSchema();
+			for (int i = 0; i < colSchema.Count; i++)
+			{
+				Assert.Equal(colSchema[i].DataType, edr.GetFieldType(i));
+			}
+
+			while (edr.Read())
+			{
+				edr.Process();
+			}
 		}
 	}
 }

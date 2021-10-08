@@ -1,0 +1,8 @@
+﻿Id:int,
+Name,
+Date:date,
+Amount:decimal,
+Code,
+Flagged:boolean,
+Lat:double,
+Lon:double
