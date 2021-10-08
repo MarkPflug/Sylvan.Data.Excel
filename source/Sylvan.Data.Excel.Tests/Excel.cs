@@ -238,7 +238,7 @@ namespace Sylvan.Data.Excel
 			Assert.Equal(ExcelDataType.String, edr.GetExcelDataType(2));
 			Assert.Equal("ab", edr.GetString(2));
 		}
-		
+
 		[Fact]
 		public void Schema()
 		{
@@ -256,10 +256,24 @@ namespace Sylvan.Data.Excel
 
 			using var edr = ExcelDataReader.Create(file, opts);
 
+			Assert.Equal(typeof(int), edr.GetFieldType(0));
+			Assert.Equal(typeof(string), edr.GetFieldType(1));
+			Assert.Equal(typeof(DateTime), edr.GetFieldType(2));
+			Assert.Equal(typeof(decimal), edr.GetFieldType(3));
+			Assert.Equal(typeof(string), edr.GetFieldType(4));
+			Assert.Equal(typeof(bool), edr.GetFieldType(5));
+			Assert.Equal(typeof(double), edr.GetFieldType(6));
+			Assert.Equal(typeof(double), edr.GetFieldType(7));
+
 			var colSchema = edr.GetColumnSchema();
+			for (int i = 0; i < colSchema.Count; i++)
+			{
+				Assert.Equal(colSchema[i].DataType, edr.GetFieldType(i));
+			}
+
 			while (edr.Read())
 			{
-				edr.Process();				
+				edr.Process();
 			}
 		}
 	}
