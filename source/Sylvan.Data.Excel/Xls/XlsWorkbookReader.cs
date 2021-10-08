@@ -605,33 +605,6 @@ namespace Sylvan.Data.Excel
 			rowDatas[offset][colIdx - rowOff] = cd;
 		}
 
-		//void SetRowData(int rowIdx, int colIdx, double d, ushort ifx)
-		//{
-		//	ref var cell = ref GetCell(rowIdx, colIdx);
-		//	cell.dVal = d;
-		//	cell.type = CellType.Double;
-		//	cell.ifx = ifx;
-		//}
-
-		//void SetRowData(int rowIdx, int colIdx, string str)
-		//{
-		//	ref var cell = ref GetCell(rowIdx, colIdx);
-		//	cell.str = str;
-		//	cell.type = CellType.String;
-		//}
-
-		//ref CellData GetCell(int rowIdx, int colIdx)
-		//{
-		//	int offset = rowIdx - batchOffset;
-
-		//	if (offset < 0 || offset >= RowBatchSize)
-		//		throw new IOException(); //cell refers to row that is not in the current batch
-
-		//	ref var rb = ref rowBatch[offset];
-		//	int rowOff = rb.firstColIdx;
-		//	return ref rowDatas[offset][colIdx - rowOff];
-		//}
-
 		async Task<bool> NextRowBatch()
 		{
 			batchIdx = -1;
