@@ -394,11 +394,28 @@ namespace Sylvan.Data.Excel
 					if (ReferenceEquals(n, styleName))
 					{
 						len = reader.ReadValueChunk(valueBuffer, 0, valueBuffer.Length);
-						if (!int.TryParse(valueBuffer.AsSpan(0, len), NumberStyles.Integer, ci, out xfIdx))
+						if (!TryParse(valueBuffer.AsSpan(0, len), out xfIdx))
 						{
 							throw new FormatException();
 						}
 					}
+				}
+
+				static bool TryParse(ReadOnlySpan<char> span, out int value)
+				{
+					int a = 0;
+					for(int i = 0; i < span.Length; i++)
+					{
+						var d = span[i] - '0';
+						if((uint) d >= 10)
+						{
+							value = 0;
+							return false;
+						}
+						a = a * 10 + d;
+					}
+					value = a;
+					return true;
 				}
 
 				static CellType GetCellType(char[] b, int l)
@@ -432,15 +449,19 @@ namespace Sylvan.Data.Excel
 					{
 						case CellType.Numeric:
 							fi.type = ExcelDataType.Numeric;
+#if SPAN_PARSE
 							len = reader.ReadValueChunk(valueBuffer, 0, valueBuffer.Length);
-							if (len < valueBuffer.Length)
-							{
-								fi.numValue = double.Parse(valueBuffer.AsSpan(0, len), NumberStyles.Float, ci);
+							if (len < valueBuffer.Length && double.TryParse(valueBuffer.AsSpan(0, len), NumberStyles.Float, ci, out fi.numValue))
+							{ 
 							}
 							else
 							{
-								fi.numValue = double.Parse(reader.ReadContentAsString(), NumberStyles.Float, ci);
+								throw new FormatException();
 							}
+#else
+							var str = reader.Value;
+							fi.numValue = double.Parse(str, NumberStyles.Float, ci);
+#endif
 							break;
 						case CellType.Date:
 							len = reader.ReadValueChunk(valueBuffer, 0, valueBuffer.Length);
@@ -461,7 +482,10 @@ namespace Sylvan.Data.Excel
 							len = reader.ReadValueChunk(valueBuffer, 0, valueBuffer.Length);
 							if (len >= valueBuffer.Length)
 								throw new FormatException();
-							var strIdx = int.Parse(valueBuffer.AsSpan(0, len), NumberStyles.Integer, ci);
+							if(!TryParse(valueBuffer.AsSpan(0, len), out int strIdx))
+							{
+								throw new FormatException();
+							}
 							fi.strValue = ss.GetString(strIdx);
 							fi.type = ExcelDataType.String;
 							break;

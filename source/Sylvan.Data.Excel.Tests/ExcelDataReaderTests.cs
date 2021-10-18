@@ -14,7 +14,9 @@ namespace Sylvan.Data.Excel
 	{
 		static ExcelDataReaderTests()
 		{
+#if NET6_0_OR_GREATER
 			Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+#endif
 		}
 
 		[Fact]
