@@ -9,9 +9,9 @@ This library is currently the [fastest and lowest allocating](https://github.com
 
 ## Installing
 
-This library is still a pre-release version and you will likely encounter issues while using it.
+This library is still in early development and you might encounter issues while using it.
 If you do find bugs, please report an issue. However, be aware that I will be unlikely to be able 
-to fix an issue unless an Excel file exhibiting the problem is provided with the issue.
+to investigate any issue unless a file reproducing the problem is provided with the issue.
 
 [Sylvan.Data.Excel Nuget Package](https://www.nuget.org/packages/Sylvan.Data.Excel/)
 
