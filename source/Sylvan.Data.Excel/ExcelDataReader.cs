@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.ObjectModel;
+using System.Data;
 using System.Data.Common;
 using System.IO;
 
@@ -11,6 +12,12 @@ namespace Sylvan.Data.Excel
 	/// </summary>
 	public abstract class ExcelDataReader : DbDataReader, IDisposable, IDbColumnSchemaGenerator
 	{
+		/// <inheritdoc/>
+		public sealed override DataTable GetSchemaTable()
+		{
+			return SchemaTable.GetSchemaTable(this.GetColumnSchema());
+		}
+
 		/// <summary>
 		/// Creates a new ExcelDataReader.
 		/// </summary>
@@ -114,6 +121,45 @@ namespace Sylvan.Data.Excel
 				values[i] = this.GetValue(i);
 			}
 			return c;
+		}
+
+		/// <inheritdoc/>
+		public sealed override object GetValue(int ordinal)
+		{
+			if (IsDBNull(ordinal))
+				return DBNull.Value;
+
+			var schemaType = GetFieldType(ordinal);
+			var code = Type.GetTypeCode(schemaType);
+
+			switch (code)
+			{
+				case TypeCode.Boolean:
+					return GetBoolean(ordinal);
+				case TypeCode.Int16:
+					return GetInt16(ordinal);
+				case TypeCode.Int32:
+					return GetInt32(ordinal);
+				case TypeCode.Int64:
+					return GetInt64(ordinal);
+				case TypeCode.Single:
+					return GetFloat(ordinal);
+				case TypeCode.Double:
+					return GetDouble(ordinal);
+				case TypeCode.Decimal:
+					return GetDecimal(ordinal);
+				case TypeCode.DateTime:
+					return GetDateTime(ordinal);
+				case TypeCode.String:
+					return GetString(ordinal);
+				default:
+					if(schemaType == typeof(Guid))
+					{
+						return GetGuid(ordinal);
+					}
+					break;
+			}
+			throw new NotSupportedException();
 		}
 
 		/// <inheritdoc/>

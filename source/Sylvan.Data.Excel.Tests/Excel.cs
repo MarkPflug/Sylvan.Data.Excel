@@ -1,5 +1,6 @@
 ﻿using Sylvan.Data.Csv;
 using System;
+using System.Data;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -18,7 +19,8 @@ namespace Sylvan.Data.Excel
 	}
 
 	// the tests defined here will be run against both an .xls and .xlsx file
-	// containing the same content. The expectation is
+	// containing the same content. The expectation is the behavior of the two
+	// implementations is the same, so the same test should be
 	public class ExcelTests
 	{
 		const string FileFormat = "Data/Xls/{0}.xls";
@@ -61,7 +63,7 @@ namespace Sylvan.Data.Excel
 				}
 			}
 			// TODO: make this assertion pass
-			// Assert.False(edr.Read());
+			 Assert.False(edr.Read());
 		}
 
 		[Fact]
@@ -174,6 +176,13 @@ namespace Sylvan.Data.Excel
 			Assert.False(edr.NextResult());
 		}
 
+		Schema GetSchema(string name = "Schema")
+		{
+			var schemaText = File.ReadAllText("Data/" + name + ".txt");
+			var schema = Data.Schema.Parse(schemaText);
+			return schema;
+		}
+
 		[Fact]
 		public void Func()
 		{
@@ -242,20 +251,46 @@ namespace Sylvan.Data.Excel
 		}
 
 		[Fact]
+		public void GetValueTest()
+		{
+			var file = GetFile("Schema");
+
+			using var edr = ExcelDataReader.Create(file);
+			while (edr.Read())
+			{
+				for (int i = 0; i < edr.FieldCount; i++)
+				{
+					var value = edr.GetValue(i);
+					Assert.True(value is string);
+				}
+			}
+		}
+
+		[Fact]
+		public void GetValueWithSchemaTest()
+		{
+			var schema = GetSchema();
+			var opts = new ExcelDataReaderOptions { Schema = new ExcelSchema(true, schema) };
+			var file = GetFile("Schema");
+			using var edr = ExcelDataReader.Create(file, opts);
+			var cols = schema.GetColumnSchema();
+			while (edr.Read())
+			{
+				for (int i = 0; i < edr.FieldCount; i++)
+				{
+					var value = edr.GetValue(i);
+
+					Assert.IsType(cols[i].DataType, value);
+				}
+			}
+		}
+
+		[Fact]
 		public void Schema()
 		{
-			var schemaText = File.ReadAllText("Data/Schema.txt");
-			var schema = Data.Schema.Parse(schemaText);
-
-			var opts =
-				new ExcelDataReaderOptions
-				{
-					GetErrorAsNull = true,
-					Schema = new ExcelSchema(true, schema),
-				};
-
+			var schema = GetSchema();
+			var opts = new ExcelDataReaderOptions { Schema = new ExcelSchema(true, schema) };
 			var file = GetFile();
-
 			using var edr = ExcelDataReader.Create(file, opts);
 
 			Assert.Equal(typeof(int), edr.GetFieldType(0));
@@ -277,6 +312,29 @@ namespace Sylvan.Data.Excel
 			{
 				edr.Process();
 			}
+		}
+
+		[Fact]
+		public void GetSchemaTable()
+		{
+			var schema = GetSchema();
+			var opts = new ExcelDataReaderOptions { Schema = new ExcelSchema(true, schema) };
+			var file = GetFile("Schema");
+			using var edr = ExcelDataReader.Create(file, opts);
+			var st = edr.GetSchemaTable();
+			Assert.Equal(8, st.Rows.Count);
+		}
+
+		[Fact]
+		public void DataTable()
+		{
+			var schema = GetSchema();
+			var opts = new ExcelDataReaderOptions { Schema = new ExcelSchema(true, schema) };
+			var file = GetFile("Schema");
+			using var edr = ExcelDataReader.Create(file, opts);
+			var dt = new DataTable();
+			dt.Load(edr);
+			Assert.Equal(4, dt.Rows.Count);
 		}
 	}
 }

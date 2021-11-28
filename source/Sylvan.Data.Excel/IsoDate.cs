@@ -552,7 +552,8 @@ namespace Sylvan
 		static string GetString(Span<char> buffer)
 		{
 #if NETSTANDARD2_0
-			throw new NotImplementedException();
+			// TODO: is there a non-allocating way to do this in NS2.0 without unsafe code?
+			return new string(buffer.ToArray());
 #else
 			return new string(buffer);
 #endif
@@ -578,6 +579,26 @@ namespace Sylvan
 			}
 
 			var len = FormatIsoInternal(value.Ticks, offset, known, buffer);
+			return GetString(buffer.Slice(0, len));
+		}
+
+		public static string ToDateStringIso(DateTime value)
+		{
+			Span<char> buffer = stackalloc char[10];
+			bool known = false;
+			int offset = 0;
+			switch (value.Kind)
+			{
+				case DateTimeKind.Local:
+					offset = (int)(TimeZoneInfo.Local.GetUtcOffset(value).Ticks / TimeSpan.TicksPerMinute);
+					known = true;
+					break;
+				case DateTimeKind.Utc:
+					known = true;
+					break;
+			}
+
+			var len = FormatIsoDateOnlyInternal(value.Ticks, offset, known, buffer);
 			return GetString(buffer.Slice(0, len));
 		}
 
@@ -728,6 +749,58 @@ namespace Sylvan
 			}
 			return len;
 		}
+
+		static int FormatIsoDateOnlyInternal(long ticks, int offsetMinutes, bool offsetKnown, Span<char> buffer)
+		{
+			int len = 10;
+
+			// n = number of days since 1/1/0001
+			var n = Math.DivRem(ticks, TimeSpan.TicksPerDay, out long remain);
+
+			// y400 = number of whole 400-year periods since 1/1/0001
+			var y400 = n / DaysPer400Years;
+			// n = day number within 400-year period
+			n -= y400 * DaysPer400Years;
+			// y100 = number of whole 100-year periods within 400-year period
+			var y100 = n / DaysPer100Years;
+			// Last 100-year period has an extra day, so decrement result if 4
+			if (y100 == 4) y100 = 3;
+			// n = day number within 100-year period
+			n -= y100 * DaysPer100Years;
+			// y4 = number of whole 4-year periods within 100-year period
+			var y4 = n / DaysPer4Years;
+			// n = day number within 4-year period
+			n -= y4 * DaysPer4Years;
+			// y1 = number of whole years within 4-year period
+			var y1 = n / DaysPerYear;
+			// Last year has an extra day, so decrement result if 4
+			if (y1 == 4) y1 = 3;
+			// compute year
+			var year = (int)(y400 * 400 + y100 * 100 + y4 * 4 + y1 + 1);
+			// n = day number within year
+			n -= y1 * DaysPerYear;
+			// dayOfYear = n + 1;
+			// Leap year calculation looks different from IsLeapYear since y1, y4,
+			// and y100 are relative to year 1, not year 0
+			int[] days = y1 == 3 && (y4 != 24 || y100 == 3) ? DaysToMonth366 : DaysToMonth365;
+			// All months have less than 32 days, so n >> 5 is a good conservative
+			// estimate for the month
+			var m = (n >> 5) + 1;
+			// m = 1-based month number
+			while (n >= days[m]) m++;
+			// compute month and day
+			var month = (int)m;
+			var day = (int)(n - days[m - 1] + 1);
+
+			WriteFourDigits((uint)year, buffer, 0);
+			buffer[4] = '-';
+			WriteTwoDigits((uint)month, buffer, 5);
+			buffer[7] = '-';
+			WriteTwoDigits((uint)day, buffer, 8);
+			
+			return len;
+		}
+
 
 		/// <summary>
 		/// Writes a value [ 0000 .. 9999 ] to the buffer starting at the specified offset.

@@ -247,12 +247,14 @@ namespace Sylvan.Data.Excel
 				case FormatKind.Time:
 					if (ExcelDataReader.TryGetDate(value, dateOffset, out var dt))
 					{
-						var fmt =
-						dt.TimeOfDay == TimeSpan.Zero
-						? "yyyy-MM-dd" // omit rendering the time when the value is midnight
-						: "yyyy-MM-ddTHH:mm:ss.FFFFFFF";
-
-						return dt.ToString(fmt);
+						if(dt.TimeOfDay == TimeSpan.Zero)
+						{
+							return IsoDate.ToDateStringIso(dt);
+						} 
+						else
+						{
+							return IsoDate.ToStringIso(dt);
+						}
 					}
 					else
 					{
