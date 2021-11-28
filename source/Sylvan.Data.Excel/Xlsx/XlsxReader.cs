@@ -29,6 +29,7 @@ namespace Sylvan.Data.Excel
 		State state;
 		bool hasRows;
 		bool hasHeaders;
+		bool skipEmptyRows = true; // TODO: make this an option?
 		IExcelSchemaProvider schema;
 		int rowNumber;
 		Dictionary<int, string> sheetNames;
@@ -241,23 +242,7 @@ namespace Sylvan.Data.Excel
 
 				for (int i = 0; i < count; i++)
 				{
-					var type = GetExcelDataType(i);
-					switch (type)
-					{
-						case ExcelDataType.String:
-							headers[i] = values[i].strValue;
-							break;
-						case ExcelDataType.Boolean:
-							headers[i] = GetBoolean(i) ? "TRUE" : "FALSE";
-							break;
-						case ExcelDataType.Numeric:
-							headers[i] = GetDouble(i).ToString();
-							break;
-						default:
-							headers[i] = string.Empty;
-							break;
-					}
-					this.GetString(i);
+					headers[i] = this.GetString(i);
 				}
 			}
 			if (!NextRow())
@@ -326,9 +311,13 @@ namespace Sylvan.Data.Excel
 			{
 				if (rowNumber <= parsedRow)
 					return true;
-				if (NextRow())
+				while (NextRow())
 				{
-					ParseRowValues();
+					var c = ParseRowValues();
+					if(c == 0 && skipEmptyRows)
+					{
+						continue;
+					}
 					return true;
 				}
 			}
@@ -366,6 +355,8 @@ namespace Sylvan.Data.Excel
 				return 0;
 			}
 
+			int valueCount = 0;
+			
 			do
 			{
 				CellType type = CellType.Numeric;
@@ -444,6 +435,7 @@ namespace Sylvan.Data.Excel
 
 				if (reader.ReadToDescendant("v"))
 				{
+					valueCount++;
 					reader.Read();
 					switch (type)
 					{
@@ -513,7 +505,7 @@ namespace Sylvan.Data.Excel
 
 			} while (reader.ReadToNextSibling("c"));
 			this.parsedRow = pos.Row;
-			return pos.Column + 1;
+			return valueCount == 0 ? 0 : pos.Column + 1;
 		}
 
 		enum CellType
@@ -680,27 +672,6 @@ namespace Sylvan.Data.Excel
 			{
 				throw new FormatException();
 			}
-		}
-
-		public override object GetValue(int ordinal)
-		{
-			var type = GetExcelDataType(ordinal);
-			switch (type)
-			{
-				case ExcelDataType.Null:
-					return DBNull.Value;
-				case ExcelDataType.Boolean:
-					return GetBoolean(ordinal);
-				case ExcelDataType.Error:
-					throw new ExcelFormulaException(RowNumber, ordinal, GetFormulaError(ordinal));
-				case ExcelDataType.Numeric:
-					return GetDouble(ordinal);
-				case ExcelDataType.String:
-					return GetString(ordinal);
-				case ExcelDataType.DateTime:
-					return GetDateTime(ordinal);
-			}
-			throw new NotSupportedException();
 		}
 
 		public override bool IsDBNull(int ordinal)

@@ -348,13 +348,6 @@ namespace Sylvan.Data.Excel
 			return LoadSchema();
 		}
 
-		//void ParseColInfo()
-		//{
-		//	int colIdx1 = reader.ReadInt16();
-		//	int colIdx2 = reader.ReadInt16();
-		//	int colDx = reader.ReadInt16(); // width 1/256th char width
-		//	int ixfe = reader.ReadInt16();
-		//}
 
 		void ParseXF()
 		{
@@ -844,37 +837,6 @@ namespace Sylvan.Data.Excel
 			// only xlsx persists date values this way.
 			// in xls files date/time are always stored as formatted numeric values.
 			throw new NotSupportedException();
-		}
-
-		public override object GetValue(int ordinal)
-		{
-			int rowOffset = this.rowBatch[batchIdx].firstColIdx;
-			int dataIdx = ordinal - rowOffset;
-			if (dataIdx < 0)
-			{
-				return DBNull.Value;
-			}
-			var row = this.rowDatas[batchIdx];
-			if (dataIdx < row.Length)
-			{
-				var cell = row[dataIdx];
-				switch (cell.type)
-				{
-					case CellType.Null:
-						return DBNull.Value;
-					case CellType.String:
-						return cell.str ?? (object)DBNull.Value;
-					case CellType.Double:
-						return cell.dVal;
-					case CellType.Boolean:
-						return cell.val != 0;
-					case CellType.Error:
-						return getErrorAsNull
-							? DBNull.Value
-							: throw new ExcelFormulaException(ordinal, rowNumber, (ExcelErrorCode)cell.val);
-				}
-			}
-			return DBNull.Value;
 		}
 
 		public override ReadOnlyCollection<DbColumn> GetColumnSchema()
