@@ -10,7 +10,7 @@ namespace Sylvan.Data.Excel
 {
 	public sealed class XlsxTests : ExcelTests
 	{
-		const string FileFormat = "Data/Xlsx/{0}.xlsx";
+		const string FileFormat = "Data/{0}.xlsx";
 
 		protected override string GetFile(string name)
 		{
@@ -23,7 +23,7 @@ namespace Sylvan.Data.Excel
 	// implementations is the same, so the same test should be
 	public class ExcelTests
 	{
-		const string FileFormat = "Data/Xls/{0}.xls";
+		const string FileFormat = "Data/{0}.xls";
 		//const string Format = "data/xlsx/{0}.xlsx";
 
 		protected virtual string GetFile([CallerMemberName] string name = "")
@@ -63,7 +63,7 @@ namespace Sylvan.Data.Excel
 				}
 			}
 			// TODO: make this assertion pass
-			 Assert.False(edr.Read());
+			Assert.False(edr.Read());
 		}
 
 		[Fact]
@@ -335,6 +335,29 @@ namespace Sylvan.Data.Excel
 			var dt = new DataTable();
 			dt.Load(edr);
 			Assert.Equal(4, dt.Rows.Count);
+		}
+
+		[Fact]
+		public void Jagged()
+		{
+			var file = GetFile();
+			using var edr = ExcelDataReader.Create(file);
+
+			Assert.Equal(3, edr.FieldCount);
+			Assert.True(edr.Read());
+			Assert.Equal(3, edr.RowFieldCount);
+			Assert.True(edr.Read());
+			Assert.Equal(2, edr.RowFieldCount);
+			Assert.True(edr.Read());
+			Assert.Equal(1, edr.RowFieldCount);
+			Assert.True(edr.Read());
+			Assert.Equal(3, edr.RowFieldCount);
+			Assert.True(edr.Read());
+			Assert.Equal(4, edr.RowFieldCount);
+			Assert.True(edr.Read());
+			Assert.Equal(5, edr.RowFieldCount);
+			Assert.False(edr.Read());
+
 		}
 	}
 }

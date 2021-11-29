@@ -9,15 +9,15 @@ namespace Sylvan.Data.Excel
 	{
 		readonly bool hasHeaders;
 
-		internal static DbColumn DefaultColumnSchema = new DefaultExcelSchemaColumn("");
+		internal static DbColumn DefaultColumnSchema = new DefaultExcelSchemaColumn(string.Empty);
 
 		sealed class DefaultExcelSchemaColumn : DbColumn
 		{
 			public DefaultExcelSchemaColumn(string? name)
 			{
-				this.ColumnName = name ?? "";
+				this.ColumnName = name ?? string.Empty;
 				this.DataType = typeof(string);
-				this.DataTypeName = "string";
+				this.DataTypeName = this.DataType.Name;
 				this.AllowDBNull = true;
 			}
 		}
@@ -186,7 +186,7 @@ namespace Sylvan.Data.Excel
 		internal static string GetExcelColumnName(int idx)
 		{
 			var col = idx + 1;
-			string name = "";
+			string name = string.Empty;
 			while (col > 0)
 			{
 				var i = col - 1;

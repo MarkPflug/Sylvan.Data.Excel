@@ -43,6 +43,12 @@ namespace Sylvan.Data.Excel
 		}
 
 		/// <summary>
+		/// Gets the number of fields in the current row.
+		/// This may be different than FieldCount.
+		/// </summary>
+		public abstract int RowFieldCount { get; }
+
+		/// <summary>
 		/// Creates a new ExcelDataReader instance.
 		/// </summary>
 		/// <param name="stream">A stream containing the Excel file contents. </param>
