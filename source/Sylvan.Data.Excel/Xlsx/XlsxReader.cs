@@ -25,7 +25,7 @@ namespace Sylvan.Data.Excel
 
 		string[] headers;
 		FieldInfo[] values;
-
+		int rowFieldCount;
 		State state;
 		bool hasRows;
 		bool hasHeaders;
@@ -436,6 +436,7 @@ namespace Sylvan.Data.Excel
 				if (reader.ReadToDescendant("v"))
 				{
 					valueCount++;
+					this.rowFieldCount = pos.Column + 1;
 					reader.Read();
 					switch (type)
 					{
@@ -706,6 +707,8 @@ namespace Sylvan.Data.Excel
 		{
 			get { return this.colCount; }
 		}
+
+		public override int RowFieldCount => this.rowFieldCount;
 
 		public override int WorksheetCount => this.sheetNames.Count;
 

@@ -1,5 +1,7 @@
 # Sylvan.Data.Excel Release Notes
 
+_0.1.5_
+- Add `RowFieldCount` property to determine number of fields in the current row.
 
 _0.1.4_
 - Fix behavior of GetValue to honor the data type of the schema instead of the excel type of the column.

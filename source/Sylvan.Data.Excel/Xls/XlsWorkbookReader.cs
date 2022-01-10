@@ -194,9 +194,9 @@ namespace Sylvan.Data.Excel
 					return false;
 				}
 			}
-			
+
 			rowNumber++;
-			return rowBatch[batchIdx].anyPopulated;
+			return rowBatch[batchIdx].rowFieldCount > 0;
 		}
 
 		public override bool Read()
@@ -234,7 +234,18 @@ namespace Sylvan.Data.Excel
 
 		public override int FieldCount
 		{
-			get { return this.columnSchema.Count; }
+			get
+			{
+				return this.columnSchema.Count;
+			}
+		}
+
+		public override int RowFieldCount
+		{
+			get
+			{
+				return this.rowBatch[batchIdx].rowFieldCount;
+			}
 		}
 
 		public override int RowCount => this.rowCount;
@@ -390,6 +401,7 @@ namespace Sylvan.Data.Excel
 			// ignoring styles, at least for now.
 		}
 
+		// return value indicates if there are any rows in the sheet.
 		bool LoadSchema()
 		{
 			var sheetName = sheets[sheetIdx - 1].name;
@@ -406,13 +418,30 @@ namespace Sylvan.Data.Excel
 			var fieldCount = rowBatch[0].lastColIdx;
 
 			var cols = new DbColumn[fieldCount];
+			int c = 0;
 			for (int i = 0; i < fieldCount; i++)
 			{
-				string? headerName = hasHeaders ? GetString(i) : "";
+				string? headerName = string.Empty;
+
+				if (hasHeaders)
+				{
+					var value = GetHeaderString(i);
+					headerName = value;
+					if (string.IsNullOrEmpty(headerName) == false)
+					{
+						c = i + 1;
+					}
+				}
+				else
+				{
+					c = i + 1;
+				}
+
 				var cs = schema.GetColumn(sheetName, headerName, i);
 				var ecs = new ExcelColumn(headerName, i, cs);
 				cols[i] = ecs;
 			}
+			Array.Resize(ref cols, c);
 			this.columnSchema = new ReadOnlyCollection<DbColumn>(cols);
 			return true;
 		}
@@ -593,9 +622,14 @@ namespace Sylvan.Data.Excel
 				throw new IOException(); //cell refers to row that is not in the current batch
 
 			ref var rb = ref rowBatch[offset];
-			rb.anyPopulated |= cd.type != CellType.Null;
+			bool isNull = cd.type == CellType.Null;
+			if(!isNull)
+			{
+				rb.rowFieldCount = Math.Max(rb.firstColIdx, colIdx + 1);
+			}
 			int rowOff = rb.firstColIdx;
 			rowDatas[offset][colIdx - rowOff] = cd;
+			
 		}
 
 		async Task<bool> NextRowBatch()
@@ -685,14 +719,9 @@ namespace Sylvan.Data.Excel
 
 			int rowLen = lastColIdx - firstColIdx;
 
-			if (rowDatas[idx] == null)
+			if (rowDatas[idx] == null || rowDatas[idx].Length < rowLen)
 			{
 				rowDatas[idx] = new CellData[rowLen];
-			}
-			else
-			{
-				if (rowDatas[idx].Length < rowLen)
-					rowDatas[idx] = new CellData[rowLen];
 			}
 			for (int i = 0; i < rowLen; i++)
 			{
@@ -774,6 +803,7 @@ namespace Sylvan.Data.Excel
 		ref CellData GetCell(int ordinal)
 		{
 			ref var r = ref this.rowBatch[batchIdx];
+			
 			if (r.index == 0) return ref CellData.Null;
 
 			int rowOffset = r.firstColIdx;
@@ -786,6 +816,31 @@ namespace Sylvan.Data.Excel
 				return ref CellData.Null;
 
 			return ref row[dataIdx];
+		}
+
+
+		string? GetHeaderString(int ordinal)
+		{
+			ref var cell = ref GetCell(ordinal);
+			switch (cell.type)
+			{
+				case CellType.String:
+					return cell.str!;
+				case CellType.Double:
+					return FormatVal(cell.ifx, cell.dVal);
+				case CellType.Boolean:
+					return cell.val != 0 ? bool.TrueString : bool.FalseString;
+				case CellType.Error:
+					if (this.getErrorAsNull)
+						return null;
+					var errorCode = (ExcelErrorCode)cell.val;
+					// a formula error in the header row will prevent the sheet from being read
+					// a user can avoid this situation by setting getErrorAsNull.
+					throw new ExcelFormulaException(ordinal, -1, errorCode);
+				case CellType.Null:
+					return null;
+			}
+			return null;
 		}
 
 		public override string GetString(int ordinal)
@@ -926,7 +981,7 @@ namespace Sylvan.Data.Excel
 
 		struct Row
 		{
-			public bool anyPopulated;
+			public int rowFieldCount;
 			public int index;
 			public ushort firstColIdx;
 			public ushort lastColIdx;
