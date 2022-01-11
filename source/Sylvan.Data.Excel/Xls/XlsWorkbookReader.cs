@@ -44,7 +44,6 @@ namespace Sylvan.Data.Excel
 		int batchIdx = 0;
 		int batchCount = 0;
 
-		IExcelSchemaProvider schema;
 		bool nullAsEmptyString;
 		bool getErrorAsNull;
 
@@ -63,21 +62,25 @@ namespace Sylvan.Data.Excel
 		Dictionary<int, ExcelFormat> formats;
 		List<SheetInfo> sheets = new List<SheetInfo>();
 		Dictionary<int, XFRecord> xfRecords = new Dictionary<int, XFRecord>();
-		ReadOnlyCollection<DbColumn> columnSchema;
 
 		internal static async Task<XlsWorkbookReader> CreateAsync(Stream iStream, ExcelDataReaderOptions options)
 		{
-			var reader = new XlsWorkbookReader(iStream, options);
+			var pkg = new Ole2Package(iStream);
+			var part = pkg.GetEntry("Workbook\0");
+			if (part == null)
+				throw new InvalidDataException();
+			var ps = part.Open();
+
+			var reader = new XlsWorkbookReader(ps, options);
 			await reader.ReadHeaderAsync();
 			await reader.NextResultAsync();
 			return reader;
 		}
 
-		private XlsWorkbookReader(Stream iStream, ExcelDataReaderOptions options)
+		private XlsWorkbookReader(Stream iStream, ExcelDataReaderOptions options) : base(options.Schema)
 		{
 			this.epoch = 1900;
 			this.reader = new RecordReader(iStream);
-			this.schema = options.Schema;
 			this.nullAsEmptyString = options.GetNullAsEmptyString;
 			this.getErrorAsNull = options.GetErrorAsNull;
 
@@ -178,11 +181,7 @@ namespace Sylvan.Data.Excel
 				return false;
 			}
 			batchIdx++;
-
-			if (rowNumber == ushort.MaxValue)
-			{
-				;
-			}
+						
 			if (batchIdx >= RowBatchSize)
 			{
 				if (await NextRowBatch())
@@ -230,14 +229,6 @@ namespace Sylvan.Data.Excel
 					return i;
 			}
 			throw new ArgumentOutOfRangeException(nameof(name));
-		}
-
-		public override int FieldCount
-		{
-			get
-			{
-				return this.columnSchema.Count;
-			}
 		}
 
 		public override int RowFieldCount
@@ -355,7 +346,6 @@ namespace Sylvan.Data.Excel
 			}
 		done:
 			await NextRowBatch().ConfigureAwait(false);
-
 			return LoadSchema();
 		}
 
@@ -408,41 +398,18 @@ namespace Sylvan.Data.Excel
 
 			var hasHeaders = schema.HasHeaders(sheetName);
 
-			if (hasHeaders)
+			if (!Read())
 			{
-				if (!Read())
-				{
-					return false;
-				}
+				return false;
 			}
-			var fieldCount = rowBatch[0].lastColIdx;
+			LoadSchema(hasHeaders);
 
-			var cols = new DbColumn[fieldCount];
-			int c = 0;
-			for (int i = 0; i < fieldCount; i++)
+			if (!hasHeaders)
 			{
-				string? headerName = string.Empty;
-
-				if (hasHeaders)
-				{
-					var value = GetHeaderString(i);
-					headerName = value;
-					if (string.IsNullOrEmpty(headerName) == false)
-					{
-						c = i + 1;
-					}
-				}
-				else
-				{
-					c = i + 1;
-				}
-
-				var cs = schema.GetColumn(sheetName, headerName, i);
-				var ecs = new ExcelColumn(headerName, i, cs);
-				cols[i] = ecs;
+				// "unread" the first row.
+				batchIdx--;
 			}
-			Array.Resize(ref cols, c);
-			this.columnSchema = new ReadOnlyCollection<DbColumn>(cols);
+			
 			return true;
 		}
 
@@ -819,30 +786,6 @@ namespace Sylvan.Data.Excel
 		}
 
 
-		string? GetHeaderString(int ordinal)
-		{
-			ref var cell = ref GetCell(ordinal);
-			switch (cell.type)
-			{
-				case CellType.String:
-					return cell.str!;
-				case CellType.Double:
-					return FormatVal(cell.ifx, cell.dVal);
-				case CellType.Boolean:
-					return cell.val != 0 ? bool.TrueString : bool.FalseString;
-				case CellType.Error:
-					if (this.getErrorAsNull)
-						return null;
-					var errorCode = (ExcelErrorCode)cell.val;
-					// a formula error in the header row will prevent the sheet from being read
-					// a user can avoid this situation by setting getErrorAsNull.
-					throw new ExcelFormulaException(ordinal, -1, errorCode);
-				case CellType.Null:
-					return null;
-			}
-			return null;
-		}
-
 		public override string GetString(int ordinal)
 		{
 			ref var cell = ref GetCell(ordinal);
@@ -892,11 +835,6 @@ namespace Sylvan.Data.Excel
 			// only xlsx persists date values this way.
 			// in xls files date/time are always stored as formatted numeric values.
 			throw new NotSupportedException();
-		}
-
-		public override ReadOnlyCollection<DbColumn> GetColumnSchema()
-		{
-			return this.columnSchema;
 		}
 
 		ExcelFormulaException Error(int ordinal)
