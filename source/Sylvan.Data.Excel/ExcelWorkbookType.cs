@@ -6,16 +6,21 @@
 	public enum ExcelWorkbookType
 	{
 		/// <summary>
+		/// Represents an unknown workbook type.
+		/// </summary>
+		Unknown = 0,
+		/// <summary>
 		/// An .xls file.
 		/// </summary>
-		Excel,
+		Excel = 1,
 		/// <summary>
 		/// An .xlsx file.
 		/// </summary>
-		ExcelXml,
+		ExcelXml = 2,
+
 		///// <summary>
 		///// An .xslb file.
 		///// </summary>
-		//OpenExcelBinary,
+		//OpenExcelBinary, // TODO: maybe someday.
 	}
 }

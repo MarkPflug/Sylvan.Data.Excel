@@ -41,20 +41,14 @@ namespace Sylvan.Data.Excel
 		/// <returns>The ExcelDataReader.</returns>
 		/// <exception cref="ArgumentException">If the filename refers to a file of an unknown type.</exception>
 		public static ExcelDataReader Create(string filename, ExcelDataReaderOptions? options = null)
-		{
-			var ext = Path.GetExtension(filename);
+		{			
+			var type = GetWorkbookType(filename);
+			if (type == ExcelWorkbookType.Unknown)
+				throw new ArgumentException(null, nameof(filename));
+
 			var s = new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.Read, 1);
-			switch (ext)
-			{
-				case ".xls":
-					return Create(s, ExcelWorkbookType.Excel, options);
-				case ".xlsx":
-				case ".xlsm":
-					return Create(s, ExcelWorkbookType.ExcelXml, options);
-				default:
-					s.Close();
-					throw new ArgumentException(nameof(filename));
-			}
+
+			return Create(s, type, options);			
 		}
 
 		/// <summary>
@@ -83,6 +77,25 @@ namespace Sylvan.Data.Excel
 				default:
 					throw new ArgumentException(nameof(fileType));
 			}
+		}
+
+		static readonly Dictionary<string, ExcelWorkbookType> FileTypeMap = new(StringComparer.OrdinalIgnoreCase)
+		{
+			{ ".xls", ExcelWorkbookType.Excel },
+			{ ".xlsx", ExcelWorkbookType.ExcelXml },
+			{ ".xlsm", ExcelWorkbookType.ExcelXml },
+		};
+
+		/// <summary>
+		/// Gets the type of an Excel workbook from the file name.
+		/// </summary>
+		public static ExcelWorkbookType GetWorkbookType(string filename)
+		{
+			var ext = Path.GetExtension(filename);
+			return
+				FileTypeMap.TryGetValue(ext, out var type)
+				? type
+				: 0;
 		}
 
 		/// <summary>
