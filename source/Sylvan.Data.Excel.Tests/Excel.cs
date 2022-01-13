@@ -67,6 +67,33 @@ namespace Sylvan.Data.Excel
 		}
 
 		[Fact]
+		public void Headers()
+		{
+			var file = GetFile("Schema");
+			using var r = ExcelDataReader.Create(file);
+
+			var headers = new[] { "Id", "Name", "Date", "Amount", "Code", "Flagged", "Lat", "Lon" };
+			for (int i = 0; i < r.FieldCount; i++)
+			{
+				Assert.Equal(headers[i], r.GetName(i));
+			}
+		}
+
+		[Fact]
+		public void HeadersWithSchema()
+		{
+			var file = GetFile("Schema");
+			var schema = new ExcelSchema(true, GetSchema());
+			using var r = ExcelDataReader.Create(file, new ExcelDataReaderOptions { Schema = schema });
+
+			var headers = new[] { "Id", "Name", "Date", "Amount", "Code", "Flagged", "Lat", "Lon" };
+			for (int i = 0; i < r.FieldCount; i++)
+			{
+				Assert.Equal(headers[i], r.GetName(i));
+			}
+		}
+
+		[Fact]
 		public void Numbers()
 		{
 			var file = GetFile();
