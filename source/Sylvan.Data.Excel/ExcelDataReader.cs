@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Data;
 using System.Data.Common;
@@ -12,10 +13,24 @@ namespace Sylvan.Data.Excel
 	/// </summary>
 	public abstract class ExcelDataReader : DbDataReader, IDisposable, IDbColumnSchemaGenerator
 	{
+
+		static ReadOnlyCollection<DbColumn> EmptySchema = new ReadOnlyCollection<DbColumn>(Array.Empty<DbColumn>());
+
+
+		private protected IExcelSchemaProvider schema;
+		int fieldCount;
+		private protected ReadOnlyCollection<DbColumn> columnSchema = EmptySchema;
+
+
 		/// <inheritdoc/>
 		public sealed override DataTable GetSchemaTable()
 		{
 			return SchemaTable.GetSchemaTable(this.GetColumnSchema());
+		}
+
+		private protected ExcelDataReader(IExcelSchemaProvider schema)
+		{
+			this.schema = schema;
 		}
 
 		/// <summary>
@@ -26,20 +41,14 @@ namespace Sylvan.Data.Excel
 		/// <returns>The ExcelDataReader.</returns>
 		/// <exception cref="ArgumentException">If the filename refers to a file of an unknown type.</exception>
 		public static ExcelDataReader Create(string filename, ExcelDataReaderOptions? options = null)
-		{
-			var ext = Path.GetExtension(filename);
+		{			
+			var type = GetWorkbookType(filename);
+			if (type == ExcelWorkbookType.Unknown)
+				throw new ArgumentException(null, nameof(filename));
+
 			var s = new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.Read, 1);
-			switch(ext)
-			{
-				case ".xls":
-					return Create(s, ExcelWorkbookType.Excel, options);
-				case ".xlsx":
-				case ".xlsm":
-					return Create(s, ExcelWorkbookType.ExcelXml, options);
-				default:
-					s.Close();
-					throw new ArgumentException(nameof(filename));
-			}
+
+			return Create(s, type, options);			
 		}
 
 		/// <summary>
@@ -59,20 +68,34 @@ namespace Sylvan.Data.Excel
 		{
 			options = options ?? ExcelDataReaderOptions.Default;
 
-			switch(fileType)
+			switch (fileType)
 			{
 				case ExcelWorkbookType.Excel:
-					var pkg = new Ole2Package(stream);
-					var part = pkg.GetEntry("Workbook\0");
-					if (part == null)
-						throw new InvalidDataException();
-					var ps = part.Open();
-					return XlsWorkbookReader.CreateAsync(ps, options).GetAwaiter().GetResult();
+					return XlsWorkbookReader.CreateAsync(stream, options).GetAwaiter().GetResult();
 				case ExcelWorkbookType.ExcelXml:
 					return new XlsxWorkbookReader(stream, options);
 				default:
 					throw new ArgumentException(nameof(fileType));
 			}
+		}
+
+		static readonly Dictionary<string, ExcelWorkbookType> FileTypeMap = new(StringComparer.OrdinalIgnoreCase)
+		{
+			{ ".xls", ExcelWorkbookType.Excel },
+			{ ".xlsx", ExcelWorkbookType.ExcelXml },
+			{ ".xlsm", ExcelWorkbookType.ExcelXml },
+		};
+
+		/// <summary>
+		/// Gets the type of an Excel workbook from the file name.
+		/// </summary>
+		public static ExcelWorkbookType GetWorkbookType(string filename)
+		{
+			var ext = Path.GetExtension(filename);
+			return
+				FileTypeMap.TryGetValue(ext, out var type)
+				? type
+				: 0;
 		}
 
 		/// <summary>
@@ -98,6 +121,9 @@ namespace Sylvan.Data.Excel
 		/// </remarks>
 		public abstract int RowCount { get; }
 
+		/// <inheritdoc/>
+		public sealed override int FieldCount => this.fieldCount;
+
 		/// <summary>
 		/// Gets the type of data in the given cell.
 		/// </summary>
@@ -112,10 +138,29 @@ namespace Sylvan.Data.Excel
 		/// <returns>An ExcelDataType.</returns>
 		public abstract ExcelDataType GetExcelDataType(int ordinal);
 
+
 		/// <summary>
 		/// Gets the column schema
 		/// </summary>
-		public abstract ReadOnlyCollection<DbColumn> GetColumnSchema();
+		public ReadOnlyCollection<DbColumn> GetColumnSchema()
+		{
+			return this.columnSchema;
+		}
+
+		private protected void LoadSchema(bool ordinalOnly)
+		{
+			var cols = new List<DbColumn>();
+			var sheet = this.WorksheetName;
+			for (int i = 0; i < RowFieldCount; i++)
+			{
+				string? header = ordinalOnly ? null : GetString(i);
+				var col = schema.GetColumn(sheet, header, i);
+				var ecs = new ExcelColumn(header, i, col);
+				cols.Add(ecs);
+			}
+			this.columnSchema = new ReadOnlyCollection<DbColumn>(cols);
+			this.fieldCount = columnSchema.Count;
+		}
 
 		/// <inheritdoc/>
 		public sealed override int GetValues(object[] values)
@@ -159,7 +204,7 @@ namespace Sylvan.Data.Excel
 				case TypeCode.String:
 					return GetString(ordinal);
 				default:
-					if(schemaType == typeof(Guid))
+					if (schemaType == typeof(Guid))
 					{
 						return GetGuid(ordinal);
 					}
@@ -179,7 +224,7 @@ namespace Sylvan.Data.Excel
 
 		/// <inheritdoc/>
 		public sealed override object this[int ordinal] => this.GetValue(ordinal);
-		
+
 		/// <inheritdoc/>
 		public sealed override object this[string name] => this.GetValue(this.GetOrdinal(name));
 

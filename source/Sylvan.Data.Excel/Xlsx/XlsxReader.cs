@@ -1,7 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.Data.Common;
 using System.Globalization;
 using System.IO;
 using System.IO.Compression;
@@ -15,7 +13,6 @@ namespace Sylvan.Data.Excel
 		readonly ZipArchive package;
 		SharedStrings ss;
 		int sheetIdx = 0;
-		int colCount;
 		int rowCount;
 
 		Stream stream;
@@ -23,14 +20,11 @@ namespace Sylvan.Data.Excel
 
 		string currentSheetName = string.Empty;
 
-		string[] headers;
 		FieldInfo[] values;
 		int rowFieldCount;
 		State state;
 		bool hasRows;
-		bool hasHeaders;
 		bool skipEmptyRows = true; // TODO: make this an option?
-		IExcelSchemaProvider schema;
 		int rowNumber;
 		Dictionary<int, string> sheetNames;
 
@@ -47,13 +41,10 @@ namespace Sylvan.Data.Excel
 
 		public override ExcelWorkbookType WorkbookType => ExcelWorkbookType.ExcelXml;
 
-		public XlsxWorkbookReader(Stream iStream, ExcelDataReaderOptions opts)
+		public XlsxWorkbookReader(Stream iStream, ExcelDataReaderOptions opts) : base(opts.Schema)
 		{
-			this.colCount = 0;
 			this.rowCount = 0;
 			this.values = Array.Empty<FieldInfo>();
-			this.headers = Array.Empty<string>();
-			this.schema = opts.Schema;
 
 			this.refName = this.styleName = this.typeName = string.Empty;
 
@@ -218,44 +209,26 @@ namespace Sylvan.Data.Excel
 		bool InitializeSheet()
 		{
 			this.state = State.Initializing;
-			int count = -1;
 
 			if (reader == null)
 			{
 				this.state = State.Closed;
 				throw new InvalidOperationException();
 			}
-			this.hasHeaders = schema.HasHeaders(currentSheetName);
-			if (hasHeaders)
-			{
-				if (!NextRow())
-				{
-					return false;
-				}
-
-				count = ParseRowValues();
-
-				if (this.headers.Length < count)
-				{
-					Array.Resize(ref this.headers, count);
-				}
-
-				for (int i = 0; i < count; i++)
-				{
-					headers[i] = this.GetString(i);
-				}
-			}
-			if (!NextRow())
-			{
-				return false;
-			}
 
 			var c = ParseRowValues();
-			count = count == -1 ? c : count;
+
+			var hasHeaders = schema.HasHeaders(currentSheetName);
+
+			LoadSchema(!hasHeaders);
+
+			if (hasHeaders)
+			{
+				this.state = State.Open;
+				Read();
+			}
 
 			this.rowNumber = hasHeaders ? 0 : -1;
-			this.colCount = count;
-			LoadSchema();
 			this.state = State.Initialized;
 			return true;
 		}
@@ -548,27 +521,6 @@ namespace Sylvan.Data.Excel
 			return values[ordinal].type;
 		}
 
-		public override ReadOnlyCollection<DbColumn> GetColumnSchema()
-		{
-			return columnSchema!;
-		}
-
-		ReadOnlyCollection<DbColumn>? columnSchema;
-
-		void LoadSchema()
-		{
-			var cols = new List<DbColumn>();
-			for (int i = 0; i < colCount; i++)
-			{
-				string? header = hasHeaders ? headers[i] : null;
-				var col = schema.GetColumn(currentSheetName, header, i);
-				var ecs = new ExcelColumn(header, i, col);
-				cols.Add(ecs);
-			}
-
-			this.columnSchema = new ReadOnlyCollection<DbColumn>(cols);
-		}
-
 		static ExcelErrorCode GetErrorCode(string str)
 		{
 			if (str == "#DIV/0!")
@@ -701,11 +653,6 @@ namespace Sylvan.Data.Excel
 				return fmt;
 			}
 			return null;
-		}
-
-		public override int FieldCount
-		{
-			get { return this.colCount; }
 		}
 
 		public override int RowFieldCount => this.rowFieldCount;
