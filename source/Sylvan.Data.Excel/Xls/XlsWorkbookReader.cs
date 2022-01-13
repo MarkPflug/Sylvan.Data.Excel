@@ -402,7 +402,7 @@ namespace Sylvan.Data.Excel
 			{
 				return false;
 			}
-			LoadSchema(hasHeaders);
+			LoadSchema(!hasHeaders);
 
 			if (!hasHeaders)
 			{
