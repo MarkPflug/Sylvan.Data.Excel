@@ -74,6 +74,8 @@ namespace Sylvan.Data.Excel
 					return XlsWorkbookReader.CreateAsync(stream, options).GetAwaiter().GetResult();
 				case ExcelWorkbookType.ExcelXml:
 					return new XlsxWorkbookReader(stream, options);
+				case ExcelWorkbookType.ExcelBinary:
+					return new XlsbWorkbookReader(stream, options);
 				default:
 					throw new ArgumentException(nameof(fileType));
 			}
@@ -84,6 +86,7 @@ namespace Sylvan.Data.Excel
 			{ ".xls", ExcelWorkbookType.Excel },
 			{ ".xlsx", ExcelWorkbookType.ExcelXml },
 			{ ".xlsm", ExcelWorkbookType.ExcelXml },
+			{ ".xlsb", ExcelWorkbookType.ExcelBinary },
 		};
 
 		/// <summary>

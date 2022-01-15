@@ -18,6 +18,16 @@ namespace Sylvan.Data.Excel
 		}
 	}
 
+	public sealed class XlsbTests : ExcelTests
+	{
+		const string FileFormat = "Data/{0}.xlsb";
+
+		protected override string GetFile(string name)
+		{
+			return string.Format(FileFormat, name);
+		}
+	}
+
 	// the tests defined here will be run against both an .xls and .xlsx file
 	// containing the same content. The expectation is the behavior of the two
 	// implementations is the same, so the same test should be

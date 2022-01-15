@@ -664,70 +664,70 @@ namespace Sylvan.Data.Excel
 		internal override int DateEpochYear => 1900;
 
 		public override int RowNumber => rowNumber;
-	}
 
-	sealed class SharedStrings
-	{
-		internal static SharedStrings Empty;
-
-		static SharedStrings()
+		sealed class SharedStrings
 		{
-			Empty = new SharedStrings();
-		}
+			internal static SharedStrings Empty;
 
-		private SharedStrings()
-		{
-			this.count = 0;
-			this.stringData = Array.Empty<string>();
-		}
-
-		int count;
-		string[] stringData;
-
-		const string ssNs = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
-
-		public SharedStrings(XmlReader reader)
-		{
-			while (!reader.IsStartElement("sst") && reader.Read()) ;
-
-			string countStr = reader.GetAttribute("uniqueCount")!;
-			if (countStr == null)
+			static SharedStrings()
 			{
-				stringData = Array.Empty<string>();
-				return;
+				Empty = new SharedStrings();
 			}
-			reader.Read();
 
-			var count = int.Parse(countStr);
-			this.count = count;
-			this.stringData = new string[this.count];
-
-			for (int i = 0; i < count; i++)
+			private SharedStrings()
 			{
-				reader.ReadStartElement("si");
+				this.count = 0;
+				this.stringData = Array.Empty<string>();
+			}
 
-				var empty = reader.IsEmptyElement;
+			int count;
+			string[] stringData;
 
-				reader.ReadStartElement("t");
-				var str = empty ? "" : reader.ReadContentAsString();
-				this.stringData[i] = str;
-				if (!empty)
+			const string ssNs = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
+
+			public SharedStrings(XmlReader reader)
+			{
+				while (!reader.IsStartElement("sst") && reader.Read()) ;
+
+				string countStr = reader.GetAttribute("uniqueCount")!;
+				if (countStr == null)
+				{
+					stringData = Array.Empty<string>();
+					return;
+				}
+				reader.Read();
+
+				var count = int.Parse(countStr);
+				this.count = count;
+				this.stringData = new string[this.count];
+
+				for (int i = 0; i < count; i++)
+				{
+					reader.ReadStartElement("si");
+
+					var empty = reader.IsEmptyElement;
+
+					reader.ReadStartElement("t");
+					var str = empty ? "" : reader.ReadContentAsString();
+					this.stringData[i] = str;
+					if (!empty)
+						reader.ReadEndElement();
 					reader.ReadEndElement();
-				reader.ReadEndElement();
+				}
+			}
+
+			public int Count
+			{
+				get { return this.count; }
+			}
+
+			public string GetString(int i)
+			{
+				if ((uint)i >= count)
+					throw new ArgumentOutOfRangeException(nameof(i));
+
+				return stringData[i];
 			}
 		}
-
-		public int Count
-		{
-			get { return this.count; }
-		}
-
-		public string GetString(int i)
-		{
-			if ((uint)i >= count)
-				throw new ArgumentOutOfRangeException(nameof(i));
-
-			return stringData[i];
-		}
-	}
+	}	
 }
