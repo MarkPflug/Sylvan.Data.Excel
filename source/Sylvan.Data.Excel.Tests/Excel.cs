@@ -64,7 +64,7 @@ namespace Sylvan.Data.Excel
 			using var edr = ExcelDataReader.Create(file, noHeaders);
 			for (int i = 0; i < 32; i++)
 			{
-				Assert.True(edr.Read());
+				Assert.True(edr.Read(), "Row " + i);
 				Assert.Equal(i + 1, edr.GetInt32(0));
 
 				for (int j = 1; j < edr.FieldCount; j++)
@@ -72,7 +72,6 @@ namespace Sylvan.Data.Excel
 					Assert.Equal(j + 1, edr.GetInt32(j));
 				}
 			}
-			// TODO: make this assertion pass
 			Assert.False(edr.Read());
 		}
 
