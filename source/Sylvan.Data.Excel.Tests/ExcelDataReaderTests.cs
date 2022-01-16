@@ -8,7 +8,7 @@ namespace Sylvan.Data.Excel
 
 #pragma warning disable xUnit1000 // Test classes must be public
 	// suppress these tests that depend on external files.
-	//public
+	public
 	class ExcelDataReaderTests
 #pragma warning restore xUnit1000 // Test classes must be public
 	{
@@ -22,8 +22,8 @@ namespace Sylvan.Data.Excel
 		[Fact]
 		public void TestBig()
 		{
-			//var file = @"/data/excel/65K_Records_Data.xls";
-			var file = "/data/excel/vehicles_xls.xls";
+			var file = @"/data/excel/65K_Records_Data.xlsb";
+			//var file = "/data/excel/vehicles_xls.xls";
 
 			using var r = ExcelDataReader.Create(file);
 			while (r.Read()) ;

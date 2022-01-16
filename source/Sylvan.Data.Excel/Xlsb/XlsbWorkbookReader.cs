@@ -221,48 +221,31 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 		}
 		using (var stream = ssPart.Open())
 		{
-			byte[] buffer = new byte[0x1000];
+			var reader = new RecordReader(stream);
 
-			var br = new BinaryReader(stream);
-			var type = br.ReadRecordType();
-			if (type != RecordType.SSTBegin)
+			reader.NextRecord();
+			if (reader.RecordType != RecordType.SSTBegin)
 				throw new InvalidDataException();
 
-			var len = br.ReadRecordLen();
-			if (len != 8) throw new InvalidDataException();
-
-			int totalCount = br.ReadInt32();
-			int count = br.ReadInt32();
+			int totalCount = reader.GetInt32(0);
+			int count = reader.GetInt32(4);
 
 			var ss = new string[count];
 
 			for (int i = 0; i < count; i++)
 			{
-				type = br.ReadRecordType();
-				if (type != RecordType.SSTItem)
+				reader.NextRecord();
+				if (reader.RecordType != RecordType.SSTItem)
+				{
+					reader.DebugInfo("fail");
 					throw new InvalidDataException();
+				}
 
-				len = br.ReadRecordLen();
-
-				var flags = br.ReadByte();
+				var flags = reader.GetByte(0);
 				if (flags == 0)
 				{
-					len = br.ReadInt32();
-					if (len > 0x7fff) throw new InvalidDataException();
-					if (len > buffer.Length * 2)
-					{
-						Array.Resize(ref buffer, len * 2);
-					}
-					br.Read(buffer, 0, len * 2);
-					var str = Encoding.Unicode.GetString(buffer, 0, len * 2);
+					var str = reader.GetString(1);
 					ss[i] = str;
-					// "seek" past any remaining record.
-					// the stream can't seek because it is a deflate stream.
-					var remains = len - (5 + len * 2);
-					if (remains > 0)
-					{
-						stream.Read(buffer, 0, remains);
-					}
 				}
 				else
 				{
@@ -273,17 +256,14 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 		}
 	}
 
-	//string GetSst(int i)
-	//{
-	//	if ((uint)i >= stringData.Length)
-	//		throw new ArgumentOutOfRangeException(nameof(i));
-
-	//	return stringData[i];
-	//}
-
 	public override bool Read()
 	{
 		rowNumber++;
+
+		if(rowNumber == 553)
+		{
+			;
+		}
 		if (state == State.Open)
 		{
 			if (rowNumber <= parsedRow)
@@ -294,7 +274,7 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 			while (true)
 			{
 				var c = ParseRowValues();
-				Debug.Write("Read " + c);
+				//Debug.Write("Read " + c);
 				if (c < 0)
 					return false;
 				if (c == 0 && skipEmptyRows)
@@ -320,8 +300,6 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 		return false;
 	}
 
-	char[] valueBuffer = new char[64];
-
 	int parsedRow = -1;
 
 	int ParseRowValues()
@@ -341,7 +319,7 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 		var rowIdx = reader.GetInt32(0);
 		var ifx = reader.GetInt32(4);
 
-		reader.DebugInfo("parse " + rowIdx);
+		//reader.DebugInfo("parse " + rowIdx);
 
 		reader.NextRecord();
 		int count = 0;
@@ -461,7 +439,7 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 					}
 					break;
 				default:
-					reader.DebugInfo("unk");
+					//reader.DebugInfo("unk");
 					break;
 			}
 
@@ -573,7 +551,7 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 			case ExcelDataType.Error:
 				throw Error(ordinal);
 			case ExcelDataType.Boolean:
-				return fi.b ? bool.TrueString: bool.FalseString;
+				return fi.b ? bool.TrueString : bool.FalseString;
 			case ExcelDataType.Numeric:
 				return FormatVal(fi.xfIdx, fi.numValue);
 			case ExcelDataType.DateTime:
@@ -707,75 +685,148 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 
 	sealed class RecordReader
 	{
+		const int DefaultBufferSize = 0x10000;
+
 		readonly Stream stream;
-		BinaryReader reader;
 		byte[] data;
+		int pos = 0;
+		int s = 0;
+		int end = 0;
+
+		RecordType type;
+		int recordLen;
 
 		[Conditional("DEBUG")]
 		internal void DebugInfo(string header)
 		{
-			Debug.WriteLine(header + ": " + this.RecordType + " " + this.recordLen + " " + Encoding.ASCII.GetString(data, 0, this.recordLen).Replace('\0', '_'));
+			Debug.WriteLine(header + ": " + this.RecordType + " " + this.recordLen + " " + Encoding.ASCII.GetString(data, s, this.recordLen).Replace('\0', '_'));
 		}
 
 		public RecordReader(Stream stream)
 		{
 			this.stream = stream;
-			this.reader = new BinaryReader(stream);
-			this.data = new byte[0x1000];
+			this.data = new byte[DefaultBufferSize];
 		}
 
 		internal RecordType RecordType => type;
 		internal int RecordLen => recordLen;
 
-		RecordType type;
-		int recordLen;
 
 		public int GetInt32(int offset = 0)
 		{
-			return BitConverter.ToInt32(data, offset);
+			return BitConverter.ToInt32(data, s + offset);
 		}
 
 		public double GetDouble(int offset = 0)
 		{
-			return BitConverter.ToDouble(data, offset);
+			return BitConverter.ToDouble(data, s + offset);
 		}
 
 		public short GetInt16(int offset = 0)
 		{
-			return BitConverter.ToInt16(data, offset);
+			return BitConverter.ToInt16(data, s + offset);
 		}
 
 		public short GetByte(int offset = 0)
 		{
-			return data[offset];
+			return data[s + offset];
 		}
 
 		public string GetString(int offset)
 		{
-			var len = BitConverter.ToInt32(data, offset);
-			return Encoding.Unicode.GetString(data, offset + 4, len * 2);
+			var len = BitConverter.ToInt32(data, s + offset);
+			return Encoding.Unicode.GetString(data, s + offset + 4, len * 2);
 		}
 
 		public string GetString(int offset, out int end)
 		{
-			var len = BitConverter.ToInt32(data, offset);
+			var len = BitConverter.ToInt32(data, s + offset);
 			end = offset + 4 + len * 2;
-			return Encoding.Unicode.GetString(data, offset + 4, len * 2);
+			return Encoding.Unicode.GetString(data, s + offset + 4, len * 2);
+		}
+
+		void FillBuffer(int requiredLen)
+		{
+			Debug.Assert(pos <= end);
+
+			if(this.data.Length < requiredLen)
+			{
+				Array.Resize(ref this.data, requiredLen);
+
+			}
+
+			if (pos != end)
+			{
+				// TODO: make sure overlapped copy is safe here
+				Buffer.BlockCopy(data, pos, data, 0, end - pos);			
+			}
+			end = end - pos;
+			pos = 0;
+
+			while (end < requiredLen)
+			{
+				var l = stream.Read(data, end, data.Length - end);
+				if (l == 0)
+					throw new EndOfStreamException();
+
+				end += l;
+			}
+			Debug.Assert(pos <= end);
+		}
+
+		RecordType ReadRecordType()
+		{
+			Debug.Assert(pos <= end);
+
+			if (pos >= end)
+			{
+				FillBuffer(1);
+				if (pos >= end)
+					throw new EndOfStreamException();
+			}
+
+			var b = data[pos++];
+			if ((b & 0x80) == 0)
+			{
+				return (RecordType)b;
+			}
+
+			var type = (RecordType)(b & 0x7f | (data[pos++] << 7));
+			return type;
+		}
+
+		int ReadRecordLen()
+		{
+			int accum = 0;
+			int shift = 0;
+			for (int i = 0; i < 4; i++, shift += 7)
+			{
+				if (pos >= end)
+				{
+					FillBuffer(1);
+				}
+				var b = data[pos++];
+				accum |= (b & 0x7f) << shift;
+				if ((b & 0x80) == 0)
+					break;
+			}
+			return accum;
 		}
 
 		public bool NextRecord()
 		{
-			type = reader.ReadRecordType();
-			recordLen = reader.ReadRecordLen();
-			if (recordLen > data.Length)
+
+			type = ReadRecordType();
+			recordLen = ReadRecordLen();
+			if(pos + recordLen > end)
 			{
-				// TODO: allocate with some overhead?
-				// maybe round to next power of two.
-				Array.Resize(ref data, recordLen);
+				FillBuffer(recordLen);
 			}
-			var count = reader.Read(data, 0, recordLen);
-			if (count != recordLen)
-				throw new Exception();
+			s = pos;
+			pos += recordLen;
+
+			Debug.Assert(pos <= end);
+
 			return true;
 		}
 	}
@@ -815,31 +866,4 @@ enum RecordType
 	SheetEnd = 130,
 	DataStart = 145,
 	DataEnd = 146,
-}
-
-static class BinaryExtensions
-{
-	public static RecordType ReadRecordType(this BinaryReader br)
-	{
-		var b = br.ReadByte();
-		if ((b & 0x80) == 0)
-		{
-			return (RecordType)b;
-		}
-		return (RecordType)(b & 0x7f | (br.ReadByte() << 7));
-	}
-
-	public static int ReadRecordLen(this BinaryReader br)
-	{
-		int accum = 0;
-		int shift = 0;
-		for (int i = 0; i < 4; i++, shift += 7)
-		{
-			var b = br.ReadByte();
-			accum = (b & 0x7f) << shift;
-			if ((b & 0x80) == 0)
-				break;
-		}
-		return accum;
-	}
 }
