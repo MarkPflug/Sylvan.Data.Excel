@@ -86,7 +86,7 @@ namespace Sylvan.Data.Excel
 
 			public async Task<string> ReadString16()
 			{
-				if(bufferPos >= recordOff + recordLen)
+				if (bufferPos >= recordOff + recordLen)
 				{
 					var next = await NextRecordAsync();
 					if (!next || Type != RecordType.Continue)
@@ -109,7 +109,7 @@ namespace Sylvan.Data.Excel
 				if (asian)
 					asianCount = ReadInt32();
 
-				var str = await ReadStringBufferAsync(len, compressed);				
+				var str = await ReadStringBufferAsync(len, compressed);
 
 				for (int i = 0; i < richCount; i++)
 				{
@@ -123,14 +123,14 @@ namespace Sylvan.Data.Excel
 				}
 
 				return str;
-			}			
+			}
 
 			internal async Task<string> ReadStringBufferAsync(int charCount, bool compressed)
 			{
 				var strLen = charCount;
 				// stores our position in the string we are assembling.
 				int strPos = 0;
-				for(int i = 0; ; i++)
+				for (int i = 0; ; i++)
 				{
 					var encoding = compressed ? Encoding.ASCII : Encoding.Unicode;
 					int charSize = compressed ? 1 : 2;
@@ -141,7 +141,7 @@ namespace Sylvan.Data.Excel
 
 					// if the string sits entirely within the current record
 					// we can directly create a string from it.
-					if(i == 0 && recordBytes >= byteCount)
+					if (i == 0 && recordBytes >= byteCount)
 					{
 						var str = encoding.GetString(buffer, bufferPos, byteCount);
 						bufferPos += byteCount;
@@ -178,7 +178,7 @@ namespace Sylvan.Data.Excel
 						var b = ReadByte();
 						compressed = b == 0;
 						continue;
-					} 
+					}
 					else
 					{
 						break;
@@ -186,7 +186,7 @@ namespace Sylvan.Data.Excel
 				}
 				return new string(strBuffer, 0, strLen);
 			}
-						
+
 			public async Task<string> ReadByteString(int lenSize)
 			{
 				int len;
@@ -247,7 +247,7 @@ namespace Sylvan.Data.Excel
 
 				if (bufferPos + 4 >= bufferLen)
 				{
-					await FillBufferAsync();					
+					await FillBufferAsync();
 				}
 				this.recordOff = bufferPos;
 				this.recordLen = 4; // we have at least the first 4 bytes.

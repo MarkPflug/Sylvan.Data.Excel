@@ -40,7 +40,7 @@ namespace Sylvan.Data.Excel
 				{
 					var safeName = badChars.Replace(Name, "");
 					var uriStr = "/" + safeName;
-					var uri = new Uri(uriStr, UriKind.Relative);					
+					var uri = new Uri(uriStr, UriKind.Relative);
 					return uri;
 				}
 			}

@@ -140,7 +140,7 @@ namespace Sylvan.Data.Excel
 		void LoadDirectoryEntries()
 		{
 			int directorySectorCount = 0;
-			
+
 			foreach (uint v in GetStreamSectors(directorySectorStart))
 				directorySectorCount++;
 

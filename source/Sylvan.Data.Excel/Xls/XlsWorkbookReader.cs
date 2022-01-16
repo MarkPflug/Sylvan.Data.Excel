@@ -181,7 +181,7 @@ namespace Sylvan.Data.Excel
 				return false;
 			}
 			batchIdx++;
-						
+
 			if (batchIdx >= RowBatchSize)
 			{
 				if (await NextRowBatch())
@@ -315,11 +315,7 @@ namespace Sylvan.Data.Excel
 				}
 			}
 			throw new InvalidDataException();//"Expected sheetBOF"
-
 		go:
-
-			//if (type != BOFType.Worksheet)
-			//	throw new InvalidDataException("unexpected object type, expected sheet.");
 
 			while (true)
 			{
@@ -409,7 +405,7 @@ namespace Sylvan.Data.Excel
 				// "unread" the first row.
 				batchIdx--;
 			}
-			
+
 			return true;
 		}
 
@@ -590,13 +586,13 @@ namespace Sylvan.Data.Excel
 
 			ref var rb = ref rowBatch[offset];
 			bool isNull = cd.type == CellType.Null;
-			if(!isNull)
+			if (!isNull)
 			{
 				rb.rowFieldCount = Math.Max(rb.firstColIdx, colIdx + 1);
 			}
 			int rowOff = rb.firstColIdx;
 			rowDatas[offset][colIdx - rowOff] = cd;
-			
+
 		}
 
 		async Task<bool> NextRowBatch()
@@ -770,7 +766,7 @@ namespace Sylvan.Data.Excel
 		ref CellData GetCell(int ordinal)
 		{
 			ref var r = ref this.rowBatch[batchIdx];
-			
+
 			if (r.index == 0) return ref CellData.Null;
 
 			int rowOffset = r.firstColIdx;

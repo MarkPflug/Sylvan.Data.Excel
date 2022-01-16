@@ -274,7 +274,7 @@ namespace Sylvan.Data.Excel
 					row = row * 10 + v;
 				}
 				return new CellPosition() { Column = col, Row = row - 1 };
-			}			
+			}
 		}
 
 		public override bool Read()
@@ -287,7 +287,7 @@ namespace Sylvan.Data.Excel
 				while (NextRow())
 				{
 					var c = ParseRowValues();
-					if(c == 0 && skipEmptyRows)
+					if (c == 0 && skipEmptyRows)
 					{
 						continue;
 					}
@@ -329,7 +329,7 @@ namespace Sylvan.Data.Excel
 			}
 
 			int valueCount = 0;
-			
+
 			do
 			{
 				CellType type = CellType.Numeric;
@@ -368,10 +368,10 @@ namespace Sylvan.Data.Excel
 				static bool TryParse(ReadOnlySpan<char> span, out int value)
 				{
 					int a = 0;
-					for(int i = 0; i < span.Length; i++)
+					for (int i = 0; i < span.Length; i++)
 					{
 						var d = span[i] - '0';
-						if((uint) d >= 10)
+						if ((uint)d >= 10)
 						{
 							value = 0;
 							return false;
@@ -418,7 +418,7 @@ namespace Sylvan.Data.Excel
 #if SPAN_PARSE
 							len = reader.ReadValueChunk(valueBuffer, 0, valueBuffer.Length);
 							if (len < valueBuffer.Length && double.TryParse(valueBuffer.AsSpan(0, len), NumberStyles.Float, ci, out fi.numValue))
-							{ 
+							{
 							}
 							else
 							{
@@ -448,7 +448,7 @@ namespace Sylvan.Data.Excel
 							len = reader.ReadValueChunk(valueBuffer, 0, valueBuffer.Length);
 							if (len >= valueBuffer.Length)
 								throw new FormatException();
-							if(!TryParse(valueBuffer.AsSpan(0, len), out int strIdx))
+							if (!TryParse(valueBuffer.AsSpan(0, len), out int strIdx))
 							{
 								throw new FormatException();
 							}
@@ -729,5 +729,5 @@ namespace Sylvan.Data.Excel
 				return stringData[i];
 			}
 		}
-	}	
+	}
 }

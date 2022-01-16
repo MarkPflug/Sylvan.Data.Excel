@@ -41,14 +41,14 @@ namespace Sylvan.Data.Excel
 		/// <returns>The ExcelDataReader.</returns>
 		/// <exception cref="ArgumentException">If the filename refers to a file of an unknown type.</exception>
 		public static ExcelDataReader Create(string filename, ExcelDataReaderOptions? options = null)
-		{			
+		{
 			var type = GetWorkbookType(filename);
 			if (type == ExcelWorkbookType.Unknown)
 				throw new ArgumentException(null, nameof(filename));
 
 			var s = new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.Read, 1);
 
-			return Create(s, type, options);			
+			return Create(s, type, options);
 		}
 
 		/// <summary>
