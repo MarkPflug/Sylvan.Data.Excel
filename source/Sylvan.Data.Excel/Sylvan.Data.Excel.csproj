@@ -2,7 +2,8 @@
 
 	<PropertyGroup>
 		<TargetFrameworks>netstandard2.1;netstandard2.0</TargetFrameworks>
-		<VersionPrefix>0.1.6</VersionPrefix>
+		<VersionPrefix>0.1.7</VersionPrefix>
+		<VersionSuffix>b0002</VersionSuffix>
 		<Description>A cross-platform .NET library for reading Excel data files.</Description>
 		<PackageTags>excel;xls;xlsx;datareader</PackageTags>
 		<Nullable>enable</Nullable>
@@ -12,6 +13,6 @@
 	</PropertyGroup>
 
 	<ItemGroup Condition="$(TargetFramework) == 'netstandard2.0'">
-		<PackageReference Include="System.Memory" Version="4.5.1"/>
+		<PackageReference Include="System.Memory" Version="4.5.1" />
 	</ItemGroup>
 </Project>

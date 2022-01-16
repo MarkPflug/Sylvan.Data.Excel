@@ -80,7 +80,7 @@ namespace Sylvan.Data.Excel
 
 					while (readLen < count)
 					{
-						if(this.sectorOff >= this.sectorLen)
+						if (this.sectorOff >= this.sectorLen)
 						{
 							sectorOff = 0;
 							sectorIdx++;
@@ -124,7 +124,7 @@ namespace Sylvan.Data.Excel
 						this.position += l;
 						this.streamPos += l;
 					}
-					bytesRead += len;					
+					bytesRead += len;
 				}
 
 				return bytesRead;

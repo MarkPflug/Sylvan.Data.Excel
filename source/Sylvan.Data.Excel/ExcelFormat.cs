@@ -159,13 +159,13 @@ namespace Sylvan.Data.Excel
 						for (; i < spec.Length; i++)
 						{
 							c = spec[i];
-							if(c == 'm')
+							if (c == 'm')
 							{
 								count++;
 								continue;
 							}
 						}
-						if(count > 0)
+						if (count > 0)
 						{
 							hasTimeElements = true;
 						}
@@ -247,10 +247,10 @@ namespace Sylvan.Data.Excel
 				case FormatKind.Time:
 					if (ExcelDataReader.TryGetDate(value, dateOffset, out var dt))
 					{
-						if(dt.TimeOfDay == TimeSpan.Zero)
+						if (dt.TimeOfDay == TimeSpan.Zero)
 						{
 							return IsoDate.ToDateStringIso(dt);
-						} 
+						}
 						else
 						{
 							return IsoDate.ToStringIso(dt);

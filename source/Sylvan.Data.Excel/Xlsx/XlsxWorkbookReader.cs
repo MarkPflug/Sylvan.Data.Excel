@@ -274,7 +274,7 @@ namespace Sylvan.Data.Excel
 					row = row * 10 + v;
 				}
 				return new CellPosition() { Column = col, Row = row - 1 };
-			}			
+			}
 		}
 
 		public override bool Read()
@@ -287,7 +287,7 @@ namespace Sylvan.Data.Excel
 				while (NextRow())
 				{
 					var c = ParseRowValues();
-					if(c == 0 && skipEmptyRows)
+					if (c == 0 && skipEmptyRows)
 					{
 						continue;
 					}
@@ -329,7 +329,7 @@ namespace Sylvan.Data.Excel
 			}
 
 			int valueCount = 0;
-			
+
 			do
 			{
 				CellType type = CellType.Numeric;
@@ -368,10 +368,10 @@ namespace Sylvan.Data.Excel
 				static bool TryParse(ReadOnlySpan<char> span, out int value)
 				{
 					int a = 0;
-					for(int i = 0; i < span.Length; i++)
+					for (int i = 0; i < span.Length; i++)
 					{
 						var d = span[i] - '0';
-						if((uint) d >= 10)
+						if ((uint)d >= 10)
 						{
 							value = 0;
 							return false;
@@ -418,7 +418,7 @@ namespace Sylvan.Data.Excel
 #if SPAN_PARSE
 							len = reader.ReadValueChunk(valueBuffer, 0, valueBuffer.Length);
 							if (len < valueBuffer.Length && double.TryParse(valueBuffer.AsSpan(0, len), NumberStyles.Float, ci, out fi.numValue))
-							{ 
+							{
 							}
 							else
 							{
@@ -448,7 +448,7 @@ namespace Sylvan.Data.Excel
 							len = reader.ReadValueChunk(valueBuffer, 0, valueBuffer.Length);
 							if (len >= valueBuffer.Length)
 								throw new FormatException();
-							if(!TryParse(valueBuffer.AsSpan(0, len), out int strIdx))
+							if (!TryParse(valueBuffer.AsSpan(0, len), out int strIdx))
 							{
 								throw new FormatException();
 							}
@@ -600,7 +600,7 @@ namespace Sylvan.Data.Excel
 				case ExcelDataType.Error:
 					throw Error(ordinal);
 				case ExcelDataType.Boolean:
-					return fi.strValue[0] == '0' ? "FALSE" : "TRUE";
+					return fi.strValue[0] == '0' ? bool.FalseString : bool.TrueString;
 				case ExcelDataType.Numeric:
 					return FormatVal(fi.xfIdx, fi.numValue);
 				case ExcelDataType.DateTime:
@@ -664,70 +664,70 @@ namespace Sylvan.Data.Excel
 		internal override int DateEpochYear => 1900;
 
 		public override int RowNumber => rowNumber;
-	}
 
-	sealed class SharedStrings
-	{
-		internal static SharedStrings Empty;
-
-		static SharedStrings()
+		sealed class SharedStrings
 		{
-			Empty = new SharedStrings();
-		}
+			internal static SharedStrings Empty;
 
-		private SharedStrings()
-		{
-			this.count = 0;
-			this.stringData = Array.Empty<string>();
-		}
-
-		int count;
-		string[] stringData;
-
-		const string ssNs = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
-
-		public SharedStrings(XmlReader reader)
-		{
-			while (!reader.IsStartElement("sst") && reader.Read()) ;
-
-			string countStr = reader.GetAttribute("uniqueCount")!;
-			if (countStr == null)
+			static SharedStrings()
 			{
-				stringData = Array.Empty<string>();
-				return;
+				Empty = new SharedStrings();
 			}
-			reader.Read();
 
-			var count = int.Parse(countStr);
-			this.count = count;
-			this.stringData = new string[this.count];
-
-			for (int i = 0; i < count; i++)
+			private SharedStrings()
 			{
-				reader.ReadStartElement("si");
+				this.count = 0;
+				this.stringData = Array.Empty<string>();
+			}
 
-				var empty = reader.IsEmptyElement;
+			int count;
+			string[] stringData;
 
-				reader.ReadStartElement("t");
-				var str = empty ? "" : reader.ReadContentAsString();
-				this.stringData[i] = str;
-				if (!empty)
+			const string ssNs = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
+
+			public SharedStrings(XmlReader reader)
+			{
+				while (!reader.IsStartElement("sst") && reader.Read()) ;
+
+				string countStr = reader.GetAttribute("uniqueCount")!;
+				if (countStr == null)
+				{
+					stringData = Array.Empty<string>();
+					return;
+				}
+				reader.Read();
+
+				var count = int.Parse(countStr);
+				this.count = count;
+				this.stringData = new string[this.count];
+
+				for (int i = 0; i < count; i++)
+				{
+					reader.ReadStartElement("si");
+
+					var empty = reader.IsEmptyElement;
+
+					reader.ReadStartElement("t");
+					var str = empty ? "" : reader.ReadContentAsString();
+					this.stringData[i] = str;
+					if (!empty)
+						reader.ReadEndElement();
 					reader.ReadEndElement();
-				reader.ReadEndElement();
+				}
 			}
-		}
 
-		public int Count
-		{
-			get { return this.count; }
-		}
+			public int Count
+			{
+				get { return this.count; }
+			}
 
-		public string GetString(int i)
-		{
-			if ((uint)i >= count)
-				throw new ArgumentOutOfRangeException(nameof(i));
+			public string GetString(int i)
+			{
+				if ((uint)i >= count)
+					throw new ArgumentOutOfRangeException(nameof(i));
 
-			return stringData[i];
+				return stringData[i];
+			}
 		}
 	}
 }

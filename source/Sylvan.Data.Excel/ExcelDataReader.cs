@@ -41,14 +41,14 @@ namespace Sylvan.Data.Excel
 		/// <returns>The ExcelDataReader.</returns>
 		/// <exception cref="ArgumentException">If the filename refers to a file of an unknown type.</exception>
 		public static ExcelDataReader Create(string filename, ExcelDataReaderOptions? options = null)
-		{			
+		{
 			var type = GetWorkbookType(filename);
 			if (type == ExcelWorkbookType.Unknown)
 				throw new ArgumentException(null, nameof(filename));
 
 			var s = new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.Read, 1);
 
-			return Create(s, type, options);			
+			return Create(s, type, options);
 		}
 
 		/// <summary>
@@ -74,6 +74,8 @@ namespace Sylvan.Data.Excel
 					return XlsWorkbookReader.CreateAsync(stream, options).GetAwaiter().GetResult();
 				case ExcelWorkbookType.ExcelXml:
 					return new XlsxWorkbookReader(stream, options);
+				case ExcelWorkbookType.ExcelBinary:
+					return new XlsbWorkbookReader(stream, options);
 				default:
 					throw new ArgumentException(nameof(fileType));
 			}
@@ -84,6 +86,7 @@ namespace Sylvan.Data.Excel
 			{ ".xls", ExcelWorkbookType.Excel },
 			{ ".xlsx", ExcelWorkbookType.ExcelXml },
 			{ ".xlsm", ExcelWorkbookType.ExcelXml },
+			{ ".xlsb", ExcelWorkbookType.ExcelBinary },
 		};
 
 		/// <summary>

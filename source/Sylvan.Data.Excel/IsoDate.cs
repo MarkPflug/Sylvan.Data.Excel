@@ -797,7 +797,7 @@ namespace Sylvan
 			WriteTwoDigits((uint)month, buffer, 5);
 			buffer[7] = '-';
 			WriteTwoDigits((uint)day, buffer, 8);
-			
+
 			return len;
 		}
 
