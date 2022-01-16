@@ -8,7 +8,6 @@ namespace Sylvan.Data.Excel
 
 #pragma warning disable xUnit1000 // Test classes must be public
 	// suppress these tests that depend on external files.
-	public
 	class ExcelDataReaderTests
 #pragma warning restore xUnit1000 // Test classes must be public
 	{

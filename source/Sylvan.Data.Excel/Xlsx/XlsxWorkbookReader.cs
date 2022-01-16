@@ -600,7 +600,7 @@ namespace Sylvan.Data.Excel
 				case ExcelDataType.Error:
 					throw Error(ordinal);
 				case ExcelDataType.Boolean:
-					return fi.strValue[0] == '0' ? "FALSE" : "TRUE";
+					return fi.strValue[0] == '0' ? bool.FalseString : bool.TrueString;
 				case ExcelDataType.Numeric:
 					return FormatVal(fi.xfIdx, fi.numValue);
 				case ExcelDataType.DateTime:

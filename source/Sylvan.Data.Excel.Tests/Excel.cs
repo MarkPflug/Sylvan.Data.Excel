@@ -1,5 +1,4 @@
-﻿using Sylvan.Data.Csv;
-using System;
+﻿using System;
 using System.Data;
 using System.IO;
 using System.Runtime.CompilerServices;
@@ -28,13 +27,13 @@ namespace Sylvan.Data.Excel
 		}
 	}
 
-	// the tests defined here will be run against both an .xls and .xlsx file
+	// the tests defined here will be run against .xls, .xlsx, and .xlsb file
 	// containing the same content. The expectation is the behavior of the two
-	// implementations is the same, so the same test should be
+	// implementations is the same, so the same test code can validate the 
+	// behavior of the three formats.
 	public class ExcelTests
 	{
 		const string FileFormat = "Data/{0}.xls";
-		//const string Format = "data/xlsx/{0}.xlsx";
 
 		protected virtual string GetFile([CallerMemberName] string name = "")
 		{
@@ -75,16 +74,20 @@ namespace Sylvan.Data.Excel
 			Assert.False(edr.Read());
 		}
 
+		static readonly string[] ColumnHeaders = new[]
+		{
+			"Id", "Name", "Date", "Amount", "Code", "Flagged", "Lat", "Lon"
+		};
+
 		[Fact]
 		public void Headers()
 		{
 			var file = GetFile("Schema");
 			using var r = ExcelDataReader.Create(file);
 
-			var headers = new[] { "Id", "Name", "Date", "Amount", "Code", "Flagged", "Lat", "Lon" };
 			for (int i = 0; i < r.FieldCount; i++)
 			{
-				Assert.Equal(headers[i], r.GetName(i));
+				Assert.Equal(ColumnHeaders[i], r.GetName(i));
 			}
 		}
 
@@ -95,10 +98,9 @@ namespace Sylvan.Data.Excel
 			var schema = new ExcelSchema(true, GetSchema());
 			using var r = ExcelDataReader.Create(file, new ExcelDataReaderOptions { Schema = schema });
 
-			var headers = new[] { "Id", "Name", "Date", "Amount", "Code", "Flagged", "Lat", "Lon" };
 			for (int i = 0; i < r.FieldCount; i++)
 			{
-				Assert.Equal(headers[i], r.GetName(i));
+				Assert.Equal(ColumnHeaders[i], r.GetName(i));
 			}
 		}
 
@@ -113,6 +115,7 @@ namespace Sylvan.Data.Excel
 			Assert.Equal("3.33", r.GetString(2));
 			Assert.Equal("3.333", r.GetString(3));
 			Assert.Equal("3.3333", r.GetString(4));
+			Assert.False(r.Read());
 		}
 
 		[Fact]
@@ -155,6 +158,7 @@ namespace Sylvan.Data.Excel
 					Assert.Equal(dt, dt3);
 				}
 			}
+			Assert.False(edr.Read());
 		}
 
 		[Fact]
@@ -164,8 +168,10 @@ namespace Sylvan.Data.Excel
 			using var edr = ExcelDataReader.Create(file, noHeaders);
 			int row = 0;
 			ExcelFormat fmt;
-			while (edr.Read())
+			for (int i = 0; i < 20; i++)
 			{
+				Assert.True(edr.Read());
+				Assert.Equal(i + 1, edr.GetInt32(0));
 				fmt = edr.GetFormat(1);
 				if (!edr.IsDBNull(1))
 					Assert.Equal(FormatKind.Number, fmt.Kind);
@@ -177,6 +183,7 @@ namespace Sylvan.Data.Excel
 					Assert.Equal(FormatKind.Time, fmt.Kind);
 				row++;
 			}
+			Assert.False(edr.Read());
 		}
 
 		[Fact]
@@ -284,6 +291,7 @@ namespace Sylvan.Data.Excel
 			Assert.Equal("b", edr.GetString(1));
 			Assert.Equal(ExcelDataType.String, edr.GetExcelDataType(2));
 			Assert.Equal("ab", edr.GetString(2));
+			Assert.False(edr.Read());
 		}
 
 		[Fact]
@@ -344,10 +352,42 @@ namespace Sylvan.Data.Excel
 				Assert.Equal(colSchema[i].DataType, edr.GetFieldType(i));
 			}
 
-			while (edr.Read())
+			var names = new[] { "James", "Janet", "Frank", "Laura" };
+			var dates = new[] {
+				new DateTime(2020, 1, 1),
+				new DateTime(2022, 1, 1),
+				new DateTime(2021, 1, 1),
+				new DateTime(2019, 1, 1),
+			};
+
+			for (int i = 0; i < 4; i++)
 			{
-				edr.Process();
+				Assert.True(edr.Read());
+				Assert.Equal(i + 1, edr.GetInt32(0));
+				Assert.Equal(i + 1, edr.GetInt16(0));
+				Assert.Equal(i + 1, edr.GetValue(0));
+				Assert.Equal("" + (i + 1), edr.GetString(0));
+				Assert.Equal(names[i], edr.GetString(1));
+
+				Assert.Equal(dates[i], edr.GetDateTime(2));
+
+				Assert.Equal(i >= 2, edr.GetBoolean(5));
+				Assert.Equal((i >= 2).ToString(), edr.GetString(5));
+
+				var a = edr.GetDouble(3);
+				var b = edr.GetDecimal(3);
+				Assert.Equal(a, (double)b);
+
+				a = edr.GetDouble(6);
+				b = edr.GetDecimal(6);
+				Assert.Equal(a, (double)b);
+
+				a = edr.GetDouble(7);
+				b = edr.GetDecimal(7);
+				Assert.Equal(a, (double)b);
+
 			}
+			Assert.False(edr.Read());
 		}
 
 		[Fact]
@@ -393,7 +433,6 @@ namespace Sylvan.Data.Excel
 			Assert.True(edr.Read());
 			Assert.Equal(5, edr.RowFieldCount);
 			Assert.False(edr.Read());
-
 		}
 	}
 }
