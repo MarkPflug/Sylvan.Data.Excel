@@ -94,6 +94,8 @@ namespace Sylvan.Data.Excel
 	/// </summary>
 	public sealed class ExcelFormat
 	{
+		internal static ExcelFormat Default = new ExcelFormat("G", FormatKind.Number);
+
 		internal static Dictionary<int, ExcelFormat> CreateFormatCollection()
 		{
 			var dict = new Dictionary<int, ExcelFormat>();
@@ -245,7 +247,7 @@ namespace Sylvan.Data.Excel
 					return value.ToString("G");
 				case FormatKind.Date:
 				case FormatKind.Time:
-					if (ExcelDataReader.TryGetDate(value, dateOffset, out var dt))
+					if (ExcelDataReader.TryGetDate(this, value, dateOffset, out var dt))
 					{
 						if (dt.TimeOfDay == TimeSpan.Zero)
 						{

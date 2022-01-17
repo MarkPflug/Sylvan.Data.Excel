@@ -281,7 +281,8 @@ namespace Sylvan.Data.Excel
 					throw new ExcelFormulaException(ordinal, this.RowNumber, GetFormulaError(ordinal));
 				case ExcelDataType.Numeric:
 					var val = GetDouble(ordinal);
-					return TryGetDate(val, DateEpochYear, out var dt)
+					var fmt = GetFormat(ordinal) ?? ExcelFormat.Default;
+					return TryGetDate(fmt, val, DateEpochYear, out var dt)
 						? dt
 						: throw new FormatException();
 				case ExcelDataType.DateTime:
@@ -295,13 +296,19 @@ namespace Sylvan.Data.Excel
 
 		internal abstract DateTime GetDateTimeValue(int ordinal);
 
-		internal static bool TryGetDate(double value, int epoch, out DateTime dt)
+		static internal bool TryGetDate(ExcelFormat fmt, double value, int epoch, out DateTime dt)
 		{
 			dt = DateTime.MinValue;
 			if (value < 61d && epoch == 1900)
 			{
 				if (value < 1)
 				{
+					if(fmt.Kind == FormatKind.Time)
+					{
+						dt = DateTime.MinValue.AddDays(value);
+						return true;
+					}
+					
 					// 0 is rendered as 1900-1-0, which is nonsense.
 					// negative values render as "###"
 					// so we won't support accessing such values.

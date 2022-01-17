@@ -31,7 +31,6 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 		public ExcelDataType type;
 		public string strValue;
 		public double numValue;
-		public DateTime dtValue;
 		public int xfIdx;
 		public ExcelErrorCode err;
 		public bool b;
@@ -512,7 +511,7 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 
 	internal override DateTime GetDateTimeValue(int ordinal)
 	{
-		return this.values[ordinal].dtValue;
+		throw new NotSupportedException();
 	}
 
 	public override double GetDouble(int ordinal)
@@ -554,8 +553,6 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 				return fi.b ? bool.TrueString : bool.FalseString;
 			case ExcelDataType.Numeric:
 				return FormatVal(fi.xfIdx, fi.numValue);
-			case ExcelDataType.DateTime:
-				return IsoDate.ToStringIso(fi.dtValue);
 		}
 		return fi.strValue;
 	}
