@@ -217,6 +217,7 @@ namespace Sylvan.Data.Excel
 			Assert.True(edr.NextResult());
 			Assert.Equal("Secondary", edr.WorksheetName);
 			Assert.False(edr.NextResult());
+			Assert.Null(edr.WorksheetName);
 		}
 
 		Schema GetSchema(string name = "Schema")

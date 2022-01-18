@@ -659,7 +659,7 @@ namespace Sylvan.Data.Excel
 
 		public override int WorksheetCount => this.sheetNames.Count;
 
-		public override string WorksheetName => this.sheetNames[this.sheetIdx];
+		public override string? WorksheetName => this.sheetNames.ContainsKey(this.sheetIdx) ? this.sheetNames[this.sheetIdx] : null;
 
 		internal override int DateEpochYear => 1900;
 

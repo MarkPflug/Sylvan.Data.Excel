@@ -109,7 +109,7 @@ namespace Sylvan.Data.Excel
 		/// <summary>
 		/// Gets the name of the current worksheet.
 		/// </summary>
-		public abstract string WorksheetName { get; }
+		public abstract string? WorksheetName { get; }
 
 		/// <summary>
 		/// Gets the type of workbook being read.
@@ -154,6 +154,8 @@ namespace Sylvan.Data.Excel
 		{
 			var cols = new List<DbColumn>();
 			var sheet = this.WorksheetName;
+			if (sheet == null)
+				throw new InvalidOperationException();
 			for (int i = 0; i < RowFieldCount; i++)
 			{
 				string? header = ordinalOnly ? null : GetString(i);
