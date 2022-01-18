@@ -93,14 +93,14 @@ namespace Sylvan.Data.Excel
 
 		public override ExcelWorkbookType WorkbookType => ExcelWorkbookType.Excel;
 
-		public override string WorksheetName
+		public override string? WorksheetName
 		{
 			get
 			{
 				return
 					sheetIdx <= this.sheets.Count
 					? this.sheets[sheetIdx - 1].name
-					: throw new InvalidOperationException();
+					: null;
 			}
 		}
 
