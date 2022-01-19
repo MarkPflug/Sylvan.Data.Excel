@@ -12,6 +12,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Documentation", "Documentat
 		..\license.txt = ..\license.txt
 		..\readme.md = ..\readme.md
 		..\docs\ReleaseNotes.md = ..\docs\ReleaseNotes.md
+		..\docs\Schema.md = ..\docs\Schema.md
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Build", "Build", "{77F0BAEB-4FFF-4F3A-905B-4F395ACA7B36}"
