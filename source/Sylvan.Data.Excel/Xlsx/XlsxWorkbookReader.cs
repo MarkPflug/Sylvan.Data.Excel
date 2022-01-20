@@ -12,13 +12,11 @@ namespace Sylvan.Data.Excel
 	{
 		readonly ZipArchive package;
 		SharedStrings ss;
-		int sheetIdx = 0;
+		int sheetIdx = -1;
 		int rowCount;
 
 		Stream stream;
 		XmlReader? reader;
-
-		string currentSheetName = string.Empty;
 
 		FieldInfo[] values;
 		int rowFieldCount;
@@ -26,7 +24,8 @@ namespace Sylvan.Data.Excel
 		bool hasRows;
 		bool skipEmptyRows = true; // TODO: make this an option?
 		int rowNumber;
-		Dictionary<int, string> sheetNames;
+		string[] sheetNames;
+		bool errorAsNull;
 
 		struct FieldInfo
 		{
@@ -43,10 +42,11 @@ namespace Sylvan.Data.Excel
 
 		public XlsxWorkbookReader(Stream iStream, ExcelDataReaderOptions opts) : base(opts.Schema)
 		{
-			this.rowCount = 0;
+			this.rowCount = -1;
 			this.values = Array.Empty<FieldInfo>();
 
 			this.refName = this.styleName = this.typeName = string.Empty;
+			this.errorAsNull = opts.GetErrorAsNull;
 
 			this.stream = iStream;
 			package = new ZipArchive(iStream, ZipArchiveMode.Read);
@@ -70,7 +70,7 @@ namespace Sylvan.Data.Excel
 				}
 			}
 
-			this.sheetNames = new Dictionary<int, string>();
+			var sheetNameList = new List<string>();
 
 			using (Stream sheetsStream = sheetsPart.Open())
 			{
@@ -84,9 +84,10 @@ namespace Sylvan.Data.Excel
 				{
 					var id = int.Parse(sheetElem.GetAttribute("sheetId"));
 					var name = sheetElem.GetAttribute("name");
-					sheetNames.Add(id, name);
+					sheetNameList.Add(name);
 				}
 			}
+			this.sheetNames = sheetNameList.ToArray();
 
 			if (stylePart == null)
 			{
@@ -167,7 +168,9 @@ namespace Sylvan.Data.Excel
 		public override bool NextResult()
 		{
 			sheetIdx++;
-			var sheetName = string.Format("xl/worksheets/sheet{0}.xml", sheetIdx);
+
+
+			var sheetName = $"xl/worksheets/sheet{sheetIdx + 1}.xml";
 
 			var sheetPart = package.GetEntry(sheetName);
 			if (sheetPart == null)
@@ -218,7 +221,7 @@ namespace Sylvan.Data.Excel
 
 			var c = ParseRowValues();
 
-			var hasHeaders = schema.HasHeaders(currentSheetName);
+			var hasHeaders = schema.HasHeaders(this.WorksheetName!);
 
 			LoadSchema(!hasHeaders);
 
@@ -598,6 +601,9 @@ namespace Sylvan.Data.Excel
 			switch (fi.type)
 			{
 				case ExcelDataType.Error:
+					if (this.errorAsNull) { 
+						return string.Empty;
+					}
 					throw Error(ordinal);
 				case ExcelDataType.Boolean:
 					return fi.strValue[0] == '0' ? bool.FalseString : bool.TrueString;
@@ -629,7 +635,19 @@ namespace Sylvan.Data.Excel
 
 		public override bool IsDBNull(int ordinal)
 		{
-			return GetExcelDataType(ordinal) == ExcelDataType.Null;
+			var type = this.GetExcelDataType(ordinal);
+			switch (type)
+			{
+				case ExcelDataType.Null:
+					return true;
+				case ExcelDataType.Error:
+					if (errorAsNull)
+					{
+						return columnSchema[ordinal].AllowDBNull != false;
+					}
+					return false;
+			}
+			return false;
 		}
 
 		public override ExcelErrorCode GetFormulaError(int ordinal)
@@ -657,9 +675,9 @@ namespace Sylvan.Data.Excel
 
 		public override int RowFieldCount => this.rowFieldCount;
 
-		public override int WorksheetCount => this.sheetNames.Count;
+		public override int WorksheetCount => this.sheetNames.Length;
 
-		public override string? WorksheetName => this.sheetNames.ContainsKey(this.sheetIdx) ? this.sheetNames[this.sheetIdx] : null;
+		public override string? WorksheetName => sheetIdx < sheetNames.Length ? this.sheetNames[this.sheetIdx] : null;
 
 		internal override int DateEpochYear => 1900;
 

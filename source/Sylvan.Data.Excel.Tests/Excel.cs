@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Data;
+using System.Data.Common;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -7,9 +8,9 @@ using Xunit;
 
 namespace Sylvan.Data.Excel
 {
-	public sealed class XlsxTests : ExcelTests
+	public sealed class XlsTests : XlsxTests
 	{
-		const string FileFormat = "Data/{0}.xlsx";
+		const string FileFormat = "Data/{0}.xls";
 
 		protected override string GetFile(string name)
 		{
@@ -17,7 +18,7 @@ namespace Sylvan.Data.Excel
 		}
 	}
 
-	public sealed class XlsbTests : ExcelTests
+	public sealed class XlsbTests : XlsxTests
 	{
 		const string FileFormat = "Data/{0}.xlsb";
 
@@ -31,9 +32,9 @@ namespace Sylvan.Data.Excel
 	// containing the same content. The expectation is the behavior of the two
 	// implementations is the same, so the same test code can validate the 
 	// behavior of the three formats.
-	public class ExcelTests
+	public class XlsxTests
 	{
-		const string FileFormat = "Data/{0}.xls";
+		const string FileFormat = "Data/{0}.xlsx";
 
 		protected virtual string GetFile([CallerMemberName] string name = "")
 		{
@@ -48,7 +49,7 @@ namespace Sylvan.Data.Excel
 				Schema = ExcelSchema.NoHeaders
 			};
 
-		public ExcelTests()
+		public XlsxTests()
 		{
 #if NET6_0_OR_GREATER
 			Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
@@ -193,7 +194,8 @@ namespace Sylvan.Data.Excel
 			using var edr = ExcelDataReader.Create(file, noHeaders);
 			for (int i = 0; i < 41; i++)
 			{
-				edr.Read();
+				Assert.True(edr.Read());
+				
 				var str = edr.GetString(0);
 				if (i % 10 == 0)
 				{
@@ -201,9 +203,11 @@ namespace Sylvan.Data.Excel
 				}
 				else
 				{
+					Assert.True(edr.IsDBNull(0));
 					Assert.Equal("", str);
 				}
 			}
+			Assert.False(edr.Read());
 		}
 
 		[Fact]
@@ -293,6 +297,81 @@ namespace Sylvan.Data.Excel
 			Assert.Equal(ExcelDataType.String, edr.GetExcelDataType(2));
 			Assert.Equal("ab", edr.GetString(2));
 			Assert.False(edr.Read());
+		}
+
+		[Fact]
+		public void Error()
+		{
+			var opts = new ExcelDataReaderOptions { Schema = ExcelSchema.NoHeaders };
+
+			var file = GetFile("Func");
+			using var edr = ExcelDataReader.Create(file, opts);
+			Assert.True(edr.Read());
+			Assert.Throws<ExcelFormulaException>(() => edr.GetString(2));
+		}
+
+		[Fact]
+		public void ErrorAsNull()
+		{
+			var opts = new ExcelDataReaderOptions { 
+				Schema = ExcelSchema.NoHeaders,
+				GetErrorAsNull = true,
+			};
+
+			var file = GetFile("Func");
+			using var edr = ExcelDataReader.Create(file, opts);
+			Assert.True(edr.Read());
+			Assert.True(edr.IsDBNull(2));
+			Assert.True(edr.IsDBNullAsync(2).Result);
+			Assert.Equal("", edr.GetString(2));
+		}
+
+		class NonNullSchema : IExcelSchemaProvider
+		{
+			bool hasHeaders;
+
+			class Col : DbColumn
+			{
+				public Col(string name, int ordinal)
+				{
+					this.ColumnName = name;
+					this.ColumnOrdinal = ordinal;
+					this.AllowDBNull = false;
+					this.DataType = typeof(string);
+				}
+			}
+
+			public NonNullSchema(bool hasHeaders = false)
+			{
+				this.hasHeaders = hasHeaders;
+			}
+
+			public DbColumn GetColumn(string sheetName, string name, int ordinal)
+			{
+				return new Col(name, ordinal);
+			}
+
+			public bool HasHeaders(string sheetName)
+			{
+				return hasHeaders;
+			}
+		}
+
+		[Fact]
+		public void ErrorAsEmptyString()
+		{
+			var opts = new ExcelDataReaderOptions
+			{
+				Schema = new NonNullSchema(),
+				GetErrorAsNull = true,
+			};
+
+			var file = GetFile("Func");
+			using var edr = ExcelDataReader.Create(file, opts);
+			Assert.True(edr.Read());
+			Assert.False(edr.IsDBNull(2));
+			Assert.False(edr.IsDBNullAsync(2).Result);
+			Assert.Equal("", edr.GetString(2));
 		}
 
 		[Fact]
@@ -434,6 +513,20 @@ namespace Sylvan.Data.Excel
 			Assert.True(edr.Read());
 			Assert.Equal(5, edr.RowFieldCount);
 			Assert.False(edr.Read());
+		}
+
+		[Fact]
+		public void SkipHeader()
+		{
+			var file = GetFile();
+			using var edr = ExcelDataReader.Create(file);
+
+			
+			while (edr.Read() && edr.RowFieldCount < 5)
+			{
+			
+			}
+
 		}
 	}
 }

@@ -11,7 +11,7 @@ namespace Sylvan.Data.Excel;
 sealed class XlsbWorkbookReader : ExcelDataReader
 {
 	readonly ZipArchive package;
-	int sheetIdx = 0;
+	int sheetIdx = -1;
 	int rowCount;
 
 	Stream stream;
@@ -24,7 +24,8 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 	bool hasRows = false;
 	bool skipEmptyRows = true; // TODO: make this an option?
 	int rowNumber;
-	Dictionary<int, string> sheetNames;
+	string[] sheetNames;
+	bool errorAsNull;
 
 	struct FieldInfo
 	{
@@ -42,8 +43,9 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 
 	public XlsbWorkbookReader(Stream iStream, ExcelDataReaderOptions opts) : base(opts.Schema)
 	{
-		this.rowCount = 0;
+		this.rowCount = -1;
 		this.values = Array.Empty<FieldInfo>();
+		this.errorAsNull = opts.GetErrorAsNull;
 
 		this.refName = this.styleName = this.typeName = string.Empty;
 
@@ -59,8 +61,7 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 
 		stringData = ReadSharedStrings();
 
-		this.sheetNames = new Dictionary<int, string>();
-
+		var sheetNameList = new List<string>();
 		using (Stream sheetsStream = sheetsPart.Open())
 		{
 			var rr = new RecordReader(sheetsStream);
@@ -82,7 +83,7 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 								var id = rr.GetInt32(4);
 								var rel = rr.GetString(8, out int next);
 								var name = rr.GetString(next);
-								this.sheetNames.Add(id, name);
+								sheetNameList.Add(name);
 							}
 							else
 							if (rr.RecordType == RecordType.BundleEnd)
@@ -101,6 +102,7 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 			}
 		}
 
+		this.sheetNames = sheetNameList.ToArray();
 		if (stylePart == null)
 		{
 			throw new InvalidDataException();
@@ -145,10 +147,10 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 	public override bool NextResult()
 	{
 		sheetIdx++;
-		if (sheetIdx > this.sheetNames.Count)
+		if (sheetIdx > this.sheetNames.Length)
 			return false;
 
-		var sheetName = $"xl/worksheets/sheet{sheetIdx}.bin";
+		var sheetName = $"xl/worksheets/sheet{sheetIdx + 1}.bin";
 
 		var sheetPart = package.GetEntry(sheetName);
 		if (sheetPart == null)
@@ -259,10 +261,6 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 	{
 		rowNumber++;
 
-		if(rowNumber == 553)
-		{
-			;
-		}
 		if (state == State.Open)
 		{
 			if (rowNumber <= parsedRow)
@@ -273,7 +271,6 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 			while (true)
 			{
 				var c = ParseRowValues();
-				//Debug.Write("Read " + c);
 				if (c < 0)
 					return false;
 				if (c == 0 && skipEmptyRows)
@@ -548,6 +545,10 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 		switch (fi.type)
 		{
 			case ExcelDataType.Error:
+				if (errorAsNull)
+				{
+					return string.Empty;
+				}
 				throw Error(ordinal);
 			case ExcelDataType.Boolean:
 				return fi.b ? bool.TrueString : bool.FalseString;
@@ -577,7 +578,19 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 
 	public override bool IsDBNull(int ordinal)
 	{
-		return GetExcelDataType(ordinal) == ExcelDataType.Null;
+		var type = this.GetExcelDataType(ordinal);
+		switch (type)
+		{
+			case ExcelDataType.Null:
+				return true;
+			case ExcelDataType.Error:
+				if (errorAsNull)
+				{
+					return columnSchema[ordinal].AllowDBNull != false;
+				}
+				return false;
+		}
+		return false;
 	}
 
 	public override ExcelErrorCode GetFormulaError(int ordinal)
@@ -605,9 +618,9 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 
 	public override int RowFieldCount => this.rowFieldCount;
 
-	public override int WorksheetCount => this.sheetNames.Count;
+	public override int WorksheetCount => this.sheetNames.Length;
 
-	public override string? WorksheetName => this.sheetNames.ContainsKey(this.sheetIdx) ? this.sheetNames[this.sheetIdx] : null;
+	public override string? WorksheetName => sheetIdx < sheetNames.Length ? this.sheetNames[this.sheetIdx] : null;
 
 	internal override int DateEpochYear => 1900;
 
