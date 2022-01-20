@@ -10,23 +10,35 @@ namespace Sylvan.Data.Excel
 {
 	sealed class XlsxWorkbookReader : ExcelDataReader
 	{
+		const string sheetNS = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
+
+
 		readonly ZipArchive package;
 		SharedStrings ss;
-		int sheetIdx = 0;
+		Dictionary<int, ExcelFormat> formats;
+		int[] xfMap;
+		int sheetIdx = -1;
 		int rowCount;
 
 		Stream stream;
 		XmlReader? reader;
-
-		string currentSheetName = string.Empty;
 
 		FieldInfo[] values;
 		int rowFieldCount;
 		State state;
 		bool hasRows;
 		bool skipEmptyRows = true; // TODO: make this an option?
-		int rowNumber;
-		Dictionary<int, string> sheetNames;
+		string[] sheetNames;
+		bool errorAsNull;
+
+		string refName;
+		string typeName;
+		string styleName;
+
+		char[] valueBuffer = new char[64];
+
+		int rowIndex;
+		int parsedRowIndex = -1;
 
 		struct FieldInfo
 		{
@@ -43,10 +55,11 @@ namespace Sylvan.Data.Excel
 
 		public XlsxWorkbookReader(Stream iStream, ExcelDataReaderOptions opts) : base(opts.Schema)
 		{
-			this.rowCount = 0;
+			this.rowCount = -1;
 			this.values = Array.Empty<FieldInfo>();
 
 			this.refName = this.styleName = this.typeName = string.Empty;
+			this.errorAsNull = opts.GetErrorAsNull;
 
 			this.stream = iStream;
 			package = new ZipArchive(iStream, ZipArchiveMode.Read);
@@ -70,7 +83,7 @@ namespace Sylvan.Data.Excel
 				}
 			}
 
-			this.sheetNames = new Dictionary<int, string>();
+			var sheetNameList = new List<string>();
 
 			using (Stream sheetsStream = sheetsPart.Open())
 			{
@@ -84,9 +97,10 @@ namespace Sylvan.Data.Excel
 				{
 					var id = int.Parse(sheetElem.GetAttribute("sheetId"));
 					var name = sheetElem.GetAttribute("name");
-					sheetNames.Add(id, name);
+					sheetNameList.Add(name);
 				}
 			}
+			this.sheetNames = sheetNameList.ToArray();
 
 			if (stylePart == null)
 			{
@@ -137,8 +151,6 @@ namespace Sylvan.Data.Excel
 
 			NextResult();
 		}
-		Dictionary<int, ExcelFormat> formats;
-		int[] xfMap;
 
 		public override bool IsClosed
 		{
@@ -158,16 +170,13 @@ namespace Sylvan.Data.Excel
 			ValidationFlags = System.Xml.Schema.XmlSchemaValidationFlags.None,
 		};
 
-		const string sheetNS = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
 
-		string refName;
-		string typeName;
-		string styleName;
 
 		public override bool NextResult()
 		{
 			sheetIdx++;
-			var sheetName = string.Format("xl/worksheets/sheet{0}.xml", sheetIdx);
+
+			var sheetName = $"xl/worksheets/sheet{sheetIdx + 1}.xml";
 
 			var sheetPart = package.GetEntry(sheetName);
 			if (sheetPart == null)
@@ -217,8 +226,9 @@ namespace Sylvan.Data.Excel
 			}
 
 			var c = ParseRowValues();
+			this.rowIndex = 0;
 
-			var hasHeaders = schema.HasHeaders(currentSheetName);
+			var hasHeaders = schema.HasHeaders(this.WorksheetName!);
 
 			LoadSchema(!hasHeaders);
 
@@ -226,9 +236,13 @@ namespace Sylvan.Data.Excel
 			{
 				this.state = State.Open;
 				Read();
+				this.rowIndex = 0;				
+			}
+			else
+			{
+				this.rowIndex = -1;
 			}
 
-			this.rowNumber = hasHeaders ? 0 : -1;
 			this.state = State.Initialized;
 			return true;
 		}
@@ -279,10 +293,10 @@ namespace Sylvan.Data.Excel
 
 		public override bool Read()
 		{
-			rowNumber++;
+			rowIndex++;
 			if (state == State.Open)
 			{
-				if (rowNumber <= parsedRow)
+				if (rowIndex <= parsedRowIndex)
 					return true;
 				while (NextRow())
 				{
@@ -305,14 +319,12 @@ namespace Sylvan.Data.Excel
 					return true;
 				}
 			}
-			rowNumber = -1;
+			rowIndex = -1;
 			this.state = State.End;
 			return false;
 		}
 
-		char[] valueBuffer = new char[64];
 
-		int parsedRow = -1;
 
 		int ParseRowValues()
 		{
@@ -478,7 +490,7 @@ namespace Sylvan.Data.Excel
 				}
 
 			} while (reader.ReadToNextSibling("c"));
-			this.parsedRow = pos.Row;
+			this.parsedRowIndex = pos.Row;
 			return valueCount == 0 ? 0 : pos.Column + 1;
 		}
 
@@ -516,7 +528,7 @@ namespace Sylvan.Data.Excel
 
 		public override ExcelDataType GetExcelDataType(int ordinal)
 		{
-			if (rowNumber < parsedRow)
+			if (rowIndex < parsedRowIndex)
 				return ExcelDataType.Null;
 			return values[ordinal].type;
 		}
@@ -566,7 +578,7 @@ namespace Sylvan.Data.Excel
 
 		public override double GetDouble(int ordinal)
 		{
-			if (rowNumber == parsedRow)
+			if (rowIndex == parsedRowIndex)
 			{
 				ref var fi = ref values[ordinal];
 				var type = fi.type;
@@ -585,12 +597,12 @@ namespace Sylvan.Data.Excel
 
 		ExcelFormulaException Error(int ordinal)
 		{
-			return new ExcelFormulaException(ordinal, rowNumber, GetFormulaError(ordinal));
+			return new ExcelFormulaException(ordinal, rowIndex, GetFormulaError(ordinal));
 		}
 
 		public override string GetString(int ordinal)
 		{
-			if (rowNumber < parsedRow)
+			if (rowIndex < parsedRowIndex)
 			{
 				return string.Empty;
 			}
@@ -598,6 +610,10 @@ namespace Sylvan.Data.Excel
 			switch (fi.type)
 			{
 				case ExcelDataType.Error:
+					if (this.errorAsNull)
+					{
+						return string.Empty;
+					}
 					throw Error(ordinal);
 				case ExcelDataType.Boolean:
 					return fi.strValue[0] == '0' ? bool.FalseString : bool.TrueString;
@@ -606,7 +622,7 @@ namespace Sylvan.Data.Excel
 				case ExcelDataType.DateTime:
 					return IsoDate.ToStringIso(fi.dtValue);
 			}
-			return fi.strValue;
+			return fi.strValue ?? string.Empty;
 		}
 
 		string FormatVal(int xfIdx, double val)
@@ -629,7 +645,26 @@ namespace Sylvan.Data.Excel
 
 		public override bool IsDBNull(int ordinal)
 		{
-			return GetExcelDataType(ordinal) == ExcelDataType.Null;
+			if (this.columnSchema[ordinal].AllowDBNull == false)
+			{
+				return false;
+			}
+
+			var type = this.GetExcelDataType(ordinal);
+			switch (type)
+			{
+				case ExcelDataType.String:
+					return string.IsNullOrEmpty(this.GetString(ordinal));
+				case ExcelDataType.Null:
+					return true;
+				case ExcelDataType.Error:
+					if (errorAsNull)
+					{
+						return true;
+					}
+					return false;
+			}
+			return false;
 		}
 
 		public override ExcelErrorCode GetFormulaError(int ordinal)
@@ -657,13 +692,13 @@ namespace Sylvan.Data.Excel
 
 		public override int RowFieldCount => this.rowFieldCount;
 
-		public override int WorksheetCount => this.sheetNames.Count;
+		public override int WorksheetCount => this.sheetNames.Length;
 
-		public override string? WorksheetName => this.sheetNames.ContainsKey(this.sheetIdx) ? this.sheetNames[this.sheetIdx] : null;
+		public override string? WorksheetName => sheetIdx < sheetNames.Length ? this.sheetNames[this.sheetIdx] : null;
 
 		internal override int DateEpochYear => 1900;
 
-		public override int RowNumber => rowNumber;
+		public override int RowNumber => rowIndex + 1;
 
 		sealed class SharedStrings
 		{

@@ -5,6 +5,7 @@ using System.Collections.ObjectModel;
 using System.Data;
 using System.Data.Common;
 using System.IO;
+using System.Linq;
 
 namespace Sylvan.Data.Excel
 {
@@ -150,6 +151,24 @@ namespace Sylvan.Data.Excel
 			return this.columnSchema;
 		}
 
+		/// <summary>
+		/// Initializes the schema starting with the current row.
+		/// </summary>
+		public void InitializeSchema(IEnumerable<DbColumn> schema, bool useHeaders)
+		{
+			int i = 0;
+			var cols = new List<DbColumn>();
+			foreach(var col in schema)
+			{
+				var name = useHeaders ? this.GetString(i) : col.ColumnName;
+				cols.Add(new ExcelColumn(name, i, col));
+				i++;
+			}
+			
+			this.columnSchema = new ReadOnlyCollection<DbColumn>(cols);
+			this.fieldCount = columnSchema.Count;
+		}
+
 		private protected void LoadSchema(bool ordinalOnly)
 		{
 			var cols = new List<DbColumn>();
@@ -260,7 +279,7 @@ namespace Sylvan.Data.Excel
 		public abstract ExcelFormat? GetFormat(int ordinal);
 
 		/// <summary>
-		/// Gets the number of the current row being read.
+		/// Gets the number of the current row, as would be reported in Excel.
 		/// </summary>
 		public abstract int RowNumber { get; }
 
@@ -305,12 +324,12 @@ namespace Sylvan.Data.Excel
 			{
 				if (value < 1)
 				{
-					if(fmt.Kind == FormatKind.Time)
+					if (fmt.Kind == FormatKind.Time)
 					{
 						dt = DateTime.MinValue.AddDays(value);
 						return true;
 					}
-					
+
 					// 0 is rendered as 1900-1-0, which is nonsense.
 					// negative values render as "###"
 					// so we won't support accessing such values.
@@ -421,7 +440,16 @@ namespace Sylvan.Data.Excel
 		/// <inheritdoc/>
 		public sealed override byte GetByte(int ordinal)
 		{
-			throw new NotSupportedException();
+			var value = this.GetInt32(ordinal);
+			var b = (byte)value;
+			if (b == value)
+			{
+				return b;
+			}
+			else
+			{
+				throw new InvalidCastException();
+			}
 		}
 
 		/// <inheritdoc/>
@@ -452,6 +480,16 @@ namespace Sylvan.Data.Excel
 		public sealed override TextReader GetTextReader(int ordinal)
 		{
 			throw new NotSupportedException();
+		}
+
+		private protected enum State
+		{
+			None = 0,
+			Initializing,
+			Initialized,
+			Open,
+			End,
+			Closed,
 		}
 	}
 }

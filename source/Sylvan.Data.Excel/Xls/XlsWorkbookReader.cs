@@ -13,17 +13,6 @@ namespace Sylvan.Data.Excel
 	// https://docs.microsoft.com/en-us/openspecs/office_file_formats/ms-xlsb/acc8aa92-1f02-4167-99f5-84f9f676b95a
 	// https://docs.microsoft.com/en-us/openspecs/office_file_formats/MS-OFFFFLP/8aea05e3-8c1e-4a9a-9614-31f71e679456
 	// https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-oleps/bf7aeae8-c47a-4939-9f45-700158dac3bc
-
-	enum State
-	{
-		None = 0,
-		Initializing,
-		Initialized,
-		Open,
-		End,
-		Closed,
-	}
-
 	sealed partial class XlsWorkbookReader : ExcelDataReader
 	{
 		const int Biff8VersionCode = 0x0600;
@@ -42,9 +31,8 @@ namespace Sylvan.Data.Excel
 
 		int batchOffset = 0;
 		int batchIdx = 0;
-		int batchCount = 0;
+		//int batchCount = 0;
 
-		bool nullAsEmptyString;
 		bool getErrorAsNull;
 
 		int rS = 0;
@@ -53,7 +41,8 @@ namespace Sylvan.Data.Excel
 		int cE = 0;
 
 		int sheetIdx = 0;
-		int rowNumber;
+		int rowIndex;
+		int parsedRowIndex;
 
 		bool closed = false;
 		int epoch;
@@ -81,7 +70,6 @@ namespace Sylvan.Data.Excel
 		{
 			this.epoch = 1900;
 			this.reader = new RecordReader(iStream);
-			this.nullAsEmptyString = options.GetNullAsEmptyString;
 			this.getErrorAsNull = options.GetErrorAsNull;
 
 			this.columnSchema = new ReadOnlyCollection<DbColumn>(Array.Empty<DbColumn>());
@@ -126,7 +114,7 @@ namespace Sylvan.Data.Excel
 			throw new InvalidOperationException();
 		}
 
-		public override int RowNumber => rowNumber;
+		public override int RowNumber => rowIndex + 1;
 
 		public override ExcelDataType GetExcelDataType(int ordinal)
 		{
@@ -171,31 +159,50 @@ namespace Sylvan.Data.Excel
 
 		public override bool NextResult()
 		{
-			return NextResultAsync().GetAwaiter().GetResult();
+			return NextResultAsync(default).GetAwaiter().GetResult();
 		}
+
 
 		public override async Task<bool> ReadAsync(CancellationToken cancellationToken)
 		{
-			if (this.rowNumber > rowCount)
+			if (this.rowIndex >= rowCount)
 			{
 				return false;
 			}
-			batchIdx++;
-
-			if (batchIdx >= RowBatchSize)
+			rowIndex++;
+			
+			// "catch up" to the next non-empty row
+			if(rowIndex <= parsedRowIndex)
 			{
-				if (await NextRowBatch())
-				{
-					batchIdx = 0;
-				}
-				else
-				{
-					return false;
-				}
+				return true;
 			}
 
-			rowNumber++;
-			return rowBatch[batchIdx].rowFieldCount > 0;
+			// look for a row that has values.
+			// this is needed to trim the tail of rows that are empty.
+			while (parsedRowIndex < rowCount)
+			{
+				parsedRowIndex++;
+				batchIdx++;
+
+				if (batchIdx >= RowBatchSize)
+				{
+					if (await NextRowBatch())
+					{
+						batchIdx = 0;
+					}
+					else
+					{
+						return false;
+					}
+				}
+
+				if(rowBatch[batchIdx].rowFieldCount > 0)
+				{
+					// found a row with values
+					return true;
+				}
+			}
+			return false;
 		}
 
 		public override bool Read()
@@ -299,7 +306,9 @@ namespace Sylvan.Data.Excel
 
 		async Task<bool> InitSheet()
 		{
-			rowNumber = 0;
+			rowIndex = -1;
+			parsedRowIndex = -1;
+
 			while (await reader.NextRecordAsync().ConfigureAwait(false))
 			{
 				if (reader.Type == RecordType.BOF)
@@ -403,7 +412,7 @@ namespace Sylvan.Data.Excel
 			if (!hasHeaders)
 			{
 				// "unread" the first row.
-				batchIdx--;
+				rowIndex--;
 			}
 
 			return true;
@@ -598,7 +607,7 @@ namespace Sylvan.Data.Excel
 		async Task<bool> NextRowBatch()
 		{
 			batchIdx = -1;
-			batchCount = 0;
+			//batchCount = 0;
 			Array.Clear(this.rowBatch, 0, this.rowBatch.Length);
 
 			do
@@ -607,7 +616,7 @@ namespace Sylvan.Data.Excel
 				switch (reader.Type)
 				{
 					case RecordType.Row:
-						batchCount++;
+						//batchCount++;
 						ParseRow();
 						break;
 					case RecordType.LabelSST:
@@ -744,7 +753,12 @@ namespace Sylvan.Data.Excel
 
 		public override bool IsDBNull(int ordinal)
 		{
+			if (this.columnSchema[ordinal].AllowDBNull == false)
+			{
+				return false;
+			}
 			ref var cell = ref GetCell(ordinal);
+
 			switch (cell.type)
 			{
 				case CellType.Null:
@@ -756,7 +770,7 @@ namespace Sylvan.Data.Excel
 					return
 						this.getErrorAsNull
 						? true
-						: throw new ExcelFormulaException(ordinal, rowNumber, (ExcelErrorCode)cell.val);
+						: throw new ExcelFormulaException(ordinal, rowIndex, (ExcelErrorCode)cell.val);
 				case CellType.String:
 				default:
 					return cell.str == null;
@@ -765,6 +779,9 @@ namespace Sylvan.Data.Excel
 
 		ref CellData GetCell(int ordinal)
 		{
+			if (rowIndex < parsedRowIndex)
+				return ref CellData.Null;
+
 			ref var r = ref this.rowBatch[batchIdx];
 
 			if (r.index == 0) return ref CellData.Null;
@@ -794,17 +811,18 @@ namespace Sylvan.Data.Excel
 				case CellType.Boolean:
 					return cell.val != 0 ? bool.TrueString : bool.FalseString;
 				case CellType.Error:
-					if (this.getErrorAsNull && this.nullAsEmptyString)
-						return string.Empty;
+					if (this.getErrorAsNull)
+					{
+						goto case CellType.Null;
+					}
 					var errorCode = (ExcelErrorCode)cell.val;
 					throw new ExcelFormulaException(ordinal, -1, errorCode);
 				case CellType.Null:
-					if (this.nullAsEmptyString)
-					{
-						return string.Empty;
-					}
-					// GetString is documented to throw this
-					throw new InvalidCastException();
+					//if (this.columnSchema[ordinal].AllowDBNull != false)
+					//{
+					//	throw new InvalidCastException();
+					//}
+					return string.Empty;
 			}
 			// shouldn't get here.
 			throw new NotSupportedException();

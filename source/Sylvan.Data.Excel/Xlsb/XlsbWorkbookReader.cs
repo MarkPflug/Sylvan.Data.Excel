@@ -4,27 +4,34 @@ using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Text;
-using System.Xml;
 
 namespace Sylvan.Data.Excel;
 
 sealed class XlsbWorkbookReader : ExcelDataReader
 {
+	Dictionary<int, ExcelFormat> formats = EmptyFormats;
+	int[] xfMap = Array.Empty<int>();
+
+	string[] stringData;
+
 	readonly ZipArchive package;
-	int sheetIdx = 0;
+	int sheetIdx = -1;
 	int rowCount;
 
 	Stream stream;
-
-	string currentSheetName = string.Empty;
+	RecordReader? reader;
 
 	FieldInfo[] values;
 	int rowFieldCount;
 	State state;
 	bool hasRows = false;
 	bool skipEmptyRows = true; // TODO: make this an option?
-	int rowNumber;
-	Dictionary<int, string> sheetNames;
+
+	int rowIndex;
+	int parsedRowIndex;
+
+	string[] sheetNames;
+	bool errorAsNull;
 
 	struct FieldInfo
 	{
@@ -42,14 +49,12 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 
 	public XlsbWorkbookReader(Stream iStream, ExcelDataReaderOptions opts) : base(opts.Schema)
 	{
-		this.rowCount = 0;
+		this.rowCount = -1;
 		this.values = Array.Empty<FieldInfo>();
-
-		this.refName = this.styleName = this.typeName = string.Empty;
+		this.errorAsNull = opts.GetErrorAsNull;
 
 		this.stream = iStream;
 		package = new ZipArchive(iStream, ZipArchiveMode.Read);
-
 
 		var stylePart = package.GetEntry("xl/styles.bin");
 
@@ -59,8 +64,7 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 
 		stringData = ReadSharedStrings();
 
-		this.sheetNames = new Dictionary<int, string>();
-
+		var sheetNameList = new List<string>();
 		using (Stream sheetsStream = sheetsPart.Open())
 		{
 			var rr = new RecordReader(sheetsStream);
@@ -82,7 +86,7 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 								var id = rr.GetInt32(4);
 								var rel = rr.GetString(8, out int next);
 								var name = rr.GetString(next);
-								this.sheetNames.Add(id, name);
+								sheetNameList.Add(name);
 							}
 							else
 							if (rr.RecordType == RecordType.BundleEnd)
@@ -101,6 +105,7 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 			}
 		}
 
+		this.sheetNames = sheetNameList.ToArray();
 		if (stylePart == null)
 		{
 			throw new InvalidDataException();
@@ -115,9 +120,6 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 
 	static readonly Dictionary<int, ExcelFormat> EmptyFormats = new Dictionary<int, ExcelFormat>();
 
-	Dictionary<int, ExcelFormat> formats = EmptyFormats;
-	int[] xfMap = Array.Empty<int>();
-
 	public override bool IsClosed
 	{
 		get { return this.stream == Stream.Null; }
@@ -129,26 +131,13 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 		this.stream = Stream.Null;
 	}
 
-	XmlReaderSettings settings = new XmlReaderSettings()
-	{
-		CheckCharacters = false,
-		ValidationType = ValidationType.None,
-		ValidationFlags = System.Xml.Schema.XmlSchemaValidationFlags.None,
-	};
-
-	string refName;
-	string typeName;
-	string styleName;
-
-	RecordReader? reader;
-
 	public override bool NextResult()
 	{
 		sheetIdx++;
-		if (sheetIdx > this.sheetNames.Count)
+		if (sheetIdx > this.sheetNames.Length)
 			return false;
 
-		var sheetName = $"xl/worksheets/sheet{sheetIdx}.bin";
+		var sheetName = $"xl/worksheets/sheet{sheetIdx + 1}.bin";
 
 		var sheetPart = package.GetEntry(sheetName);
 		if (sheetPart == null)
@@ -194,7 +183,7 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 
 		var c = ParseRowValues();
 
-		var hasHeaders = schema.HasHeaders(currentSheetName);
+		var hasHeaders = schema.HasHeaders(this.WorksheetName!);
 
 		LoadSchema(!hasHeaders);
 
@@ -204,12 +193,10 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 			Read();
 		}
 
-		this.rowNumber = hasHeaders ? 0 : -1;
+		this.rowIndex = hasHeaders ? 0 : -1;
 		this.state = State.Initialized;
 		return true;
 	}
-
-	string[] stringData;
 
 	string[] ReadSharedStrings()
 	{
@@ -257,15 +244,11 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 
 	public override bool Read()
 	{
-		rowNumber++;
+		rowIndex++;
 
-		if(rowNumber == 553)
-		{
-			;
-		}
 		if (state == State.Open)
 		{
-			if (rowNumber <= parsedRow)
+			if (rowIndex <= parsedRowIndex)
 			{
 				return true;
 			}
@@ -273,7 +256,6 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 			while (true)
 			{
 				var c = ParseRowValues();
-				//Debug.Write("Read " + c);
 				if (c < 0)
 					return false;
 				if (c == 0 && skipEmptyRows)
@@ -294,12 +276,10 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 				return true;
 			}
 		}
-		rowNumber = -1;
+		rowIndex = -1;
 		this.state = State.End;
 		return false;
 	}
-
-	int parsedRow = -1;
 
 	int ParseRowValues()
 	{
@@ -445,19 +425,9 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 			reader.NextRecord();
 		}
 
-		this.parsedRow = rowIdx;
+		this.parsedRowIndex = rowIdx;
 		this.rowFieldCount = count;
 		return notNull;
-	}
-
-	enum CellType
-	{
-		Numeric,
-		String,
-		SharedString,
-		Boolean,
-		Error,
-		Date,
 	}
 
 	public override string GetName(int ordinal)
@@ -484,7 +454,7 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 
 	public override ExcelDataType GetExcelDataType(int ordinal)
 	{
-		if (rowNumber < parsedRow)
+		if (rowIndex < parsedRowIndex)
 			return ExcelDataType.Null;
 		return values[ordinal].type;
 	}
@@ -516,7 +486,7 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 
 	public override double GetDouble(int ordinal)
 	{
-		if (rowNumber == parsedRow)
+		if (rowIndex == parsedRowIndex)
 		{
 			ref var fi = ref values[ordinal];
 			var type = fi.type;
@@ -535,12 +505,12 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 
 	ExcelFormulaException Error(int ordinal)
 	{
-		return new ExcelFormulaException(ordinal, rowNumber, GetFormulaError(ordinal));
+		return new ExcelFormulaException(ordinal, rowIndex, GetFormulaError(ordinal));
 	}
 
 	public override string GetString(int ordinal)
 	{
-		if (rowNumber < parsedRow)
+		if (rowIndex < parsedRowIndex)
 		{
 			return string.Empty;
 		}
@@ -548,13 +518,17 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 		switch (fi.type)
 		{
 			case ExcelDataType.Error:
+				if (errorAsNull)
+				{
+					return string.Empty;
+				}
 				throw Error(ordinal);
 			case ExcelDataType.Boolean:
 				return fi.b ? bool.TrueString : bool.FalseString;
 			case ExcelDataType.Numeric:
 				return FormatVal(fi.xfIdx, fi.numValue);
 		}
-		return fi.strValue;
+		return fi.strValue ?? string.Empty;
 	}
 
 	string FormatVal(int xfIdx, double val)
@@ -577,7 +551,24 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 
 	public override bool IsDBNull(int ordinal)
 	{
-		return GetExcelDataType(ordinal) == ExcelDataType.Null;
+		if (this.columnSchema[ordinal].AllowDBNull == false)
+		{
+			return false;
+		}
+
+		var type = this.GetExcelDataType(ordinal);
+		switch (type)
+		{
+			case ExcelDataType.Null:
+				return true;
+			case ExcelDataType.Error:
+				if (errorAsNull)
+				{
+					return true;
+				}
+				return false;
+		}
+		return false;
 	}
 
 	public override ExcelErrorCode GetFormulaError(int ordinal)
@@ -605,13 +596,13 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 
 	public override int RowFieldCount => this.rowFieldCount;
 
-	public override int WorksheetCount => this.sheetNames.Count;
+	public override int WorksheetCount => this.sheetNames.Length;
 
-	public override string? WorksheetName => this.sheetNames.ContainsKey(this.sheetIdx) ? this.sheetNames[this.sheetIdx] : null;
+	public override string? WorksheetName => sheetIdx < sheetNames.Length ? this.sheetNames[this.sheetIdx] : null;
 
 	internal override int DateEpochYear => 1900;
 
-	public override int RowNumber => rowNumber;
+	public override int RowNumber => rowIndex + 1;
 
 	void ReadStyle(ZipArchiveEntry part)
 	{
@@ -827,40 +818,51 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 			return true;
 		}
 	}
+
+	enum CellType
+	{
+		Numeric,
+		String,
+		SharedString,
+		Boolean,
+		Error,
+		Date,
+	}
+
+	enum RecordType
+	{
+		Row = 0,
+		CellBlank = 1,
+		CellRK = 2,
+		CellError = 3,
+		CellBool = 4,
+		CellNum = 5,
+		CellSt = 6,
+		CellIsst = 7,
+		CellFmlaString = 8,
+		CellFmlaNum = 9,
+		CellFmlaBool = 10,
+		CellFmlaError = 11,
+		SSTItem = 19,
+		Fmt = 44,
+		XF = 47,
+		BundleBegin = 143,
+		BundleEnd = 144,
+		BundleSheet = 156,
+		BookBegin = 131,
+		BookEnd = 132,
+		Dimension = 148,
+		SSTBegin = 159,
+		StyleBegin = 278,
+		StyleEnd = 279,
+		CellXFStart = 617,
+		CellXFEnd = 618,
+		FmtStart = 615,
+		FmtEnd = 616,
+		SheetStart = 129,
+		SheetEnd = 130,
+		DataStart = 145,
+		DataEnd = 146,
+	}
 }
 
-enum RecordType
-{
-	Row = 0,
-	CellBlank = 1,
-	CellRK = 2,
-	CellError = 3,
-	CellBool = 4,
-	CellNum = 5,
-	CellSt = 6,
-	CellIsst = 7,
-	CellFmlaString = 8,
-	CellFmlaNum = 9,
-	CellFmlaBool = 10,
-	CellFmlaError = 11,
-	SSTItem = 19,
-	Fmt = 44,
-	XF = 47,
-	BundleBegin = 143,
-	BundleEnd = 144,
-	BundleSheet = 156,
-	BookBegin = 131,
-	BookEnd = 132,
-	Dimension = 148,
-	SSTBegin = 159,
-	StyleBegin = 278,
-	StyleEnd = 279,
-	CellXFStart = 617,
-	CellXFEnd = 618,
-	FmtStart = 615,
-	FmtEnd = 616,
-	SheetStart = 129,
-	SheetEnd = 130,
-	DataStart = 145,
-	DataEnd = 146,
-}
