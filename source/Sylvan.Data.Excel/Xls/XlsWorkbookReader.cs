@@ -13,17 +13,6 @@ namespace Sylvan.Data.Excel
 	// https://docs.microsoft.com/en-us/openspecs/office_file_formats/ms-xlsb/acc8aa92-1f02-4167-99f5-84f9f676b95a
 	// https://docs.microsoft.com/en-us/openspecs/office_file_formats/MS-OFFFFLP/8aea05e3-8c1e-4a9a-9614-31f71e679456
 	// https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-oleps/bf7aeae8-c47a-4939-9f45-700158dac3bc
-
-	enum State
-	{
-		None = 0,
-		Initializing,
-		Initialized,
-		Open,
-		End,
-		Closed,
-	}
-
 	sealed partial class XlsWorkbookReader : ExcelDataReader
 	{
 		const int Biff8VersionCode = 0x0600;
@@ -42,7 +31,7 @@ namespace Sylvan.Data.Excel
 
 		int batchOffset = 0;
 		int batchIdx = 0;
-		int batchCount = 0;
+		//int batchCount = 0;
 
 		bool getErrorAsNull;
 
@@ -53,7 +42,7 @@ namespace Sylvan.Data.Excel
 
 		int sheetIdx = 0;
 		int rowIndex;
-		int rowNext;
+		int parsedRowIndex;
 
 		bool closed = false;
 		int epoch;
@@ -125,7 +114,7 @@ namespace Sylvan.Data.Excel
 			throw new InvalidOperationException();
 		}
 
-		public override int RowNumber => rowIndex;
+		public override int RowNumber => rowIndex + 1;
 
 		public override ExcelDataType GetExcelDataType(int ordinal)
 		{
@@ -170,7 +159,7 @@ namespace Sylvan.Data.Excel
 
 		public override bool NextResult()
 		{
-			return NextResultAsync().GetAwaiter().GetResult();
+			return NextResultAsync(default).GetAwaiter().GetResult();
 		}
 
 
@@ -183,16 +172,16 @@ namespace Sylvan.Data.Excel
 			rowIndex++;
 			
 			// "catch up" to the next non-empty row
-			if(rowIndex <= rowNext)
+			if(rowIndex <= parsedRowIndex)
 			{
 				return true;
 			}
 
 			// look for a row that has values.
 			// this is needed to trim the tail of rows that are empty.
-			while (rowNext < rowCount)
+			while (parsedRowIndex < rowCount)
 			{
-				rowNext++;
+				parsedRowIndex++;
 				batchIdx++;
 
 				if (batchIdx >= RowBatchSize)
@@ -318,7 +307,7 @@ namespace Sylvan.Data.Excel
 		async Task<bool> InitSheet()
 		{
 			rowIndex = -1;
-			rowNext = -1;
+			parsedRowIndex = -1;
 
 			while (await reader.NextRecordAsync().ConfigureAwait(false))
 			{
@@ -423,7 +412,7 @@ namespace Sylvan.Data.Excel
 			if (!hasHeaders)
 			{
 				// "unread" the first row.
-				batchIdx--;
+				rowIndex--;
 			}
 
 			return true;
@@ -618,7 +607,7 @@ namespace Sylvan.Data.Excel
 		async Task<bool> NextRowBatch()
 		{
 			batchIdx = -1;
-			batchCount = 0;
+			//batchCount = 0;
 			Array.Clear(this.rowBatch, 0, this.rowBatch.Length);
 
 			do
@@ -627,7 +616,7 @@ namespace Sylvan.Data.Excel
 				switch (reader.Type)
 				{
 					case RecordType.Row:
-						batchCount++;
+						//batchCount++;
 						ParseRow();
 						break;
 					case RecordType.LabelSST:
@@ -790,7 +779,7 @@ namespace Sylvan.Data.Excel
 
 		ref CellData GetCell(int ordinal)
 		{
-			if (rowIndex < rowNext)
+			if (rowIndex < parsedRowIndex)
 				return ref CellData.Null;
 
 			ref var r = ref this.rowBatch[batchIdx];
