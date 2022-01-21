@@ -31,6 +31,9 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 	int parsedRowIndex;
 
 	string[] sheetNames;
+	bool[] sheetHiddenFlags;
+
+	bool readHiddenSheets;
 	bool errorAsNull;
 
 	struct FieldInfo
@@ -52,6 +55,7 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 		this.rowCount = -1;
 		this.values = Array.Empty<FieldInfo>();
 		this.errorAsNull = opts.GetErrorAsNull;
+		this.readHiddenSheets = opts.ReadHiddenWorksheets;
 
 		this.stream = iStream;
 		package = new ZipArchive(iStream, ZipArchiveMode.Read);
@@ -65,6 +69,7 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 		stringData = ReadSharedStrings();
 
 		var sheetNameList = new List<string>();
+		var sheetHiddenFlagsList = new List<bool>();
 		using (Stream sheetsStream = sheetsPart.Open())
 		{
 			var rr = new RecordReader(sheetsStream);
@@ -82,11 +87,12 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 							rr.NextRecord();
 							if (rr.RecordType == RecordType.BundleSheet)
 							{
-								var vis = rr.GetInt32(0);
+								var hidden = rr.GetInt32(0) != 0;
 								var id = rr.GetInt32(4);
 								var rel = rr.GetString(8, out int next);
 								var name = rr.GetString(next);
 								sheetNameList.Add(name);
+								sheetHiddenFlagsList.Add(hidden);
 							}
 							else
 							if (rr.RecordType == RecordType.BundleEnd)
@@ -106,6 +112,7 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 		}
 
 		this.sheetNames = sheetNameList.ToArray();
+		this.sheetHiddenFlags = sheetHiddenFlagsList.ToArray();
 		if (stylePart == null)
 		{
 			throw new InvalidDataException();
@@ -134,7 +141,14 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 	public override bool NextResult()
 	{
 		sheetIdx++;
-		if (sheetIdx > this.sheetNames.Length)
+		for (; sheetIdx < this.sheetNames.Length; sheetIdx++)
+		{
+			if (readHiddenSheets || sheetHiddenFlags[sheetIdx] == false)
+			{
+				break;
+			}
+		}
+		if (sheetIdx >= this.sheetNames.Length)
 			return false;
 
 		var sheetName = $"xl/worksheets/sheet{sheetIdx + 1}.bin";
@@ -228,15 +242,15 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 				}
 
 				var flags = reader.GetByte(0);
-				if (flags == 0)
-				{
+				//if (flags == 0)
+				//{
 					var str = reader.GetString(1);
 					ss[i] = str;
-				}
-				else
-				{
-					throw new NotImplementedException();
-				}
+				//}
+				//else
+				//{
+				//	throw new NotImplementedException();
+				//}
 			}
 			return ss;
 		}

@@ -22,7 +22,14 @@
 
 		/// <summary>
 		/// Indicates if a cell will appear null or throw an ExcelFormulaException when accesing a cell containing a formula error.
+		/// Defaults to false, which causes errors to be thrown.
 		/// </summary>
 		public bool GetErrorAsNull { get; set; }
+
+		/// <summary>
+		/// Indicates if hidden worksheets should be read, or skipped.
+		/// Defaults to false, which skips hidden sheets.
+		/// </summary>
+		public bool ReadHiddenWorksheets { get; set; }
 	}
 }

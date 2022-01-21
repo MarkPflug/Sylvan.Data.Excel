@@ -31,16 +31,16 @@ namespace Sylvan.Data.Excel
 
 		int batchOffset = 0;
 		int batchIdx = 0;
-		//int batchCount = 0;
 
 		bool getErrorAsNull;
+		bool readHiddenSheets;
 
 		int rS = 0;
 		int rE = 0;
 		int cS = 0;
 		int cE = 0;
 
-		int sheetIdx = 0;
+		int sheetIdx = -1;
 		int rowIndex;
 		int parsedRowIndex;
 
@@ -71,6 +71,7 @@ namespace Sylvan.Data.Excel
 			this.epoch = 1900;
 			this.reader = new RecordReader(iStream);
 			this.getErrorAsNull = options.GetErrorAsNull;
+			this.readHiddenSheets = options.ReadHiddenWorksheets;
 
 			this.columnSchema = new ReadOnlyCollection<DbColumn>(Array.Empty<DbColumn>());
 			this.sst = Array.Empty<string>();
@@ -86,8 +87,8 @@ namespace Sylvan.Data.Excel
 			get
 			{
 				return
-					sheetIdx <= this.sheets.Count
-					? this.sheets[sheetIdx - 1].name
+					sheetIdx < this.sheets.Count
+					? this.sheets[sheetIdx].name
 					: null;
 			}
 		}
@@ -143,8 +144,10 @@ namespace Sylvan.Data.Excel
 
 		public override async Task<bool> NextResultAsync(CancellationToken cancellationToken)
 		{
-			if (sheetIdx++ < this.sheets.Count)
+			sheetIdx++;
+			for (; sheetIdx < this.sheets.Count; sheetIdx++)
 			{
+
 				while (Read())
 				{
 					// process any remaining content in the current sheet
@@ -152,7 +155,10 @@ namespace Sylvan.Data.Excel
 
 				batchOffset = 0;
 				await InitSheet().ConfigureAwait(false);
-				return true;
+				if (this.readHiddenSheets || this.sheets[sheetIdx].visibility == 0)
+				{
+					return true;
+				}
 			}
 			return false;
 		}
@@ -162,7 +168,6 @@ namespace Sylvan.Data.Excel
 			return NextResultAsync(default).GetAwaiter().GetResult();
 		}
 
-
 		public override async Task<bool> ReadAsync(CancellationToken cancellationToken)
 		{
 			if (this.rowIndex >= rowCount)
@@ -170,9 +175,9 @@ namespace Sylvan.Data.Excel
 				return false;
 			}
 			rowIndex++;
-			
+
 			// "catch up" to the next non-empty row
-			if(rowIndex <= parsedRowIndex)
+			if (rowIndex <= parsedRowIndex)
 			{
 				return true;
 			}
@@ -196,7 +201,7 @@ namespace Sylvan.Data.Excel
 					}
 				}
 
-				if(rowBatch[batchIdx].rowFieldCount > 0)
+				if (rowBatch[batchIdx].rowFieldCount > 0)
 				{
 					// found a row with values
 					return true;
@@ -354,7 +359,6 @@ namespace Sylvan.Data.Excel
 			return LoadSchema();
 		}
 
-
 		void ParseXF()
 		{
 			short ifnt = reader.ReadInt16();
@@ -399,7 +403,7 @@ namespace Sylvan.Data.Excel
 		// return value indicates if there are any rows in the sheet.
 		bool LoadSchema()
 		{
-			var sheetName = sheets[sheetIdx - 1].name;
+			var sheetName = sheets[sheetIdx].name;
 
 			var hasHeaders = schema.HasHeaders(sheetName);
 
@@ -607,7 +611,6 @@ namespace Sylvan.Data.Excel
 		async Task<bool> NextRowBatch()
 		{
 			batchIdx = -1;
-			//batchCount = 0;
 			Array.Clear(this.rowBatch, 0, this.rowBatch.Length);
 
 			do
@@ -818,10 +821,6 @@ namespace Sylvan.Data.Excel
 					var errorCode = (ExcelErrorCode)cell.val;
 					throw new ExcelFormulaException(ordinal, -1, errorCode);
 				case CellType.Null:
-					//if (this.columnSchema[ordinal].AllowDBNull != false)
-					//{
-					//	throw new InvalidCastException();
-					//}
 					return string.Empty;
 			}
 			// shouldn't get here.
