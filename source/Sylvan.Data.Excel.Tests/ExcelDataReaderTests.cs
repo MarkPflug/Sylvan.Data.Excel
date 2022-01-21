@@ -557,5 +557,32 @@ namespace Sylvan.Data.Excel
 				throw;
 			}
 		}
+
+		[Fact]
+		public void Hidden()
+		{
+			var file = GetFile();
+			using var edr = ExcelDataReader.Create(file);
+
+			Assert.Equal("Sheet1", edr.WorksheetName);
+			Assert.True(edr.NextResult());
+			Assert.Equal("Sheet3", edr.WorksheetName);
+			Assert.False(edr.NextResult());
+		}
+
+		[Fact]
+		public void HiddenEnabled()
+		{
+			var file = GetFile("Hidden");
+			var opts = new ExcelDataReaderOptions { ReadHiddenWorksheets = true };
+			using var edr = ExcelDataReader.Create(file, opts);
+
+			Assert.Equal("Sheet1", edr.WorksheetName);
+			Assert.True(edr.NextResult());
+			Assert.Equal("Hidden", edr.WorksheetName);
+			Assert.True(edr.NextResult());
+			Assert.Equal("Sheet3", edr.WorksheetName);
+			Assert.False(edr.NextResult());
+		}
 	}
 }

@@ -20,6 +20,8 @@ namespace Sylvan.Data.Excel
 		int sheetIdx = -1;
 		int rowCount;
 
+		bool readHiddenSheets;
+
 		Stream stream;
 		XmlReader? reader;
 
@@ -29,6 +31,7 @@ namespace Sylvan.Data.Excel
 		bool hasRows;
 		bool skipEmptyRows = true; // TODO: make this an option?
 		string[] sheetNames;
+		bool[] sheetHiddenFlags;
 		bool errorAsNull;
 
 		string refName;
@@ -60,6 +63,7 @@ namespace Sylvan.Data.Excel
 
 			this.refName = this.styleName = this.typeName = string.Empty;
 			this.errorAsNull = opts.GetErrorAsNull;
+			this.readHiddenSheets = opts.ReadHiddenWorksheets;
 
 			this.stream = iStream;
 			package = new ZipArchive(iStream, ZipArchiveMode.Read);
@@ -84,6 +88,7 @@ namespace Sylvan.Data.Excel
 			}
 
 			var sheetNameList = new List<string>();
+			var sheetHiddenList = new List<bool>();
 
 			using (Stream sheetsStream = sheetsPart.Open())
 			{
@@ -97,11 +102,13 @@ namespace Sylvan.Data.Excel
 				{
 					var id = int.Parse(sheetElem.GetAttribute("sheetId"));
 					var name = sheetElem.GetAttribute("name");
+					var state = sheetElem.GetAttribute("state");
+					sheetHiddenList.Add(StringComparer.OrdinalIgnoreCase.Equals(state, "hidden"));
 					sheetNameList.Add(name);
 				}
 			}
 			this.sheetNames = sheetNameList.ToArray();
-
+			this.sheetHiddenFlags = sheetHiddenList.ToArray();
 			if (stylePart == null)
 			{
 				throw new InvalidDataException();
@@ -175,6 +182,13 @@ namespace Sylvan.Data.Excel
 		public override bool NextResult()
 		{
 			sheetIdx++;
+			for(;sheetIdx < this.sheetNames.Length; sheetIdx++)
+			{
+				if(readHiddenSheets || sheetHiddenFlags[sheetIdx] == false)
+				{
+					break;
+				}
+			}
 
 			var sheetName = $"xl/worksheets/sheet{sheetIdx + 1}.xml";
 
