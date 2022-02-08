@@ -610,6 +610,8 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 
 	public override int RowFieldCount => this.rowFieldCount;
 
+	public override int MaxFieldCount => 16384;
+
 	public override int WorksheetCount => this.sheetNames.Length;
 
 	public override string? WorksheetName => sheetIdx < sheetNames.Length ? this.sheetNames[this.sheetIdx] : null;

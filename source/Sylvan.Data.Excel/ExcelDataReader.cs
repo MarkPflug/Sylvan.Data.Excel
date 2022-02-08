@@ -59,6 +59,12 @@ namespace Sylvan.Data.Excel
 		public abstract int RowFieldCount { get; }
 
 		/// <summary>
+		/// Gets the maximum number of fields supported by the
+		/// file.
+		/// </summary>
+		public abstract int MaxFieldCount { get; }
+
+		/// <summary>
 		/// Creates a new ExcelDataReader instance.
 		/// </summary>
 		/// <param name="stream">A stream containing the Excel file contents. </param>

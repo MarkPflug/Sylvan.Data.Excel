@@ -251,6 +251,8 @@ namespace Sylvan.Data.Excel
 			}
 		}
 
+		public override int MaxFieldCount => 255;
+
 		public override int RowCount => this.rowCount;
 
 		BOFType ReadBOF()

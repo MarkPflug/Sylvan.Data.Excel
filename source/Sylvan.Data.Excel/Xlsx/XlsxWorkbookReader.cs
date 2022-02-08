@@ -10,8 +10,9 @@ namespace Sylvan.Data.Excel
 {
 	sealed class XlsxWorkbookReader : ExcelDataReader
 	{
-		const string sheetNS = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
-
+		const string SheetNS = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
+		const string DocRelsNS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
+		const string RelationsNS = "http://schemas.openxmlformats.org/package/2006/relationships";
 
 		readonly ZipArchive package;
 		SharedStrings ss;
@@ -30,13 +31,14 @@ namespace Sylvan.Data.Excel
 		State state;
 		bool hasRows;
 		bool skipEmptyRows = true; // TODO: make this an option?
-		string[] sheetNames;
+		SheetInfo[] sheetNames;
 		bool[] sheetHiddenFlags;
 		bool errorAsNull;
 
 		string refName;
 		string typeName;
 		string styleName;
+		string sheetNS;
 
 		char[] valueBuffer = new char[64];
 
@@ -56,12 +58,25 @@ namespace Sylvan.Data.Excel
 
 		public override ExcelWorkbookType WorkbookType => ExcelWorkbookType.ExcelXml;
 
+		class SheetInfo
+		{
+			public SheetInfo(string name, string part)
+			{
+				this.Name = name;
+				this.Part = part;
+			}
+
+			public string Name { get; }
+			public string Part { get; }
+		}
+
 		public XlsxWorkbookReader(Stream iStream, ExcelDataReaderOptions opts) : base(opts.Schema)
 		{
 			this.rowCount = -1;
 			this.values = Array.Empty<FieldInfo>();
 
 			this.refName = this.styleName = this.typeName = string.Empty;
+			this.sheetNS = SheetNS;
 			this.errorAsNull = opts.GetErrorAsNull;
 			this.readHiddenSheets = opts.ReadHiddenWorksheets;
 
@@ -72,6 +87,7 @@ namespace Sylvan.Data.Excel
 			var stylePart = package.GetEntry("xl/styles.xml");
 
 			var sheetsPart = package.GetEntry("xl/workbook.xml");
+			var sheetsRelsPart = package.GetEntry("xl/_rels/workbook.xml.rels");
 			if (sheetsPart == null)
 				throw new InvalidDataException();
 
@@ -87,8 +103,32 @@ namespace Sylvan.Data.Excel
 				}
 			}
 
-			var sheetNameList = new List<string>();
+			var sheetNameList = new List<SheetInfo>();
 			var sheetHiddenList = new List<bool>();
+			Dictionary<string, string> sheetRelMap = new Dictionary<string, string>();
+			using (Stream sheetRelStream = sheetsRelsPart.Open())
+			{
+				var doc = new XmlDocument();
+				doc.Load(sheetRelStream);
+				var nsm = new XmlNamespaceManager(doc.NameTable);
+				nsm.AddNamespace("r", RelationsNS);
+				var nodes = doc.SelectNodes("/r:Relationships/r:Relationship", nsm);
+				foreach (XmlElement node in nodes)
+				{
+					var id = node.GetAttribute("Id");
+					var target = node.GetAttribute("Target");
+					if (target.StartsWith("/"))
+					{
+
+					}
+					else
+					{
+						target = "xl/" + target;
+					}
+
+					sheetRelMap.Add(id, target);
+				}
+			}
 
 			using (Stream sheetsStream = sheetsPart.Open())
 			{
@@ -96,15 +136,18 @@ namespace Sylvan.Data.Excel
 				var doc = new XmlDocument();
 				doc.Load(sheetsStream);
 				var nsm = new XmlNamespaceManager(doc.NameTable);
-				nsm.AddNamespace("x", sheetNS);
+				nsm.AddNamespace("x", SheetNS);
 				var nodes = doc.SelectNodes("/x:workbook/x:sheets/x:sheet", nsm);
 				foreach (XmlElement sheetElem in nodes)
 				{
 					var id = int.Parse(sheetElem.GetAttribute("sheetId"));
 					var name = sheetElem.GetAttribute("name");
 					var state = sheetElem.GetAttribute("state");
+					var refId = sheetElem.GetAttribute("id", DocRelsNS);
+
 					sheetHiddenList.Add(StringComparer.OrdinalIgnoreCase.Equals(state, "hidden"));
-					sheetNameList.Add(name);
+					var si = new SheetInfo(name, sheetRelMap[refId]);
+					sheetNameList.Add(si);
 				}
 			}
 			this.sheetNames = sheetNameList.ToArray();
@@ -120,7 +163,7 @@ namespace Sylvan.Data.Excel
 					var doc = new XmlDocument();
 					doc.Load(styleStream);
 					var nsm = new XmlNamespaceManager(doc.NameTable);
-					nsm.AddNamespace("x", sheetNS);
+					nsm.AddNamespace("x", SheetNS);
 					var nodes = doc.SelectNodes("/x:styleSheet/x:numFmts/x:numFmt", nsm);
 					this.formats = ExcelFormat.CreateFormatCollection();
 					foreach (XmlElement fmt in nodes)
@@ -128,7 +171,14 @@ namespace Sylvan.Data.Excel
 						var id = int.Parse(fmt.GetAttribute("numFmtId"));
 						var str = fmt.GetAttribute("formatCode");
 						var ef = new ExcelFormat(str);
-						formats.Add(id, ef);
+						if (formats.ContainsKey(id))
+						{
+
+						}
+						else
+						{
+							formats[id] = ef;
+						}
 					}
 
 					XmlElement xfsElem = (XmlElement)doc.SelectSingleNode("/x:styleSheet/x:cellXfs", nsm);
@@ -177,21 +227,26 @@ namespace Sylvan.Data.Excel
 			ValidationFlags = System.Xml.Schema.XmlSchemaValidationFlags.None,
 		};
 
-
-
 		public override bool NextResult()
 		{
 			sheetIdx++;
-			for(;sheetIdx < this.sheetNames.Length; sheetIdx++)
+			for (; sheetIdx < this.sheetNames.Length; sheetIdx++)
 			{
-				if(readHiddenSheets || sheetHiddenFlags[sheetIdx] == false)
+				if (readHiddenSheets || sheetHiddenFlags[sheetIdx] == false)
 				{
 					break;
 				}
 			}
+			if (sheetIdx >= this.sheetNames.Length)
+			{
+				return false;
+			}
+			var sheetName = sheetNames[sheetIdx].Part;
+			//var sheetName = $"xl/worksheets/sheet{sheetIdx + 1}.xml";
 
-			var sheetName = $"xl/worksheets/sheet{sheetIdx + 1}.xml";
-
+			// the relationship is recorded as an absolute path
+			// but the zip entry has a relative name.
+			sheetName = sheetName.TrimStart('/');
 			var sheetPart = package.GetEntry(sheetName);
 			if (sheetPart == null)
 				return false;
@@ -203,10 +258,15 @@ namespace Sylvan.Data.Excel
 			refName = this.reader.NameTable.Add("r");
 			typeName = this.reader.NameTable.Add("t");
 			styleName = this.reader.NameTable.Add("s");
+			sheetNS = this.reader.NameTable.Add(SheetNS);
 
 			// worksheet
-			while (!reader.IsStartElement("worksheet") && reader.Read())
+			while (reader.Read())
 			{
+				if (reader.NodeType == XmlNodeType.Element && reader.LocalName == "worksheet")
+				{
+					break;
+				}
 			}
 
 			while (reader.Read())
@@ -250,7 +310,7 @@ namespace Sylvan.Data.Excel
 			{
 				this.state = State.Open;
 				Read();
-				this.rowIndex = 0;				
+				this.rowIndex = 0;
 			}
 			else
 			{
@@ -263,7 +323,7 @@ namespace Sylvan.Data.Excel
 
 		bool NextRow()
 		{
-			return reader!.ReadToFollowing("row");
+			return reader!.ReadToFollowing("row", sheetNS);
 		}
 
 		struct CellPosition
@@ -338,8 +398,6 @@ namespace Sylvan.Data.Excel
 			return false;
 		}
 
-
-
 		int ParseRowValues()
 		{
 			var ci = NumberFormatInfo.InvariantInfo;
@@ -349,7 +407,7 @@ namespace Sylvan.Data.Excel
 
 			Array.Clear(this.values, 0, this.values.Length);
 			CellPosition pos = default;
-			if (!reader.ReadToDescendant("c"))
+			if (!reader.ReadToDescendant("c", sheetNS))
 			{
 				return 0;
 			}
@@ -432,7 +490,7 @@ namespace Sylvan.Data.Excel
 				reader.MoveToElement();
 				var depth = reader.Depth;
 
-				if (reader.ReadToDescendant("v"))
+				if (reader.ReadToDescendant("v", sheetNS))
 				{
 					valueCount++;
 					this.rowFieldCount = pos.Column + 1;
@@ -503,7 +561,7 @@ namespace Sylvan.Data.Excel
 					reader.Read();
 				}
 
-			} while (reader.ReadToNextSibling("c"));
+			} while (reader.ReadToNextSibling("c", sheetNS));
 			this.parsedRowIndex = pos.Row;
 			return valueCount == 0 ? 0 : pos.Column + 1;
 		}
@@ -620,6 +678,11 @@ namespace Sylvan.Data.Excel
 			{
 				return string.Empty;
 			}
+			if (ordinal > this.rowFieldCount)
+			{
+				return string.Empty;
+			}
+
 			ref var fi = ref values[ordinal];
 			switch (fi.type)
 			{
@@ -706,9 +769,11 @@ namespace Sylvan.Data.Excel
 
 		public override int RowFieldCount => this.rowFieldCount;
 
+		public override int MaxFieldCount => 16384;
+
 		public override int WorksheetCount => this.sheetNames.Length;
 
-		public override string? WorksheetName => sheetIdx < sheetNames.Length ? this.sheetNames[this.sheetIdx] : null;
+		public override string? WorksheetName => sheetIdx < sheetNames.Length ? this.sheetNames[this.sheetIdx].Name : null;
 
 		internal override int DateEpochYear => 1900;
 
@@ -732,11 +797,17 @@ namespace Sylvan.Data.Excel
 			int count;
 			string[] stringData;
 
-			const string ssNs = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
-
 			public SharedStrings(XmlReader reader)
 			{
-				while (!reader.IsStartElement("sst") && reader.Read()) ;
+				string ns = "";
+				while (reader.Read())
+				{
+					if (reader.NodeType == XmlNodeType.Element && reader.LocalName == "sst")
+					{
+						ns = reader.NamespaceURI;
+						break;
+					}
+				}
 
 				string countStr = reader.GetAttribute("uniqueCount")!;
 				if (countStr == null)
@@ -752,11 +823,11 @@ namespace Sylvan.Data.Excel
 
 				for (int i = 0; i < count; i++)
 				{
-					reader.ReadStartElement("si");
+					reader.ReadStartElement("si", ns);
 
 					var empty = reader.IsEmptyElement;
 
-					reader.ReadStartElement("t");
+					reader.ReadStartElement("t", ns);
 					var str = empty ? "" : reader.ReadContentAsString();
 					this.stringData[i] = str;
 					if (!empty)
