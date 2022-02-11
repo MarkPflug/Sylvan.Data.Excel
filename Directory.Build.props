@@ -35,7 +35,9 @@
 			Condition="Exists($(ReadmeFile))"
 			Include="$(ReadmeFile)"
 			Pack="true"
-			PackagePath=""/>
+			PackagePath="">
+			<Visible>false</Visible>
+		</None>
 	</ItemGroup>
 
 </Project>

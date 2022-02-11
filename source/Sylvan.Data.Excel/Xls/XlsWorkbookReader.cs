@@ -326,6 +326,8 @@ namespace Sylvan.Data.Excel
 						case BOFType.Worksheet:
 						case BOFType.Biff4MacroSheet:
 							goto go;
+						default:
+							throw new NotSupportedException();
 					}
 					throw new InvalidDataException();//"Expected sheetBOF"
 				}

@@ -196,6 +196,8 @@ namespace Sylvan.Data.Excel
 			{
 				yield return sector;
 				sector = NextSector(sector);
+				if (sector == startSector || sector == 0)
+					throw new InvalidDataException();
 			} while (sector != EndOfChain);
 		}
 

@@ -242,8 +242,6 @@ namespace Sylvan.Data.Excel
 				return false;
 			}
 			var sheetName = sheetNames[sheetIdx].Part;
-			//var sheetName = $"xl/worksheets/sheet{sheetIdx + 1}.xml";
-
 			// the relationship is recorded as an absolute path
 			// but the zip entry has a relative name.
 			sheetName = sheetName.TrimStart('/');

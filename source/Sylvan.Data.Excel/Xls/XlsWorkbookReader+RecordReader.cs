@@ -111,15 +111,21 @@ namespace Sylvan.Data.Excel
 
 				var str = await ReadStringBufferAsync(len, compressed);
 
-				for (int i = 0; i < richCount; i++)
-				{
-					short offset = ReadInt16();
-					short fontIdx = ReadInt16();
-				}
 
-				for (int i = 0; i < asianCount; i++)
+				var remain = richCount * 4 + asianCount;
+
+				while (remain > 0)
 				{
-					ReadByte();
+					var avail = recordOff + recordLen - bufferPos;
+					var c = Math.Min(remain, avail);
+					remain -= c;
+					bufferPos += c;
+					if (remain > 0)
+					{
+						var next = await NextRecordAsync();
+						if (!next || Type != RecordType.Continue)
+							throw new InvalidDataException();
+					}
 				}
 
 				return str;

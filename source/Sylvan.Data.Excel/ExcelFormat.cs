@@ -309,6 +309,7 @@ namespace Sylvan.Data.Excel
 			fmts[20] = new ExcelFormat("h:mm", FormatKind.Time, "h:mm");
 			fmts[21] = new ExcelFormat("h:mm:ss", FormatKind.Time, "h:mm:ss");
 			fmts[22] = new ExcelFormat("m/d/yy h:mm:ss", FormatKind.Date, "m/d/yy h:mm:ss");
+			fmts[35] = new ExcelFormat("h:mm:ss", FormatKind.Time);
 
 			fmts[37] = new ExcelFormat("#,##0 ;(#,##0)", FormatKind.Number, "#,##0;(#,##0)");
 			fmts[38] = new ExcelFormat("#,##0 ;[Red](#,##0)", FormatKind.Number, "#,##0;(#,##0)");
@@ -321,7 +322,8 @@ namespace Sylvan.Data.Excel
 			//	44: "_($* #: //##0.00_);_($* #: //##0.00);($* \" - \"_);_(@_)"
 			fmts[45] = new ExcelFormat("mm:ss", FormatKind.Time, "mm:ss");
 			fmts[46] = new ExcelFormat("[h]:mm:ss", FormatKind.Time, "h:mm:ss");
-			//	47: "mm:ss.0"
+			fmts[47] = new ExcelFormat("mm:ss.0", FormatKind.Time, "mm:ss.f");
+			
 			fmts[48] = new ExcelFormat("##0.0E+0", FormatKind.Number);
 			fmts[49] = new ExcelFormat("@", FormatKind.String);
 			standardFormats = fmts;
