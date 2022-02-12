@@ -499,11 +499,6 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 		return this.columnSchema?[ordinal].ColumnName ?? "";
 	}
 
-	public override Type GetFieldType(int ordinal)
-	{
-		return this.columnSchema?[ordinal].DataType ?? typeof(string);
-	}
-
 	public override int GetOrdinal(string name)
 	{
 		if (this.columnSchema == null)
@@ -615,7 +610,7 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 
 	public override bool IsDBNull(int ordinal)
 	{
-		if (this.columnSchema[ordinal].AllowDBNull == false)
+		if (ordinal < this.columnSchema.Count && this.columnSchema[ordinal].AllowDBNull == false)
 		{
 			return false;
 		}

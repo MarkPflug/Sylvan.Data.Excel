@@ -220,13 +220,6 @@ namespace Sylvan.Data.Excel
 			return columnSchema[ordinal].ColumnName;
 		}
 
-		public override Type GetFieldType(int ordinal)
-		{
-			if (ordinal < 0 || ordinal >= this.columnSchema.Count)
-				throw new ArgumentOutOfRangeException(nameof(ordinal));
-			return this.columnSchema[ordinal].DataType ?? typeof(string);
-		}
-
 		public override int GetOrdinal(string name)
 		{
 			for (int i = 0; i < this.columnSchema.Count; i++)

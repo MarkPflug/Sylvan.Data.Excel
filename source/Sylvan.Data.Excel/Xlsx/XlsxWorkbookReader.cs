@@ -579,11 +579,6 @@ namespace Sylvan.Data.Excel
 			return this.columnSchema?[ordinal].ColumnName ?? "";
 		}
 
-		public override Type GetFieldType(int ordinal)
-		{
-			return this.columnSchema?[ordinal].DataType ?? typeof(string);
-		}
-
 		public override int GetOrdinal(string name)
 		{
 			if (this.columnSchema == null)
@@ -720,7 +715,7 @@ namespace Sylvan.Data.Excel
 
 		public override bool IsDBNull(int ordinal)
 		{
-			if (this.columnSchema[ordinal].AllowDBNull == false)
+			if (ordinal < this.columnSchema.Count && this.columnSchema[ordinal].AllowDBNull == false)
 			{
 				return false;
 			}

@@ -550,7 +550,7 @@ namespace Sylvan.Data.Excel
 			try
 			{
 				table.Load(edr);
-			} 
+			}
 			catch
 			{
 				var err = table.GetErrors();
@@ -583,6 +583,21 @@ namespace Sylvan.Data.Excel
 			Assert.True(edr.NextResult());
 			Assert.Equal("Sheet3", edr.WorksheetName);
 			Assert.False(edr.NextResult());
+		}
+
+		[Fact]
+		public void CustomFormat()
+		{
+			var file = GetFile();
+			var opts = new ExcelDataReaderOptions { Schema = ExcelSchema.NoHeaders };
+
+			using var edr = ExcelDataReader.Create(file, opts);
+			
+			while (edr.Read())
+			{
+				var str = edr.GetString(0);
+
+			}
 		}
 	}
 }

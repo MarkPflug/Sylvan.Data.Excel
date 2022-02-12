@@ -22,6 +22,16 @@ namespace Sylvan.Data.Excel
 		int fieldCount;
 		private protected ReadOnlyCollection<DbColumn> columnSchema = EmptySchema;
 
+		/// <inheritdoc/>
+		public sealed override Type GetFieldType(int ordinal)
+		{
+			if (ordinal < 0 || ordinal > MaxFieldCount) throw new ArgumentOutOfRangeException(nameof(ordinal));
+			if (ordinal < fieldCount)
+			{
+				return this.columnSchema[ordinal].DataType;
+			}
+			return typeof(object);
+		}
 
 		/// <inheritdoc/>
 		public sealed override DataTable GetSchemaTable()
@@ -148,6 +158,32 @@ namespace Sylvan.Data.Excel
 		/// <returns>An ExcelDataType.</returns>
 		public abstract ExcelDataType GetExcelDataType(int ordinal);
 
+		/// <summary>
+		/// Gets the value as represented in excel.
+		/// </summary>
+		/// <param name="ordinal">The column ordinal to retrieve.</param>
+		/// <returns>The value.</returns>
+		public object GetExcelValue(int ordinal)
+		{
+			var type = GetExcelDataType(ordinal);
+			switch (type)
+			{
+				case ExcelDataType.Boolean:
+					return GetBoolean(ordinal);
+				case ExcelDataType.DateTime:
+					return GetDateTime(ordinal);
+				case ExcelDataType.Error:
+					return IsDBNull(ordinal) ? DBNull.Value : GetString(ordinal);
+				case ExcelDataType.Null:
+					return DBNull.Value;
+				case ExcelDataType.Numeric:
+					return GetDouble(ordinal);
+				case ExcelDataType.String:
+					return GetString(ordinal);
+				default:
+					throw new NotSupportedException();
+			}
+		}
 
 		/// <summary>
 		/// Gets the column schema
@@ -164,13 +200,13 @@ namespace Sylvan.Data.Excel
 		{
 			int i = 0;
 			var cols = new List<DbColumn>();
-			foreach(var col in schema)
+			foreach (var col in schema)
 			{
 				var name = useHeaders ? this.GetString(i) : col.ColumnName;
 				cols.Add(new ExcelColumn(name, i, col));
 				i++;
 			}
-			
+
 			this.columnSchema = new ReadOnlyCollection<DbColumn>(cols);
 			this.fieldCount = columnSchema.Count;
 		}
@@ -237,6 +273,10 @@ namespace Sylvan.Data.Excel
 					if (schemaType == typeof(Guid))
 					{
 						return GetGuid(ordinal);
+					}
+					if (schemaType == typeof(object))
+					{
+						return GetExcelValue(ordinal);
 					}
 					break;
 			}
