@@ -29,7 +29,11 @@ public class ExternalDataTests
 	public static IEnumerable<object[]> GetInputs()
 	{
 		var paths = Environment.GetEnvironmentVariable("SylvanExcelTestData");
-		
+		if (string.IsNullOrEmpty(paths))
+		{
+			yield break;
+		}
+
 		foreach(var path in paths.Split(';'))
 		{
 			foreach (var file in Directory.EnumerateFiles(path, "*.xls*", SearchOption.TopDirectoryOnly))
