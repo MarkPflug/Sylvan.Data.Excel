@@ -131,9 +131,9 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 								var id = rr.GetInt32(4);
 								var rel = rr.GetString(8, out int next);
 								var name = rr.GetString(next);
-								if (hs == 2 && rel == null)
+								if (rel == null)
 								{
-									// macro
+									// no sheet rel means it is a macro.
 								}
 								else
 								{
@@ -147,7 +147,6 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 							{
 								break;
 							}
-
 						}
 						break;
 
