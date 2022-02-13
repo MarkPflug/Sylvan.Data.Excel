@@ -4,11 +4,14 @@ using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Text;
+using System.Xml;
 
 namespace Sylvan.Data.Excel;
 
 sealed class XlsbWorkbookReader : ExcelDataReader
 {
+	const string RelationsNS = "http://schemas.openxmlformats.org/package/2006/relationships";
+
 	Dictionary<int, ExcelFormat> formats = EmptyFormats;
 	int[] xfMap = Array.Empty<int>();
 
@@ -30,8 +33,7 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 	int rowIndex;
 	int parsedRowIndex;
 
-	string[] sheetNames;
-	bool[] sheetHiddenFlags;
+	SheetInfo[] sheetNames;
 
 	bool readHiddenSheets;
 	bool errorAsNull;
@@ -50,6 +52,20 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 
 	public override ExcelWorkbookType WorkbookType => ExcelWorkbookType.ExcelXml;
 
+	class SheetInfo
+	{
+		public SheetInfo(string name, string part, bool hidden)
+		{
+			this.Name = name;
+			this.Part = part;
+			this.Hidden = hidden;
+		}
+
+		public string Name { get; }
+		public string Part { get; }
+		public bool Hidden { get; }
+	}
+
 	public XlsbWorkbookReader(Stream iStream, ExcelDataReaderOptions opts) : base(opts.Schema)
 	{
 		this.rowCount = -1;
@@ -63,13 +79,38 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 		var stylePart = package.GetEntry("xl/styles.bin");
 
 		var sheetsPart = package.GetEntry("xl/workbook.bin");
+		var sheetsRelsPart = package.GetEntry("xl/_rels/workbook.bin.rels");
+
 		if (sheetsPart == null)
 			throw new InvalidDataException();
 
+		Dictionary<string, string> sheetRelMap = new Dictionary<string, string>();
+		using (Stream sheetRelStream = sheetsRelsPart.Open())
+		{
+			var doc = new XmlDocument();
+			doc.Load(sheetRelStream);
+			var nsm = new XmlNamespaceManager(doc.NameTable);
+			nsm.AddNamespace("r", RelationsNS);
+			var nodes = doc.SelectNodes("/r:Relationships/r:Relationship", nsm);
+			foreach (XmlElement node in nodes)
+			{
+				var id = node.GetAttribute("Id");
+				var target = node.GetAttribute("Target");
+				if (target.StartsWith("/"))
+				{
+				}
+				else
+				{
+					target = "xl/" + target;
+				}
+
+				sheetRelMap.Add(id, target);
+			}
+		}
+
 		stringData = ReadSharedStrings();
 
-		var sheetNameList = new List<string>();
-		var sheetHiddenFlagsList = new List<bool>();
+		var sheetNameList = new List<SheetInfo>();
 		using (Stream sheetsStream = sheetsPart.Open())
 		{
 			var rr = new RecordReader(sheetsStream);
@@ -79,27 +120,33 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 				rr.NextRecord();
 				switch (rr.RecordType)
 				{
-
 					case RecordType.BundleBegin:
-
 						while (true)
 						{
 							rr.NextRecord();
 							if (rr.RecordType == RecordType.BundleSheet)
 							{
-								var hidden = rr.GetInt32(0) != 0;
+								var hs = rr.GetInt32(0);
+								var hidden = hs != 0;
 								var id = rr.GetInt32(4);
 								var rel = rr.GetString(8, out int next);
 								var name = rr.GetString(next);
-								sheetNameList.Add(name);
-								sheetHiddenFlagsList.Add(hidden);
+								if (rel == null)
+								{
+									// no sheet rel means it is a macro.
+								}
+								else
+								{
+									var part = sheetRelMap[rel!];
+									var info = new SheetInfo(name, part, hidden);
+									sheetNameList.Add(info);
+								}
 							}
 							else
 							if (rr.RecordType == RecordType.BundleEnd)
 							{
 								break;
 							}
-
 						}
 						break;
 
@@ -112,7 +159,6 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 		}
 
 		this.sheetNames = sheetNameList.ToArray();
-		this.sheetHiddenFlags = sheetHiddenFlagsList.ToArray();
 		if (stylePart == null)
 		{
 			throw new InvalidDataException();
@@ -143,7 +189,7 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 		sheetIdx++;
 		for (; sheetIdx < this.sheetNames.Length; sheetIdx++)
 		{
-			if (readHiddenSheets || sheetHiddenFlags[sheetIdx] == false)
+			if (readHiddenSheets || sheetNames[sheetIdx].Hidden == false)
 			{
 				break;
 			}
@@ -151,7 +197,10 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 		if (sheetIdx >= this.sheetNames.Length)
 			return false;
 
-		var sheetName = $"xl/worksheets/sheet{sheetIdx + 1}.bin";
+		var sheetName = sheetNames[sheetIdx].Part;
+		// the relationship is recorded as an absolute path
+		// but the zip entry has a relative name.
+		sheetName = sheetName.TrimStart('/');
 
 		var sheetPart = package.GetEntry(sheetName);
 		if (sheetPart == null)
@@ -244,8 +293,8 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 				var flags = reader.GetByte(0);
 				//if (flags == 0)
 				//{
-					var str = reader.GetString(1);
-					ss[i] = str;
+				var str = reader.GetString(1);
+				ss[i] = str;
 				//}
 				//else
 				//{
@@ -449,11 +498,6 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 		return this.columnSchema?[ordinal].ColumnName ?? "";
 	}
 
-	public override Type GetFieldType(int ordinal)
-	{
-		return this.columnSchema?[ordinal].DataType ?? typeof(string);
-	}
-
 	public override int GetOrdinal(string name)
 	{
 		if (this.columnSchema == null)
@@ -468,7 +512,10 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 
 	public override ExcelDataType GetExcelDataType(int ordinal)
 	{
+		AssertRange(ordinal);
 		if (rowIndex < parsedRowIndex)
+			return ExcelDataType.Null;
+		if (ordinal >= this.rowFieldCount)
 			return ExcelDataType.Null;
 		return values[ordinal].type;
 	}
@@ -511,15 +558,10 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 				case ExcelDataType.String:
 					return double.Parse(fi.strValue);
 				case ExcelDataType.Error:
-					throw Error(ordinal);
+					throw GetError(ordinal);
 			}
 		}
 		throw new InvalidCastException();
-	}
-
-	ExcelFormulaException Error(int ordinal)
-	{
-		return new ExcelFormulaException(ordinal, rowIndex, GetFormulaError(ordinal));
 	}
 
 	public override string GetString(int ordinal)
@@ -528,6 +570,10 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 		{
 			return string.Empty;
 		}
+		if (ordinal >= MaxFieldCount)
+			throw new ArgumentOutOfRangeException(nameof(ordinal));
+		if (ordinal >= rowFieldCount)
+			return String.Empty;
 		ref var fi = ref values[ordinal];
 		switch (fi.type)
 		{
@@ -536,7 +582,7 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 				{
 					return string.Empty;
 				}
-				throw Error(ordinal);
+				throw GetError(ordinal);
 			case ExcelDataType.Boolean:
 				return fi.b ? bool.TrueString : bool.FalseString;
 			case ExcelDataType.Numeric:
@@ -565,7 +611,7 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 
 	public override bool IsDBNull(int ordinal)
 	{
-		if (this.columnSchema[ordinal].AllowDBNull == false)
+		if (ordinal < this.columnSchema.Count && this.columnSchema[ordinal].AllowDBNull == false)
 		{
 			return false;
 		}
@@ -610,9 +656,11 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 
 	public override int RowFieldCount => this.rowFieldCount;
 
+	public override int MaxFieldCount => 16384;
+
 	public override int WorksheetCount => this.sheetNames.Length;
 
-	public override string? WorksheetName => sheetIdx < sheetNames.Length ? this.sheetNames[this.sheetIdx] : null;
+	public override string? WorksheetName => sheetIdx < sheetNames.Length ? this.sheetNames[this.sheetIdx].Name : null;
 
 	internal override int DateEpochYear => 1900;
 
@@ -740,9 +788,14 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 			return Encoding.Unicode.GetString(data, s + offset + 4, len * 2);
 		}
 
-		public string GetString(int offset, out int end)
+		public string? GetString(int offset, out int end)
 		{
 			var len = BitConverter.ToInt32(data, s + offset);
+			if (len == -1)
+			{
+				end = offset + 4;
+				return null;
+			}
 			end = offset + 4 + len * 2;
 			return Encoding.Unicode.GetString(data, s + offset + 4, len * 2);
 		}
@@ -751,7 +804,7 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 		{
 			Debug.Assert(pos <= end);
 
-			if(this.data.Length < requiredLen)
+			if (this.data.Length < requiredLen)
 			{
 				Array.Resize(ref this.data, requiredLen);
 
@@ -760,7 +813,7 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 			if (pos != end)
 			{
 				// TODO: make sure overlapped copy is safe here
-				Buffer.BlockCopy(data, pos, data, 0, end - pos);			
+				Buffer.BlockCopy(data, pos, data, 0, end - pos);
 			}
 			end = end - pos;
 			pos = 0;
@@ -820,7 +873,7 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 
 			type = ReadRecordType();
 			recordLen = ReadRecordLen();
-			if(pos + recordLen > end)
+			if (pos + recordLen > end)
 			{
 				FillBuffer(recordLen);
 			}
