@@ -513,7 +513,10 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 
 	public override ExcelDataType GetExcelDataType(int ordinal)
 	{
+		AssertRange(ordinal);
 		if (rowIndex < parsedRowIndex)
+			return ExcelDataType.Null;
+		if (ordinal >= this.rowFieldCount)
 			return ExcelDataType.Null;
 		return values[ordinal].type;
 	}
@@ -556,15 +559,10 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 				case ExcelDataType.String:
 					return double.Parse(fi.strValue);
 				case ExcelDataType.Error:
-					throw Error(ordinal);
+					throw GetError(ordinal);
 			}
 		}
 		throw new InvalidCastException();
-	}
-
-	ExcelFormulaException Error(int ordinal)
-	{
-		return new ExcelFormulaException(ordinal, rowIndex, GetFormulaError(ordinal));
 	}
 
 	public override string GetString(int ordinal)
@@ -573,6 +571,10 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 		{
 			return string.Empty;
 		}
+		if (ordinal >= MaxFieldCount)
+			throw new ArgumentOutOfRangeException(nameof(ordinal));
+		if (ordinal >= rowFieldCount)
+			return String.Empty;
 		ref var fi = ref values[ordinal];
 		switch (fi.type)
 		{
@@ -581,7 +583,7 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 				{
 					return string.Empty;
 				}
-				throw Error(ordinal);
+				throw GetError(ordinal);
 			case ExcelDataType.Boolean:
 				return fi.b ? bool.TrueString : bool.FalseString;
 			case ExcelDataType.Numeric:
