@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.IO.Compression;
+using System.Linq;
 using System.Text;
 using System.Xml;
 
@@ -15,7 +16,6 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 	const string RelationsNS = "http://schemas.openxmlformats.org/package/2006/relationships";
 
 	readonly ZipArchive package;
-	SharedStrings ss;
 	Dictionary<int, ExcelFormat> formats;
 	int[] xfMap;
 	int sheetIdx = -1;
@@ -70,6 +70,11 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 		public string Part { get; }
 	}
 
+	static ZipArchiveEntry? GetEntry(ZipArchive a, string name)
+	{
+		return a.Entries.FirstOrDefault(e => StringComparer.OrdinalIgnoreCase.Equals(e.FullName, name));
+	}
+
 	public XlsxWorkbookReader(Stream iStream, ExcelDataReaderOptions opts) : base(opts.Schema)
 	{
 		this.rowCount = -1;
@@ -83,25 +88,16 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 		this.stream = iStream;
 		package = new ZipArchive(iStream, ZipArchiveMode.Read);
 
-		var ssPart = package.GetEntry("xl/sharedStrings.xml");
-		var stylePart = package.GetEntry("xl/styles.xml");
+		var ssPart = GetEntry(package, "xl/sharedStrings.xml");
+		var stylePart = GetEntry(package, "xl/styles.xml");
 
-		var sheetsPart = package.GetEntry("xl/workbook.xml");
-		var sheetsRelsPart = package.GetEntry("xl/_rels/workbook.xml.rels");
-		if (sheetsPart == null)
+		var sheetsPart = GetEntry(package, "xl/workbook.xml");
+		var sheetsRelsPart = GetEntry(package, "xl/_rels/workbook.xml.rels");
+		if (sheetsPart == null || sheetsRelsPart == null)
 			throw new InvalidDataException();
 
-		if (ssPart == null)
-		{
-			ss = SharedStrings.Empty;
-		}
-		else
-		{
-			using (Stream ssStream = ssPart.Open())
-			{
-				ss = new SharedStrings(XmlReader.Create(ssStream));
-			}
-		}
+		this.stringData = Array.Empty<string>();
+		LoadSharedStrings(ssPart);
 
 		var sheetNameList = new List<SheetInfo>();
 		var sheetHiddenList = new List<bool>();
@@ -154,7 +150,9 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 		this.sheetHiddenFlags = sheetHiddenList.ToArray();
 		if (stylePart == null)
 		{
-			throw new InvalidDataException();
+
+			this.xfMap = Array.Empty<int>();
+			this.formats = ExcelFormat.CreateFormatCollection();
 		}
 		else
 		{
@@ -296,7 +294,8 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 			this.state = State.Closed;
 			throw new InvalidOperationException();
 		}
-
+		this.parsedRowIndex = -1;
+		NextRow();
 		var c = ParseRowValues();
 		this.rowIndex = 0;
 
@@ -321,7 +320,36 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 
 	bool NextRow()
 	{
-		return reader!.ReadToFollowing("row", sheetNS);
+		var ci = NumberFormatInfo.InvariantInfo;
+		if(reader!.ReadToFollowing("row", sheetNS))
+		{
+			if (reader.MoveToAttribute("r"))
+			{
+				int row;
+#if SPAN_PARSE
+				var len = reader.ReadValueChunk(valueBuffer, 0, valueBuffer.Length);
+				if (len < valueBuffer.Length && int.TryParse(valueBuffer.AsSpan(0, len), NumberStyles.Integer, ci, out row))
+				{
+				}
+				else
+				{
+					throw new FormatException();
+				}
+#else
+				var str = reader.Value;
+				row = int.Parse(str, NumberStyles.Integer, ci);
+#endif
+
+				this.parsedRowIndex = row - 1;
+			}
+			else
+			{
+				this.parsedRowIndex++;
+			}
+			reader.MoveToElement();
+			return true;
+		}
+		return false;
 	}
 
 	struct CellPosition
@@ -403,31 +431,30 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 		FieldInfo[] values = this.values;
 		int len;
 
-		Array.Clear(this.values, 0, this.values.Length);
-		CellPosition pos = default;
+		Array.Clear(this.values, 0, this.values.Length);	
 		if (!reader.ReadToDescendant("c", sheetNS))
 		{
 			return 0;
 		}
 
 		int valueCount = 0;
+		var col = -1;
 
 		do
 		{
 			CellType type = CellType.Numeric;
 			int xfIdx = 0;
+			col++;
 			while (reader.MoveToNextAttribute())
 			{
 				var n = reader.Name;
 				if (ReferenceEquals(n, refName))
 				{
 					len = reader.ReadValueChunk(valueBuffer, 0, valueBuffer.Length);
-					pos = CellPosition.Parse(valueBuffer.AsSpan(0, len));
-					//pos = CellPosition.Parse(reader.Value);
-					if (pos.Column >= values.Length)
+					var pos = CellPosition.Parse(valueBuffer.AsSpan(0, len));
+					if (pos.Column >= 0)
 					{
-						Array.Resize(ref values, pos.Column + 8);
-						this.values = values;
+						col = pos.Column;
 					}
 				}
 				else
@@ -445,6 +472,12 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 						throw new FormatException();
 					}
 				}
+			}
+
+			if (col >= values.Length)
+			{
+				Array.Resize(ref values, col + 8);
+				this.values = values;
 			}
 
 			static bool TryParse(ReadOnlySpan<char> span, out int value)
@@ -474,15 +507,19 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 						return CellType.Error;
 					case 's':
 						return l == 1 ? CellType.SharedString : CellType.String;
+					case 'i':
+						return CellType.InlineString;
 					case 'd':
 						return CellType.Date;
+					case 'n':
+						return CellType.Numeric;
 					default:
 						// TODO:
-						throw new NotSupportedException();
+						throw new InvalidDataException();
 				}
 			}
 
-			ref FieldInfo fi = ref values[pos.Column];
+			ref FieldInfo fi = ref values[col];
 			fi.xfIdx = xfIdx;
 
 			reader.MoveToElement();
@@ -491,7 +528,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 			if (reader.ReadToDescendant("v", sheetNS))
 			{
 				valueCount++;
-				this.rowFieldCount = pos.Column + 1;
+				this.rowFieldCount = col + 1;
 				reader.Read();
 				switch (type)
 				{
@@ -534,11 +571,15 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 						{
 							throw new FormatException();
 						}
-						fi.strValue = ss.GetString(strIdx);
+						fi.strValue = GetSharedString(strIdx);
 						fi.type = ExcelDataType.String;
 						break;
 					case CellType.String:
 						fi.strValue = reader.ReadContentAsString();
+						fi.type = ExcelDataType.String;
+						break;
+					case CellType.InlineString:
+						fi.strValue = ReadString(reader);
 						fi.type = ExcelDataType.String;
 						break;
 					case CellType.Boolean:
@@ -559,9 +600,8 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 				reader.Read();
 			}
 
-		} while (reader.ReadToNextSibling("c", sheetNS));
-		this.parsedRowIndex = pos.Row;
-		return valueCount == 0 ? 0 : pos.Column + 1;
+		} while (reader.ReadToNextSibling("c", sheetNS));		
+		return valueCount == 0 ? 0 : col + 1;
 	}
 
 	enum CellType
@@ -569,6 +609,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 		Numeric,
 		String,
 		SharedString,
+		InlineString,
 		Boolean,
 		Error,
 		Date,
@@ -776,74 +817,108 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 
 	public override int RowNumber => rowIndex + 1;
 
-	sealed class SharedStrings
+	string[] stringData;
+
+	void LoadSharedStrings(ZipArchiveEntry? entry)
 	{
-		internal static SharedStrings Empty;
-
-		static SharedStrings()
+		if (entry == null)
 		{
-			Empty = new SharedStrings();
-		}
-
-		private SharedStrings()
-		{
-			this.count = 0;
 			this.stringData = Array.Empty<string>();
+			return;
+		}
+		using Stream ssStream = entry.Open();
+		using var reader = XmlReader.Create(ssStream);
+
+		string ns = "";
+		while (reader.Read())
+		{
+			if (reader.NodeType == XmlNodeType.Element && reader.LocalName == "sst")
+			{
+				ns = reader.NamespaceURI;
+				break;
+			}
 		}
 
-		int count;
-		string[] stringData;
-
-		public SharedStrings(XmlReader reader)
+		string countStr = reader.GetAttribute("uniqueCount")!;
+		if (countStr == null)
 		{
-			string ns = "";
+			stringData = Array.Empty<string>();
+			return;
+		}
+
+		var count = int.Parse(countStr);
+
+		this.stringData = new string[count];
+
+		for (int i = 0; i < count; i++)
+		{
 			while (reader.Read())
 			{
-				if (reader.NodeType == XmlNodeType.Element && reader.LocalName == "sst")
-				{
-					ns = reader.NamespaceURI;
+				if (reader.NodeType == XmlNodeType.Element && reader.LocalName == "si")
 					break;
+			}
+
+			var str = ReadString(reader);
+
+			this.stringData[i] = str;
+		}
+	}
+
+	StringBuilder stringBuilder = new StringBuilder();
+
+	string ReadString(XmlReader reader)
+	{
+		var empty = reader.IsEmptyElement;
+		string str = string.Empty;
+		if (empty)
+		{
+			reader.ReadEndElement();
+		}
+		else
+		{
+			var depth = reader.Depth;
+			int c = 0;
+			while (reader.Read() && reader.Depth > depth)
+			{
+				if (reader.NodeType == XmlNodeType.Element && reader.LocalName == "t")
+				{
+					reader.Read();
+					if (reader.NodeType != XmlNodeType.Text && reader.NodeType != XmlNodeType.SignificantWhitespace)
+					{
+						throw new InvalidDataException();
+					}
+					var s = reader.Value;
+					if (c == 0)
+					{
+						str = s;
+					}
+					else
+					if (c == 1)
+					{
+						stringBuilder.Clear();
+						stringBuilder.Append(str);
+						stringBuilder.Append(s);
+					}
+					else
+					{
+						stringBuilder.Append(s);
+					}
+					c++;
 				}
 			}
-
-			string countStr = reader.GetAttribute("uniqueCount")!;
-			if (countStr == null)
+			if (c > 1)
 			{
-				stringData = Array.Empty<string>();
-				return;
-			}
-			reader.Read();
-
-			var count = int.Parse(countStr);
-			this.count = count;
-			this.stringData = new string[this.count];
-
-			for (int i = 0; i < count; i++)
-			{
-				reader.ReadStartElement("si", ns);
-
-				var empty = reader.IsEmptyElement;
-
-				reader.ReadStartElement("t", ns);
-				var str = empty ? "" : reader.ReadContentAsString();
-				this.stringData[i] = str;
-				if (!empty)
-					reader.ReadEndElement();
-				reader.ReadEndElement();
+				str = stringBuilder.ToString();
 			}
 		}
+		return str;
+	}
 
-		public int Count
-		{
-			get { return this.count; }
-		}
+	string GetSharedString(int i)
+	{
+		if ((uint)i >= stringData.Length)
+			throw new ArgumentOutOfRangeException(nameof(i));
 
-		public string GetString(int i)
-		{
-			if ((uint)i >= count)
-				throw new ArgumentOutOfRangeException(nameof(i));
-
-			return stringData[i];
-		}
+		return stringData[i];
 	}
 }
