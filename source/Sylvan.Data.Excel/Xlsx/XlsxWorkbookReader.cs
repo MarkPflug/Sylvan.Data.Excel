@@ -34,6 +34,9 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 	string refName;
 	string typeName;
 	string styleName;
+	string rowName;
+	string valueName;
+	string cellName;
 	string sheetNS;
 
 	char[] valueBuffer = new char[64];
@@ -76,7 +79,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 		this.rowCount = -1;
 		this.values = Array.Empty<FieldInfo>();
 
-		this.refName = this.styleName = this.typeName = string.Empty;
+		this.rowName = this.cellName = this.valueName = this.refName = this.styleName = this.typeName = string.Empty;
 		this.sheetNS = string.Empty;
 		this.errorAsNull = opts.GetErrorAsNull;
 		this.readHiddenSheets = opts.ReadHiddenWorksheets;
@@ -252,7 +255,9 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 		refName = this.reader.NameTable.Add("r");
 		typeName = this.reader.NameTable.Add("t");
 		styleName = this.reader.NameTable.Add("s");
-
+		rowName = this.reader.NameTable.Add("row");
+		valueName = this.reader.NameTable.Add("v");
+		cellName = this.reader.NameTable.Add("c");
 
 		// worksheet
 		while (reader.Read())
@@ -320,9 +325,9 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 	bool NextRow()
 	{
 		var ci = NumberFormatInfo.InvariantInfo;
-		if (reader!.ReadToFollowing("row", sheetNS))
+		if (ReadToFollowing(reader!, rowName))
 		{
-			if (reader.MoveToAttribute("r"))
+			if (reader!.MoveToAttribute(refName))
 			{
 				int row;
 #if SPAN_PARSE
@@ -431,7 +436,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 		int len;
 
 		Array.Clear(this.values, 0, this.values.Length);
-		if (!reader.ReadToDescendant("c", sheetNS))
+		if (!ReadToDescendant(reader, cellName))
 		{
 			return 0;
 		}
@@ -524,7 +529,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 			reader.MoveToElement();
 			var depth = reader.Depth;
 
-			if (reader.ReadToDescendant("v", sheetNS))
+			if (ReadToDescendant(reader, valueName))
 			{
 				valueCount++;
 				this.rowFieldCount = col + 1;
@@ -599,8 +604,80 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 				reader.Read();
 			}
 
-		} while (reader.ReadToNextSibling("c", sheetNS));
+		} while (ReadToNextSibling(reader, cellName));
 		return valueCount == 0 ? 0 : col + 1;
+	}
+
+	static bool ReadToFollowing(XmlReader reader, string localName)
+	{
+		while (reader.Read())
+		{
+			if (reader.NodeType == XmlNodeType.Element && object.ReferenceEquals(localName, reader.LocalName))
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
+	static bool ReadToNextSibling(XmlReader reader, string localName)
+	{
+		while (SkipSubtree(reader))
+		{
+			XmlNodeType nodeType = reader.NodeType;
+			if (nodeType == XmlNodeType.Element && object.ReferenceEquals(localName, reader.LocalName))
+			{
+				return true;
+			}
+			if (nodeType == XmlNodeType.EndElement || reader.EOF)
+			{
+				break;
+			}
+		}
+		return false;
+	}
+
+	static bool ReadToDescendant(XmlReader reader, string localName)
+	{
+		int num = reader.Depth;
+		if (reader.NodeType != XmlNodeType.Element)
+		{
+			if (reader.ReadState != 0)
+			{
+				return false;
+			}
+			num--;
+		}
+		else if (reader.IsEmptyElement)
+		{
+			return false;
+		}
+		while (reader.Read() && reader.Depth > num)
+		{
+			if (reader.NodeType == XmlNodeType.Element && object.ReferenceEquals(localName, reader.LocalName))
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
+	static bool SkipSubtree(XmlReader reader)
+	{
+		reader.MoveToElement();
+		if (reader.NodeType == XmlNodeType.Element && !reader.IsEmptyElement)
+		{
+			int depth = reader.Depth;
+			while (reader.Read() && depth < reader.Depth)
+			{
+			}
+			if (reader.NodeType == XmlNodeType.EndElement)
+			{
+				return reader.Read();
+			}
+			return false;
+		}
+		return reader.Read();
 	}
 
 	enum CellType
