@@ -11,10 +11,6 @@ namespace Sylvan.Data.Excel;
 
 sealed class XlsxWorkbookReader : ExcelDataReader
 {
-	const string SheetNS = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
-	const string DocRelsNS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
-	const string RelationsNS = "http://schemas.openxmlformats.org/package/2006/relationships";
-
 	readonly ZipArchive package;
 	Dictionary<int, ExcelFormat> formats;
 	int[] xfMap;
@@ -81,7 +77,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 		this.values = Array.Empty<FieldInfo>();
 
 		this.refName = this.styleName = this.typeName = string.Empty;
-		this.sheetNS = SheetNS;
+		this.sheetNS = string.Empty;
 		this.errorAsNull = opts.GetErrorAsNull;
 		this.readHiddenSheets = opts.ReadHiddenWorksheets;
 
@@ -107,7 +103,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 			var doc = new XmlDocument();
 			doc.Load(sheetRelStream);
 			var nsm = new XmlNamespaceManager(doc.NameTable);
-			nsm.AddNamespace("r", RelationsNS);
+			nsm.AddNamespace("r", doc.DocumentElement.NamespaceURI);
 			var nodes = doc.SelectNodes("/r:Relationships/r:Relationship", nsm);
 			foreach (XmlElement node in nodes)
 			{
@@ -132,14 +128,15 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 			var doc = new XmlDocument();
 			doc.Load(sheetsStream);
 			var nsm = new XmlNamespaceManager(doc.NameTable);
-			nsm.AddNamespace("x", SheetNS);
+			var ns = doc.DocumentElement.NamespaceURI;
+			nsm.AddNamespace("x", ns);
 			var nodes = doc.SelectNodes("/x:workbook/x:sheets/x:sheet", nsm);
 			foreach (XmlElement sheetElem in nodes)
 			{
 				var id = int.Parse(sheetElem.GetAttribute("sheetId"));
 				var name = sheetElem.GetAttribute("name");
 				var state = sheetElem.GetAttribute("state");
-				var refId = sheetElem.GetAttribute("id", DocRelsNS);
+				var refId = sheetElem.Attributes.OfType<XmlAttribute>().Single(a => a.LocalName == "id").Value;
 
 				sheetHiddenList.Add(StringComparer.OrdinalIgnoreCase.Equals(state, "hidden"));
 				var si = new SheetInfo(name, sheetRelMap[refId]);
@@ -161,7 +158,8 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 				var doc = new XmlDocument();
 				doc.Load(styleStream);
 				var nsm = new XmlNamespaceManager(doc.NameTable);
-				nsm.AddNamespace("x", SheetNS);
+				var ns = doc.DocumentElement.NamespaceURI;
+				nsm.AddNamespace("x", ns);
 				var nodes = doc.SelectNodes("/x:styleSheet/x:numFmts/x:numFmt", nsm);
 				this.formats = ExcelFormat.CreateFormatCollection();
 				foreach (XmlElement fmt in nodes)
@@ -254,13 +252,14 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 		refName = this.reader.NameTable.Add("r");
 		typeName = this.reader.NameTable.Add("t");
 		styleName = this.reader.NameTable.Add("s");
-		sheetNS = this.reader.NameTable.Add(SheetNS);
+
 
 		// worksheet
 		while (reader.Read())
 		{
 			if (reader.NodeType == XmlNodeType.Element && reader.LocalName == "worksheet")
 			{
+				sheetNS = this.reader.NameTable.Add(reader.NamespaceURI);
 				break;
 			}
 		}
@@ -321,7 +320,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 	bool NextRow()
 	{
 		var ci = NumberFormatInfo.InvariantInfo;
-		if(reader!.ReadToFollowing("row", sheetNS))
+		if (reader!.ReadToFollowing("row", sheetNS))
 		{
 			if (reader.MoveToAttribute("r"))
 			{
@@ -431,7 +430,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 		FieldInfo[] values = this.values;
 		int len;
 
-		Array.Clear(this.values, 0, this.values.Length);	
+		Array.Clear(this.values, 0, this.values.Length);
 		if (!reader.ReadToDescendant("c", sheetNS))
 		{
 			return 0;
@@ -600,7 +599,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 				reader.Read();
 			}
 
-		} while (reader.ReadToNextSibling("c", sheetNS));		
+		} while (reader.ReadToNextSibling("c", sheetNS));
 		return valueCount == 0 ? 0 : col + 1;
 	}
 
