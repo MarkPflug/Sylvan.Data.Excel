@@ -846,6 +846,13 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 				return (RecordType)b;
 			}
 
+			if (pos >= end)
+			{
+				FillBuffer(1);
+				if (pos >= end)
+					throw new EndOfStreamException();
+			}
+
 			var type = (RecordType)(b & 0x7f | (data[pos++] << 7));
 			return type;
 		}

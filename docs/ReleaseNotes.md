@@ -1,5 +1,12 @@
 # Sylvan.Data.Excel Release Notes
 
+_0.1.8_
+- Various bug fixes.
+
+_0.1.7_
+- Add .xslb support.
+- Option to process hidden sheets.
+
 _0.1.5_
 - Add `RowFieldCount` property to determine number of fields in the current row.
 
