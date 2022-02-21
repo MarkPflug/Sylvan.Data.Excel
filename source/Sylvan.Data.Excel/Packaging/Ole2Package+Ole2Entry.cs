@@ -29,20 +29,8 @@ partial class Ole2Package
 
 		public Ole2Package Package { get; private set; }
 
-		public String Name { get; private set; }
+		public string Name { get; private set; }
 
-		static readonly Regex badChars = new Regex("\\W+");
-
-		public Uri EntryUri
-		{
-			get
-			{
-				var safeName = badChars.Replace(Name, "");
-				var uriStr = "/" + safeName;
-				var uri = new Uri(uriStr, UriKind.Relative);
-				return uri;
-			}
-		}
 
 		EntryType Type { get; set; }
 
@@ -119,6 +107,5 @@ partial class Ole2Package
 			var sectors = this.Package.GetStreamSectors(this.StartSector).ToArray();
 			return new Ole2Stream(this.Package, sectors, StreamSize);
 		}
-
 	}
 }

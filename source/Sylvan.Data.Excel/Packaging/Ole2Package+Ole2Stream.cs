@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 
 namespace Sylvan.Data.Excel;
+
 partial class Ole2Package
 {
 	public sealed class Ole2Stream : Stream
@@ -120,6 +121,7 @@ partial class Ole2Package
 					if (l == 0)
 						throw new IOException();//"Unexpectedly encountered end of Ole2Package Stream"
 					len += l;
+					offset += l;
 					this.position += l;
 					this.streamPos += l;
 				}
