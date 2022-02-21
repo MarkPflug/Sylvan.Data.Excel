@@ -961,6 +961,10 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 					reader.Read();
 					if (reader.NodeType != XmlNodeType.Text && reader.NodeType != XmlNodeType.SignificantWhitespace)
 					{
+						if(reader.NodeType == XmlNodeType.EndElement)
+						{
+							return string.Empty;
+						}
 						throw new InvalidDataException();
 					}
 					var s = reader.Value;
