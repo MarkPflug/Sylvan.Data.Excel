@@ -43,17 +43,30 @@ sealed partial class XlsWorkbookReader
 			this.strBuffer = Array.Empty<char>();
 		}
 
-		async Task FillBufferAsync()
+		async Task<bool> FillBufferAsync(int required)
 		{
 			var len = bufferLen - recordOff;
-			Buffer.BlockCopy(buffer, recordOff, buffer, 0, len);
+
+			if (len > 0)
+			{
+				Buffer.BlockCopy(buffer, recordOff, buffer, 0, len);
+			}
 
 			var shift = bufferLen - len;
 			recordOff -= shift;
 			bufferPos -= shift;
+			Assert();
+			int c = 0;
 
-			var c = await stream.ReadAsync(buffer, len, BufferSize - len, default);
-			this.bufferLen = len + c;
+			while (c < required) {
+				var l = await stream.ReadAsync(buffer, len, BufferSize - len, default);
+				c += l;
+				if(l == 0) {
+					break;
+				}
+				this.bufferLen = len + c;
+			}
+			return c >= required;
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -61,6 +74,7 @@ sealed partial class XlsWorkbookReader
 		{
 			// the byte we are reading must be within the current record.
 			Debug.Assert(bufferPos < recordOff + recordLen);
+			Assert();
 			var b = buffer[bufferPos];
 			bufferPos++;
 			return b;
@@ -120,6 +134,7 @@ sealed partial class XlsWorkbookReader
 				var c = Math.Min(remain, avail);
 				remain -= c;
 				bufferPos += c;
+				Assert();
 				if (remain > 0)
 				{
 					var next = await NextRecordAsync();
@@ -151,6 +166,7 @@ sealed partial class XlsWorkbookReader
 				{
 					var str = encoding.GetString(buffer, bufferPos, byteCount);
 					bufferPos += byteCount;
+					Assert();
 					return str;
 				}
 
@@ -171,6 +187,7 @@ sealed partial class XlsWorkbookReader
 				int currentRecordBytes = Math.Min(byteCount, recordBytes);
 				var c = encoding.GetChars(buffer, bufferPos, currentRecordBytes, strBuffer, strPos);
 				bufferPos += currentRecordBytes;
+				Assert();
 
 				charCount -= c;
 				strPos += c;
@@ -250,24 +267,42 @@ sealed partial class XlsWorkbookReader
 		public async Task<bool> NextRecordAsync()
 		{
 			bufferPos = recordOff + recordLen;
+			Assert();
 
 			if (bufferPos + 4 >= bufferLen)
 			{
-				await FillBufferAsync();
+				if(!await FillBufferAsync(4))
+				{
+					return false;
+				}
 			}
 			this.recordOff = bufferPos;
 			this.recordLen = 4; // we have at least the first 4 bytes.
 			this.recordCode = ReadInt16();
+			Debug.Assert(recordCode >= 0);
 			this.recordLen = ReadInt16();
+			Debug.Assert(recordLen >= 0);
 
-			if (bufferPos + recordLen >= bufferLen)
+			if (bufferPos + recordLen > bufferLen)
 			{
-				await FillBufferAsync();
+				var req = (bufferPos + recordLen) - bufferLen;
+				Debug.Assert(req >= 1);
+
+				if(!await FillBufferAsync(req))
+				{
+					return false;
+				}
 			}
 
 			this.recordOff = bufferPos;
-
+			//Debug.WriteLine($"{(RecordType)this.recordCode} {this.recordCode:x} {this.recordLen}");
 			return true;
+		}
+
+		[Conditional("DEBUG")]
+		void Assert()
+		{
+			Debug.Assert(bufferPos >= 0 && bufferPos <= bufferLen);
 		}
 	}
 }
