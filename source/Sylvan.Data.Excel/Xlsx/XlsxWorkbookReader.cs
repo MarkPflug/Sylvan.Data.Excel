@@ -959,15 +959,21 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 				if (reader.NodeType == XmlNodeType.Element && reader.LocalName == "t")
 				{
 					reader.Read();
-					if (reader.NodeType != XmlNodeType.Text && reader.NodeType != XmlNodeType.SignificantWhitespace)
+					string s = string.Empty;
+					if (reader.NodeType == XmlNodeType.Text || reader.NodeType == XmlNodeType.SignificantWhitespace)
 					{
-						if(reader.NodeType == XmlNodeType.EndElement)
-						{
-							return string.Empty;
-						}
+
+						s = reader.Value;
+					}
+					else if (reader.NodeType == XmlNodeType.EndElement)
+					{
+						// empty string.
+					}
+					else
+					{
 						throw new InvalidDataException();
 					}
-					var s = reader.Value;
+
 					if (c == 0)
 					{
 						str = s;
