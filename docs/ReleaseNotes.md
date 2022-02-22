@@ -1,4 +1,8 @@
 # Sylvan.Data.Excel Release Notes
+
+_0.1.10_
+- Fix bug with .xlsx file containing empty element in shared string table.
+
 _0.1.9_
 - Fix bug with .xlsx shared strings table containing empty string element.
 - Fix buffer management bug with .xls files.
