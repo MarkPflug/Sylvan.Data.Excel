@@ -8,26 +8,6 @@ using Xunit;
 
 namespace Sylvan.Data.Excel;
 
-public sealed class XlsTests : XlsxTests
-{
-	const string FileFormat = "Data/{0}.xls";
-
-	protected override string GetFile(string name)
-	{
-		return string.Format(FileFormat, name);
-	}
-}
-
-public sealed class XlsbTests : XlsxTests
-{
-	const string FileFormat = "Data/{0}.xlsb";
-
-	protected override string GetFile(string name)
-	{
-		return string.Format(FileFormat, name);
-	}
-}
-
 // the tests defined here will be run against .xls, .xlsx, and .xlsb file
 // containing the same content. The expectation is the behavior of the two
 // implementations is the same, so the same test code can validate the 
@@ -39,7 +19,7 @@ public class XlsxTests
 	protected virtual string GetFile([CallerMemberName] string name = "")
 	{
 		var file = string.Format(FileFormat, name);
-		Assert.True(File.Exists(file), "Test data file " + file + " does not exist");
+		Assert.True(File.Exists(file), "Test data file " + file + " does not exist or could not be opened.");
 		return file;
 	}
 
@@ -112,10 +92,23 @@ public class XlsxTests
 		using var r = ExcelDataReader.Create(file, noHeaders);
 		r.Read();
 		Assert.Equal("3.3", r.GetString(0));
+		Assert.Equal(3.3, r.GetDouble(0));
+		Assert.Equal(3.3m, r.GetDecimal(0));
 		Assert.Equal("1E+77", r.GetString(1));
+		Assert.Equal(1E+77, r.GetDouble(1));
+		Assert.Throws<InvalidCastException>(() => r.GetDecimal(1));
 		Assert.Equal("3.33", r.GetString(2));
+		Assert.Equal(3.33, r.GetDouble(2));
+		Assert.Equal(3.33m, r.GetDecimal(2));
 		Assert.Equal("3.333", r.GetString(3));
+		Assert.Equal(3.333, r.GetDouble(3));
+		Assert.Equal(3.333m, r.GetDecimal(3));
 		Assert.Equal("3.3333", r.GetString(4));
+		Assert.Equal(3.3333, r.GetDouble(4));
+		Assert.Equal(3.3333m, r.GetDecimal(4));
+		Assert.Equal("-9303.83", r.GetString(5));
+		Assert.Equal(-9303.83, r.GetDouble(5));
+		Assert.Equal(-9303.83m, r.GetDecimal(5));
 		Assert.False(r.Read());
 	}
 
@@ -634,7 +627,7 @@ public class XlsxTests
 			}
 
 			i = edr.MaxFieldCount - 1;
-			
+
 			Assert.Equal(typeof(object), edr.GetFieldType(i));
 			Assert.True(edr.IsDBNull(i));
 			Assert.Equal(DBNull.Value, edr.GetValue(i));
@@ -649,5 +642,25 @@ public class XlsxTests
 			Assert.Throws<ArgumentOutOfRangeException>(() => edr.GetExcelDataType(i));
 			Assert.Throws<ArgumentOutOfRangeException>(() => edr.GetExcelValue(i));
 		}
+	}
+}
+
+public sealed class XlsTests : XlsxTests
+{
+	const string FileFormat = "Data/{0}.xls";
+
+	protected override string GetFile(string name)
+	{
+		return string.Format(FileFormat, name);
+	}
+}
+
+public sealed class XlsbTests : XlsxTests
+{
+	const string FileFormat = "Data/{0}.xlsb";
+
+	protected override string GetFile(string name)
+	{
+		return string.Format(FileFormat, name);
 	}
 }

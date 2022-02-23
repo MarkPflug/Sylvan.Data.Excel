@@ -392,15 +392,8 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 						var sf = reader.GetInt32(4) & 0xffffff;
 						var rk = reader.GetInt32(8);
 
-						var mul100 = (rk & 1) == 1;
-						var mode = (rk & 2) == 2;
+						var d = GetRKVal(rk);										
 
-						var val = rk >> 2 & 0x3fffffff;
-
-						double d = mode
-							? val
-							: BitConverter.Int64BitsToDouble(((long)val) << 34);
-						d = mul100 ? d / 100d : d;
 						ref var fi = ref values[col];
 
 						fi.type = ExcelDataType.Numeric;
