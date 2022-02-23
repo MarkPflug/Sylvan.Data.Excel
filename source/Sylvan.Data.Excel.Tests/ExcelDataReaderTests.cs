@@ -113,16 +113,6 @@ public class XlsxTests
 	}
 
 	[Fact]
-	public void Numbers2()
-	{
-		var file = GetFile();
-		using var r = ExcelDataReader.Create(file, noHeaders);
-		r.Read();
-		Assert.Equal("-3.3", r.GetString(0));
-		Assert.False(r.Read());
-	}
-
-	[Fact]
 	public void DateTime()
 	{
 		var file = GetFile();
