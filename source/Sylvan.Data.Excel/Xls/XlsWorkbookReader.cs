@@ -9,10 +9,6 @@ using System.Threading.Tasks;
 
 namespace Sylvan.Data.Excel;
 
-// excel file format specs:
-// https://docs.microsoft.com/en-us/openspecs/office_file_formats/ms-xlsb/acc8aa92-1f02-4167-99f5-84f9f676b95a
-// https://docs.microsoft.com/en-us/openspecs/office_file_formats/MS-OFFFFLP/8aea05e3-8c1e-4a9a-9614-31f71e679456
-// https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-oleps/bf7aeae8-c47a-4939-9f45-700158dac3bc
 sealed partial class XlsWorkbookReader : ExcelDataReader
 {
 	const int Biff8VersionCode = 0x0600;
@@ -447,7 +443,7 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 			var ixfe = reader.ReadUInt16();
 			int rk = reader.ReadInt32();
 
-			double rkVal = RKVal(rk);
+			double rkVal = GetRKVal(rk);
 			SetRowData(rowIdx, colIdx++, new CellData(rkVal, ixfe));
 		}
 	}
@@ -478,7 +474,7 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 		ushort xfIdx = reader.ReadUInt16();
 		int rk = reader.ReadInt32();
 
-		double rkVal = RKVal(rk);
+		double rkVal = GetRKVal(rk);
 		SetRowData(rowIdx, colIdx, new CellData(rkVal, xfIdx));
 	}
 
@@ -563,30 +559,7 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 		}
 	}
 
-	static double RKVal(int rk)
-	{
-		bool mult = (rk & 0x01) != 0;
-		bool isFloat = (rk & 0x02) == 0;
-		double d;
-
-		if (isFloat)
-		{
-			long v = rk & 0xfffffffc;
-			v = v << 32;
-			d = BitConverter.Int64BitsToDouble(v);
-		}
-		else
-		{
-			d = rk >> 2;
-		}
-
-		if (mult)
-		{
-			d = d / 100;
-		}
-
-		return d;
-	}
+	
 
 	void SetRowData(int rowIdx, int colIdx, CellData cd)
 	{

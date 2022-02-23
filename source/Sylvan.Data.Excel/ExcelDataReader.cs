@@ -551,4 +551,29 @@ public abstract class ExcelDataReader : DbDataReader, IDisposable, IDbColumnSche
 		End,
 		Closed,
 	}
+
+	internal static double GetRKVal(int rk)
+	{
+		bool mult = (rk & 0x01) != 0;
+		bool isFloat = (rk & 0x02) == 0;
+		double d;
+
+		if (isFloat)
+		{
+			long v = rk & 0xfffffffc;
+			v = v << 32;
+			d = BitConverter.Int64BitsToDouble(v);
+		}
+		else
+		{
+			d = rk >> 2;
+		}
+
+		if (mult)
+		{
+			d = d / 100;
+		}
+
+		return d;
+	}
 }
