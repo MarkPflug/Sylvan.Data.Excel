@@ -935,7 +935,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 			}
 
 			var str = ReadString(reader);
-
+			
 			this.stringData[i] = str;
 		}
 	}
@@ -958,22 +958,24 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 			{
 				if (reader.NodeType == XmlNodeType.Element && reader.LocalName == "t")
 				{
-					reader.Read();
-					string s = string.Empty;
-					if (reader.NodeType == XmlNodeType.Text || reader.NodeType == XmlNodeType.SignificantWhitespace)
+					string? s = string.Empty;
+					if (reader.IsEmptyElement)
 					{
-
-						s = reader.Value;
-					}
-					else if (reader.NodeType == XmlNodeType.EndElement)
-					{
-						// empty string.
+						s = string.Empty;
 					}
 					else
 					{
-						throw new InvalidDataException();
-					}
+						reader.Read();
+						if (reader.NodeType == XmlNodeType.Text || reader.NodeType == XmlNodeType.SignificantWhitespace)
+						{
 
+							s = reader.Value;
+						}
+						else
+						{
+							throw new InvalidDataException();
+						}
+					}
 					if (c == 0)
 					{
 						str = s;
