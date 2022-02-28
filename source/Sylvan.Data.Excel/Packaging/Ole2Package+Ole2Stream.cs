@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -68,17 +69,23 @@ partial class Ole2Package
 
 		public override async Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
 		{
-			int bytesRead = 0;
+			if(offset + count > buffer.Length)
+				throw new ArgumentOutOfRangeException();
 
+			//Debug.WriteLine($"{offset} {count} {this.position}");
+						
 			var sectors = this.sectors;
+
+			int bytesRead = 0;
+			var c = count;
 
 			while (bytesRead < count && position < length)
 			{
 				var readLen = 0;
 				var readStart = (sector + 1) * sectorLen + sectorOff;
 				var curSector = sector;
-
-				while (readLen < count)
+				
+				while (readLen < c)
 				{
 					if (this.sectorOff >= this.sectorLen)
 					{
@@ -94,19 +101,19 @@ partial class Ole2Package
 							// next sector is not coniguious, so read
 							// the current contig block
 							sector = nextSector;
-							break;
+							if(readLen > 0) { 
+								break;
+							}
 						}
 						sector = curSector = nextSector;
 					}
 
 					var sectorAvail = this.sectorLen - this.sectorOff;
-					var sectorRead = Math.Min(sectorAvail, count - readLen);
+					var sectorRead = Math.Min(sectorAvail, c - readLen);
 
 					readLen += sectorRead;
 					this.sectorOff += sectorRead;
 				}
-
-				readLen = Math.Min(readLen, count);
 
 				// avoid seek if we are already positioned.
 				if (streamPos != readStart)
@@ -114,6 +121,9 @@ partial class Ole2Package
 					package.stream.Seek(readStart, SeekOrigin.Begin);
 					streamPos = readStart;
 				}
+
+				if (readLen == 0)
+					break;
 				int len = 0;
 				while (len < readLen)
 				{
@@ -122,12 +132,12 @@ partial class Ole2Package
 						throw new IOException();//"Unexpectedly encountered end of Ole2Package Stream"
 					len += l;
 					offset += l;
+					c -= l;
 					this.position += l;
 					this.streamPos += l;
 				}
 				bytesRead += len;
 			}
-
 			return bytesRead;
 		}
 
