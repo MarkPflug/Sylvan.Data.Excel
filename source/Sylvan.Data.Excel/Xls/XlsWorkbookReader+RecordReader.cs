@@ -12,6 +12,7 @@ sealed partial class XlsWorkbookReader
 	sealed class RecordReader
 	{
 		const int BufferSize = 0x40000;
+		const int MaxRecordSize = 8228;
 
 		Stream stream;
 
@@ -53,8 +54,11 @@ sealed partial class XlsWorkbookReader
 			}
 
 			var shift = bufferLen - len;
-			recordOff -= shift;
-			bufferPos -= shift;
+			this.recordOff -= shift;
+			this.bufferPos -= shift;
+			this.bufferLen = len;
+
+			Debug.Assert(recordOff == 0);
 			Assert();
 			int c = 0;
 
@@ -257,7 +261,7 @@ sealed partial class XlsWorkbookReader
 
 		public async Task<string> ReadStringAsync(int length, bool compressed)
 		{
-			Debug.WriteLine("ReadString");
+			//Debug.WriteLine("ReadString");
 			var str = await ReadStringBufferAsync(length, compressed);
 			return str;
 		}
@@ -281,11 +285,14 @@ sealed partial class XlsWorkbookReader
 			this.recordCode = ReadInt16();
 			Debug.Assert(recordCode >= 0);
 			this.recordLen = ReadInt16();
+			if (recordLen < 0 || recordLen > MaxRecordSize)
+				throw new InvalidDataException();
 			Debug.Assert(recordLen >= 0);
 
-			if (bufferPos + recordLen > bufferLen)
+			this.recordOff = bufferPos;
+			if (recordOff + recordLen > bufferLen)
 			{
-				var req = (bufferPos + recordLen) - bufferLen;
+				var req = (recordOff + recordLen) - bufferLen;
 				Debug.Assert(req >= 1);
 
 				if(!await FillBufferAsync(req))
@@ -294,7 +301,6 @@ sealed partial class XlsWorkbookReader
 				}
 			}
 
-			this.recordOff = bufferPos;
 			//Debug.WriteLine($"{(RecordType)this.recordCode} {this.recordCode:x} {this.recordLen}");
 			return true;
 		}

@@ -295,7 +295,7 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 				case RecordType.EOF:
 					return;
 				default:
-					Debug.WriteLine($"Header: {recordType:x}");
+					Debug.WriteLine($"Header: {recordType:x} {recordType}");
 					break;
 			}
 		}
@@ -316,6 +316,8 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 					case BOFType.Worksheet:
 					case BOFType.Biff4MacroSheet:
 						goto go;
+					case BOFType.Chart:
+						continue;
 					default:
 						throw new NotSupportedException();
 				}
@@ -344,7 +346,7 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 				case RecordType.EOF:
 					throw new InvalidDataException();//"Unexpected EOF"
 				default:
-					Debug.WriteLine(reader.Type);
+					//Debug.WriteLine(reader.Type);
 					break;
 			}
 		}
@@ -559,7 +561,7 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 		}
 	}
 
-	
+
 
 	void SetRowData(int rowIdx, int colIdx, CellData cd)
 	{
@@ -719,7 +721,8 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 
 		for (int i = 0; i < uniqueString; i++)
 		{
-			strings[i] = await reader.ReadString16();
+			var s = await reader.ReadString16();
+			strings[i] = s;
 		}
 
 		this.sst = strings;
