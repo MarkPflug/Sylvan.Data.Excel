@@ -10,6 +10,8 @@ namespace Sylvan.Data.Excel;
 
 sealed class XlsbWorkbookReader : ExcelDataReader
 {
+	static readonly Dictionary<int, ExcelFormat> EmptyFormats = new Dictionary<int, ExcelFormat>(0);
+
 	const string RelationsNS = "http://schemas.openxmlformats.org/package/2006/relationships";
 
 	Dictionary<int, ExcelFormat> formats = EmptyFormats;
@@ -64,6 +66,12 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 		public string Name { get; }
 		public string Part { get; }
 		public bool Hidden { get; }
+	}
+
+	public override void Close()
+	{
+		this.sheetStream?.Close();
+		base.Close();
 	}
 
 	public XlsbWorkbookReader(Stream stream, ExcelDataReaderOptions opts) : base(stream, opts.Schema)
@@ -170,9 +178,7 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 
 		NextResult();
 	}
-
-	static readonly Dictionary<int, ExcelFormat> EmptyFormats = new Dictionary<int, ExcelFormat>();
-
+		
 	public override bool NextResult()
 	{
 		sheetIdx++;
