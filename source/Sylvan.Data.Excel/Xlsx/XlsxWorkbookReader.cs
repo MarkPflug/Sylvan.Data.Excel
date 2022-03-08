@@ -19,7 +19,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 
 	bool readHiddenSheets;
 
-	Stream stream;
+	Stream sheetStream;
 	XmlReader? reader;
 
 	FieldInfo[] values;
@@ -74,17 +74,17 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 		return a.Entries.FirstOrDefault(e => StringComparer.OrdinalIgnoreCase.Equals(e.FullName, name));
 	}
 
-	public XlsxWorkbookReader(Stream iStream, ExcelDataReaderOptions opts) : base(opts.Schema)
+	public XlsxWorkbookReader(Stream iStream, ExcelDataReaderOptions opts) : base(iStream, opts.Schema)
 	{
 		this.rowCount = -1;
 		this.values = Array.Empty<FieldInfo>();
+		this.sheetStream = Stream.Null;
 
 		this.rowName = this.cellName = this.valueName = this.refName = this.styleName = this.typeName = string.Empty;
 		this.sheetNS = string.Empty;
 		this.errorAsNull = opts.GetErrorAsNull;
 		this.readHiddenSheets = opts.ReadHiddenWorksheets;
 
-		this.stream = iStream;
 		package = new ZipArchive(iStream, ZipArchiveMode.Read);
 
 		var ssPart = GetEntry(package, "xl/sharedStrings.xml");
@@ -208,17 +208,6 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 		NextResult();
 	}
 
-	public override bool IsClosed
-	{
-		get { return this.stream == Stream.Null; }
-	}
-
-	public override void Close()
-	{
-		this.stream?.Close();
-		this.stream = Stream.Null;
-	}
-
 	XmlReaderSettings settings = new XmlReaderSettings()
 	{
 		CheckCharacters = false,
@@ -247,9 +236,10 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 		var sheetPart = package.GetEntry(sheetName);
 		if (sheetPart == null)
 			return false;
-		this.stream = sheetPart.Open();
 
-		var tr = new StreamReader(this.stream, Encoding.Default, true, 0x10000);
+		this.sheetStream = sheetPart.Open();
+
+		var tr = new StreamReader(this.sheetStream, Encoding.Default, true, 0x10000);
 
 		this.reader = XmlReader.Create(tr, settings);
 		refName = this.reader.NameTable.Add("r");
@@ -935,7 +925,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 			}
 
 			var str = ReadString(reader);
-			
+
 			this.stringData[i] = str;
 		}
 	}

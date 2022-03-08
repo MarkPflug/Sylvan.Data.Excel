@@ -17,6 +17,9 @@ public abstract class ExcelDataReader : DbDataReader, IDisposable, IDbColumnSche
 	private protected IExcelSchemaProvider schema;
 	int fieldCount;
 	private protected ReadOnlyCollection<DbColumn> columnSchema = EmptySchema;
+	private protected bool ownsStream;
+	bool isClosed;
+	Stream stream;
 
 	/// <inheritdoc/>
 	public sealed override Type GetFieldType(int ordinal)
@@ -35,8 +38,9 @@ public abstract class ExcelDataReader : DbDataReader, IDisposable, IDbColumnSche
 		return SchemaTable.GetSchemaTable(this.GetColumnSchema());
 	}
 
-	private protected ExcelDataReader(IExcelSchemaProvider schema)
+	private protected ExcelDataReader(Stream stream, IExcelSchemaProvider schema)
 	{
+		this.stream = stream;
 		this.schema = schema;
 	}
 
@@ -54,8 +58,31 @@ public abstract class ExcelDataReader : DbDataReader, IDisposable, IDbColumnSche
 			throw new ArgumentException(null, nameof(filename));
 
 		var s = new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.Read, 1);
+		try
+		{
+			var reader = Create(s, type, options);
+			reader.ownsStream = true;
+			reader.stream = s;
+			return reader;
+		}
+		catch (Exception)
+		{
+			s?.Dispose();
+			throw;
+		}
+	}
 
-		return Create(s, type, options);
+	/// <inheritdoc/>
+	public override bool IsClosed => isClosed;
+
+	/// <inheritdoc/>
+	public override void Close()
+	{
+		this.isClosed = true;
+		if (ownsStream)
+		{
+			stream.Dispose();
+		}
 	}
 
 	/// <summary>
