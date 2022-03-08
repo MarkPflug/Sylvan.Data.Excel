@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Sylvan.Testing;
+using System;
 using System.Data;
 using System.Data.Common;
 using System.IO;
@@ -15,6 +16,8 @@ namespace Sylvan.Data.Excel;
 public class XlsxTests
 {
 	const string FileFormat = "Data/{0}.xlsx";
+
+	public virtual ExcelWorkbookType WorkbookType => ExcelWorkbookType.ExcelXml;
 
 	protected virtual string GetFile([CallerMemberName] string name = "")
 	{
@@ -643,11 +646,50 @@ public class XlsxTests
 			Assert.Throws<ArgumentOutOfRangeException>(() => edr.GetExcelValue(i));
 		}
 	}
+
+	[Fact]
+	public void Dispose()
+	{
+		var file = GetFile("Numbers");
+		using (var edr = ExcelDataReader.Create(file))
+		{
+
+			while (edr.Read())
+			{
+				// implied assertion that this doesn't throw.
+				var str = edr.GetString(0);
+			}
+		}
+		// implied assertion that we are able to open the file, indicating that it was properly disposed.
+		var s = File.Open(file, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+		s.Dispose();
+	}
+
+	[Fact]
+	public void DisposeUnowned()
+	{
+		// when created with a stream, disposing the reader
+		// doesn't close the stream.
+		var file = GetFile("Numbers");
+		using var stream = new TestStream(File.OpenRead(file));
+		using (var edr = ExcelDataReader.Create(stream, WorkbookType))
+		{
+
+			while (edr.Read())
+			{
+				// implied assertion that this doesn't throw.
+				var str = edr.GetString(0);
+			}
+		}
+		Assert.False(stream.IsClosed);
+	}
 }
 
 public sealed class XlsTests : XlsxTests
 {
 	const string FileFormat = "Data/{0}.xls";
+
+	public override ExcelWorkbookType WorkbookType => ExcelWorkbookType.Excel;
 
 	protected override string GetFile(string name)
 	{
@@ -658,6 +700,8 @@ public sealed class XlsTests : XlsxTests
 public sealed class XlsbTests : XlsxTests
 {
 	const string FileFormat = "Data/{0}.xlsb";
+
+	public override ExcelWorkbookType WorkbookType => ExcelWorkbookType.ExcelBinary;
 
 	protected override string GetFile(string name)
 	{

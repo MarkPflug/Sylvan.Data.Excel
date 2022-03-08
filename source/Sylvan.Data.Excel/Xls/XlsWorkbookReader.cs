@@ -40,7 +40,6 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 	int rowIndex;
 	int parsedRowIndex;
 
-	bool closed = false;
 	int epoch;
 
 	string[] sst;
@@ -50,22 +49,23 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 
 	internal static async Task<XlsWorkbookReader> CreateAsync(Stream iStream, ExcelDataReaderOptions options)
 	{
-		var pkg = new Ole2Package(iStream);
-		var part = pkg.GetEntry("Workbook\0");
-		if (part == null)
-			throw new InvalidDataException();
-		var ps = part.Open();
-
-		var reader = new XlsWorkbookReader(ps, options);
+		var reader = new XlsWorkbookReader(iStream, options);
 		await reader.ReadHeaderAsync();
 		await reader.NextResultAsync();
 		return reader;
 	}
 
-	private XlsWorkbookReader(Stream iStream, ExcelDataReaderOptions options) : base(options.Schema)
+	private XlsWorkbookReader(Stream stream, ExcelDataReaderOptions options) : base(stream, options.Schema)
 	{
+
+		var pkg = new Ole2Package(stream);
+		var part = pkg.GetEntry("Workbook\0");
+		if (part == null)
+			throw new InvalidDataException();
+		var ps = part.Open();
+
 		this.epoch = 1900;
-		this.reader = new RecordReader(iStream);
+		this.reader = new RecordReader(ps);
 		this.getErrorAsNull = options.GetErrorAsNull;
 		this.readHiddenSheets = options.ReadHiddenWorksheets;
 
@@ -126,17 +126,6 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 			CellType.String => ExcelDataType.String,
 			_ => ExcelDataType.Null
 		};
-	}
-
-	public override bool IsClosed
-	{
-		get { return this.closed; }
-	}
-
-
-	public override void Close()
-	{
-		this.closed = true;
 	}
 
 	public override async Task<bool> NextResultAsync(CancellationToken cancellationToken)

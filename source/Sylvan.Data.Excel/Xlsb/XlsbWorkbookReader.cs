@@ -10,6 +10,8 @@ namespace Sylvan.Data.Excel;
 
 sealed class XlsbWorkbookReader : ExcelDataReader
 {
+	static readonly Dictionary<int, ExcelFormat> EmptyFormats = new Dictionary<int, ExcelFormat>(0);
+
 	const string RelationsNS = "http://schemas.openxmlformats.org/package/2006/relationships";
 
 	Dictionary<int, ExcelFormat> formats = EmptyFormats;
@@ -21,7 +23,7 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 	int sheetIdx = -1;
 	int rowCount;
 
-	Stream stream;
+	Stream sheetStream;
 	RecordReader? reader;
 
 	FieldInfo[] values;
@@ -66,15 +68,21 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 		public bool Hidden { get; }
 	}
 
-	public XlsbWorkbookReader(Stream iStream, ExcelDataReaderOptions opts) : base(opts.Schema)
+	public override void Close()
+	{
+		this.sheetStream?.Close();
+		base.Close();
+	}
+
+	public XlsbWorkbookReader(Stream stream, ExcelDataReaderOptions opts) : base(stream, opts.Schema)
 	{
 		this.rowCount = -1;
 		this.values = Array.Empty<FieldInfo>();
 		this.errorAsNull = opts.GetErrorAsNull;
 		this.readHiddenSheets = opts.ReadHiddenWorksheets;
 
-		this.stream = iStream;
-		package = new ZipArchive(iStream, ZipArchiveMode.Read);
+		this.sheetStream = Stream.Null;
+		package = new ZipArchive(stream, ZipArchiveMode.Read);
 
 		var stylePart = package.GetEntry("xl/styles.bin");
 
@@ -170,20 +178,7 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 
 		NextResult();
 	}
-
-	static readonly Dictionary<int, ExcelFormat> EmptyFormats = new Dictionary<int, ExcelFormat>();
-
-	public override bool IsClosed
-	{
-		get { return this.stream == Stream.Null; }
-	}
-
-	public override void Close()
-	{
-		this.stream?.Close();
-		this.stream = Stream.Null;
-	}
-
+		
 	public override bool NextResult()
 	{
 		sheetIdx++;
@@ -205,9 +200,13 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 		var sheetPart = package.GetEntry(sheetName);
 		if (sheetPart == null)
 			return false;
-		this.stream = sheetPart.Open();
+		if (sheetStream != null)
+		{
+			this.sheetStream.Close();
+		}
+		this.sheetStream = sheetPart.Open();
 
-		this.reader = new RecordReader(this.stream);
+		this.reader = new RecordReader(this.sheetStream);
 		var rr = this.reader;
 		this.rowFieldCount = 0;
 
@@ -392,7 +391,7 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 						var sf = reader.GetInt32(4) & 0xffffff;
 						var rk = reader.GetInt32(8);
 
-						var d = GetRKVal(rk);										
+						var d = GetRKVal(rk);
 
 						ref var fi = ref values[col];
 
