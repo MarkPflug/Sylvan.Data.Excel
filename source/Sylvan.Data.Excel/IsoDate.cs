@@ -5,14 +5,22 @@ using System;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 
-namespace Sylvan;
+#if NETSTANDARD2_0
+using System.Text;
+using ReadonlyCharSpan = System.String;
+using CharSpan = System.Text.StringBuilder;
+#else
+using ReadonlyCharSpan = System.ReadOnlySpan<char>;
+using CharSpan = System.Span<char>;
+#endif
 
+namespace Sylvan;
 /// <summary>
 /// Provides ISO 8601 date parsing.
 /// </summary>
 static partial class IsoDate
-{
-	// This implementation is mostly copied from System.Text.Json internal code.
+{	    
+    // This implementation is mostly copied from System.Text.Json internal code.
 	// There are a few changes:
 	// - handles chars instead of bytes, as the S.T.Json impl was utf-8 specific
 	// - Allows ' ' in place of 'T' as time separator. Not ISO compliant, but common enough that I want to allow it.
@@ -45,7 +53,7 @@ static partial class IsoDate
 	/// <param name="source">The source to parse.</param>
 	/// <param name="value">The parsed <see cref="DateTime"/> if successful.</param>
 	/// <returns>"true" if successfully parsed.</returns>
-	public static bool TryParse(ReadOnlySpan<char> source, out DateTime value)
+	public static bool TryParse(ReadonlyCharSpan source, out DateTime value)
 	{
 		if (!TryParseDateTimeOffset(source, out DateTimeParseData parseData))
 		{
@@ -78,7 +86,7 @@ static partial class IsoDate
 	/// <param name="source">The source to parse.</param>
 	/// <param name="value">The parsed <see cref="DateTimeOffset"/> if successful.</param>
 	/// <returns>"true" if successfully parsed.</returns>
-	public static bool TryParse(ReadOnlySpan<char> source, out DateTimeOffset value)
+	public static bool TryParse(ReadonlyCharSpan source, out DateTimeOffset value)
 	{
 		if (!TryParseDateTimeOffset(source, out DateTimeParseData parseData))
 		{
@@ -130,7 +138,7 @@ static partial class IsoDate
 	/// Spaces are not permitted.
 	/// </remarks>
 	/// <returns>"true" if successfully parsed.</returns>
-	static bool TryParseDateTimeOffset(ReadOnlySpan<char> source, out DateTimeParseData parseData)
+	static bool TryParseDateTimeOffset(ReadonlyCharSpan source, out DateTimeParseData parseData)
 	{
 		parseData = default;
 
@@ -352,7 +360,7 @@ static partial class IsoDate
 				return false;
 		}
 
-		static bool ParseOffset(ref DateTimeParseData parseData, ReadOnlySpan<char> offsetData)
+		static bool ParseOffset(ref DateTimeParseData parseData, ReadonlyCharSpan offsetData)
 		{
 			// Parse the hours for the offset
 			if (offsetData.Length < 2
@@ -381,8 +389,8 @@ static partial class IsoDate
 		}
 	}
 
-	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	static bool TryGetNextTwoDigits(ReadOnlySpan<char> source, ref int value)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    static bool TryGetNextTwoDigits(ReadonlyCharSpan source,ref int value)
 	{
 		Debug.Assert(source.Length == 2);
 
@@ -549,23 +557,27 @@ static partial class IsoDate
 		return true;
 	}
 
-	static string GetString(Span<char> buffer)
+    static string GetString(ReadonlyCharSpan buffer)
 	{
+
 #if NETSTANDARD2_0
-			// TODO: is there a non-allocating way to do this in NS2.0 without unsafe code?
-			return new string(buffer.ToArray());
+		return buffer;
 #else
-		return new string(buffer);
+        return new string(buffer);
 #endif
 	}
-
-	// "yyyy-MM-ddTHH:mm:ss.fffffff+HH:mm"
-	internal const int MaxDateLength = 35;
+    
+    // "yyyy-MM-ddTHH:mm:ss.fffffff+HH:mm"
+    internal const int MaxDateLength = 35;
 
 	public static string ToStringIso(DateTime value)
 	{
-		Span<char> buffer = stackalloc char[MaxDateLength];
-		bool known = false;
+#if NETSTANDARD2_0
+        CharSpan buffer = RunTimeCompatability.AllocateCharSpan(MaxDateLength);
+#else
+        CharSpan buffer = stackalloc char[MaxDateLength];
+#endif
+        bool known = false;
 		int offset = 0;
 		switch (value.Kind)
 		{
@@ -584,7 +596,12 @@ static partial class IsoDate
 
 	public static string ToDateStringIso(DateTime value)
 	{
-		Span<char> buffer = stackalloc char[10];
+#if NETSTANDARD2_0
+        CharSpan buffer = RunTimeCompatability.AllocateCharSpan(10);
+#else
+        CharSpan buffer = stackalloc char[10];
+#endif
+            
 		bool known = false;
 		int offset = 0;
 		switch (value.Kind)
@@ -602,7 +619,7 @@ static partial class IsoDate
 		return GetString(buffer.Slice(0, len));
 	}
 
-	public static bool TryFormatIso(DateTime value, Span<char> buffer, out int charsWritten)
+	public static bool TryFormatIso(DateTime value, CharSpan buffer, out int charsWritten)
 	{
 
 		if (buffer.Length < MaxDateLength)
@@ -629,13 +646,18 @@ static partial class IsoDate
 
 	public static string ToStringIso(DateTimeOffset value)
 	{
-		Span<char> buffer = stackalloc char[MaxDateLength];
-		var offsetMinutes = (int)(value.Offset.Ticks / TimeSpan.TicksPerMinute);
+#if NETSTANDARD2_0
+        CharSpan buffer = RunTimeCompatability.AllocateCharSpan(MaxDateLength);
+#else
+        CharSpan buffer = stackalloc char[MaxDateLength];
+#endif
+
+        var offsetMinutes = (int)(value.Offset.Ticks / TimeSpan.TicksPerMinute);
 		var length = FormatIsoInternal(value.Ticks, offsetMinutes, true, buffer);
 		return GetString(buffer.Slice(0, length));
 	}
 
-	public static bool TryFormatIso(DateTimeOffset value, Span<char> buffer, out int charsWritten)
+	public static bool TryFormatIso(DateTimeOffset value, CharSpan buffer, out int charsWritten)
 	{
 		if (buffer.Length < MaxDateLength)
 		{
@@ -646,12 +668,12 @@ static partial class IsoDate
 		return true;
 	}
 
-	static int FormatIsoInternal(long ticks, int offsetMinutes, bool offsetKnown, Span<char> buffer)
+	static int FormatIsoInternal(long ticks, int offsetMinutes, bool offsetKnown, CharSpan buffer)
 	{
 		int len = 10;
-
-		// n = number of days since 1/1/0001
-		var n = Math.DivRem(ticks, TimeSpan.TicksPerDay, out long remain);
+            
+        // n = number of days since 1/1/0001
+        var n = Math.DivRem(ticks, TimeSpan.TicksPerDay, out long remain);
 
 		// y400 = number of whole 400-year periods since 1/1/0001
 		var y400 = n / DaysPer400Years;
@@ -715,7 +737,7 @@ static partial class IsoDate
 			if (tick > 0)
 			{
 				buffer[19] = '.';
-				WriteDigits((uint)tick, buffer.Slice(20, 7));
+                WriteDigits((uint)tick, buffer.Slice(20, 7));
 				len = 27;
 			}
 
@@ -741,7 +763,7 @@ static partial class IsoDate
 					int value = Math.DivRem(offsetMinutes, 60, out var r);
 					WriteTwoDigits((uint)r, buffer, len + 4);
 					buffer[len + 3] = ':';
-					WriteTwoDigits((uint)value, buffer.Slice(len + 1));
+                    WriteTwoDigits((uint)value, buffer.Slice(len + 1));
 					buffer[len] = tzSep;
 					len += 6;
 				}
@@ -750,7 +772,7 @@ static partial class IsoDate
 		return len;
 	}
 
-	static int FormatIsoDateOnlyInternal(long ticks, int offsetMinutes, bool offsetKnown, Span<char> buffer)
+	static int FormatIsoDateOnlyInternal(long ticks, int offsetMinutes, bool offsetKnown, CharSpan buffer)
 	{
 		int len = 10;
 
@@ -807,7 +829,7 @@ static partial class IsoDate
 	/// This method performs best when the starting index is a constant literal.
 	/// </summary>
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	static void WriteFourDigits(uint value, Span<char> buffer, int startingIndex = 0)
+	static void WriteFourDigits(uint value, CharSpan buffer, int startingIndex = 0)
 	{
 		Debug.Assert(value <= 9999);
 
@@ -826,8 +848,16 @@ static partial class IsoDate
 		buffer[startingIndex] = (char)('0' + value);
 	}
 
-	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	static void WriteTwoDigits(uint value, Span<char> buffer, int startingIndex = 0)
+#if NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    static void WriteTwoDigits(uint value, ReadonlyCharSpan buffer, int startingIndex = 0)
+    {
+        WriteTwoDigits(value, new CharSpan(buffer), startingIndex);
+    }
+#endif
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+	static void WriteTwoDigits(uint value, CharSpan buffer, int startingIndex = 0)
 	{
 		Debug.Assert(value <= 99);
 		uint temp = '0' + value;
@@ -837,8 +867,16 @@ static partial class IsoDate
 		buffer[startingIndex] = (char)('0' + value);
 	}
 
-	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	static void WriteDigits(uint value, Span<char> buffer)
+#if NETSTANDARD2_0
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    static void WriteDigits(uint value, ReadonlyCharSpan buffer)
+    {
+        WriteDigits(value, new CharSpan(buffer));
+    }
+#endif
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+	static void WriteDigits(uint value, CharSpan buffer)
 	{
 		for (int i = buffer.Length - 1; i >= 1; i--)
 		{

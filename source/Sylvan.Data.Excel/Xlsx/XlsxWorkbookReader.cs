@@ -7,11 +7,19 @@ using System.Linq;
 using System.Text;
 using System.Xml;
 
+#if NETSTANDARD2_0
+using ReadonlyCharSpan = System.String;
+using CharSpan = System.Text.StringBuilder;
+#else
+using ReadonlyCharSpan = System.ReadOnlySpan<char>;
+using CharSpan = System.Span<char>;
+#endif
+
 namespace Sylvan.Data.Excel;
 
 sealed class XlsxWorkbookReader : ExcelDataReader
-{
-	readonly ZipArchive package;
+{	
+    readonly ZipArchive package;
 	Dictionary<int, ExcelFormat> formats;
 	int[] xfMap;
 	int sheetIdx = -1;
@@ -351,7 +359,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 		public int Column;
 		public int Row;
 
-		public static CellPosition Parse(ReadOnlySpan<char> str)
+		public static CellPosition Parse(ReadonlyCharSpan str)
 		{
 			int col = -1;
 			int row = 0;
@@ -474,7 +482,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 				this.values = values;
 			}
 
-			static bool TryParse(ReadOnlySpan<char> span, out int value)
+			static bool TryParse(ReadonlyCharSpan span, out int value)
 			{
 				int a = 0;
 				for (int i = 0; i < span.Length; i++)
