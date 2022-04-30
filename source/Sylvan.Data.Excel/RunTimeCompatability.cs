@@ -1,4 +1,4 @@
-﻿#if NETSTANDARD2_0
+﻿#if !NETSTANDARD2_1_OR_GREATER
 
 using ReadonlyCharSpan = System.String;
 using CharSpan = System.Text.StringBuilder;

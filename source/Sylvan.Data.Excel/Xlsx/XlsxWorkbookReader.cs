@@ -1,4 +1,5 @@
-﻿using System;
+﻿#nullable enable
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -7,7 +8,7 @@ using System.Linq;
 using System.Text;
 using System.Xml;
 
-#if NETSTANDARD2_0
+#if !NETSTANDARD2_1_OR_GREATER 
 using ReadonlyCharSpan = System.String;
 using CharSpan = System.Text.StringBuilder;
 #else

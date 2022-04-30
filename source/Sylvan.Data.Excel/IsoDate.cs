@@ -5,7 +5,7 @@ using System;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 
-#if NETSTANDARD2_0
+#if !NETSTANDARD2_1_OR_GREATER
 using System.Text;
 using ReadonlyCharSpan = System.String;
 using CharSpan = System.Text.StringBuilder;
@@ -560,7 +560,7 @@ static partial class IsoDate
     static string GetString(ReadonlyCharSpan buffer)
 	{
 
-#if NETSTANDARD2_0
+#if !NETSTANDARD2_1_OR_GREATER
 		return buffer;
 #else
         return new string(buffer);
@@ -572,7 +572,7 @@ static partial class IsoDate
 
 	public static string ToStringIso(DateTime value)
 	{
-#if NETSTANDARD2_0
+#if !NETSTANDARD2_1_OR_GREATER
         CharSpan buffer = RunTimeCompatability.AllocateCharSpan(MaxDateLength);
 #else
         CharSpan buffer = stackalloc char[MaxDateLength];
@@ -596,7 +596,7 @@ static partial class IsoDate
 
 	public static string ToDateStringIso(DateTime value)
 	{
-#if NETSTANDARD2_0
+#if !NETSTANDARD2_1_OR_GREATER
         CharSpan buffer = RunTimeCompatability.AllocateCharSpan(10);
 #else
         CharSpan buffer = stackalloc char[10];
@@ -646,7 +646,7 @@ static partial class IsoDate
 
 	public static string ToStringIso(DateTimeOffset value)
 	{
-#if NETSTANDARD2_0
+#if !NETSTANDARD2_1_OR_GREATER
         CharSpan buffer = RunTimeCompatability.AllocateCharSpan(MaxDateLength);
 #else
         CharSpan buffer = stackalloc char[MaxDateLength];
@@ -848,7 +848,7 @@ static partial class IsoDate
 		buffer[startingIndex] = (char)('0' + value);
 	}
 
-#if NETSTANDARD2_0
+#if !NETSTANDARD2_1_OR_GREATER
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     static void WriteTwoDigits(uint value, ReadonlyCharSpan buffer, int startingIndex = 0)
     {
@@ -867,7 +867,7 @@ static partial class IsoDate
 		buffer[startingIndex] = (char)('0' + value);
 	}
 
-#if NETSTANDARD2_0
+#if !NETSTANDARD2_1_OR_GREATER
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     static void WriteDigits(uint value, ReadonlyCharSpan buffer)
     {
