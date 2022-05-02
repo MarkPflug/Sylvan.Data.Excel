@@ -1,4 +1,5 @@
-﻿using System;
+﻿#nullable enable
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -6,6 +7,14 @@ using System.IO.Compression;
 using System.Linq;
 using System.Text;
 using System.Xml;
+
+#if !NETSTANDARD2_1_OR_GREATER
+using ReadonlyCharSpan = System.String;
+using CharSpan = System.Text.StringBuilder;
+#else
+using ReadonlyCharSpan = System.ReadOnlySpan<char>;
+using CharSpan = System.Span<char>;
+#endif
 
 namespace Sylvan.Data.Excel;
 
@@ -351,7 +360,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 		public int Column;
 		public int Row;
 
-		public static CellPosition Parse(ReadOnlySpan<char> str)
+		public static CellPosition Parse(ReadonlyCharSpan str)
 		{
 			int col = -1;
 			int row = 0;
@@ -474,7 +483,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 				this.values = values;
 			}
 
-			static bool TryParse(ReadOnlySpan<char> span, out int value)
+			static bool TryParse(ReadonlyCharSpan span, out int value)
 			{
 				int a = 0;
 				for (int i = 0; i < span.Length; i++)
@@ -538,8 +547,8 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 							throw new FormatException();
 						}
 #else
-							var str = reader.Value;
-							fi.numValue = double.Parse(str, NumberStyles.Float, ci);
+						var str = reader.Value;
+						fi.numValue = double.Parse(str, NumberStyles.Float, ci);
 #endif
 						break;
 					case CellType.Date:
