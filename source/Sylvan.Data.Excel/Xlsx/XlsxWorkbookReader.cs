@@ -8,7 +8,7 @@ using System.Linq;
 using System.Text;
 using System.Xml;
 
-#if !NETSTANDARD2_1_OR_GREATER 
+#if !NETSTANDARD2_1_OR_GREATER
 using ReadonlyCharSpan = System.String;
 using CharSpan = System.Text.StringBuilder;
 #else
@@ -19,8 +19,8 @@ using CharSpan = System.Span<char>;
 namespace Sylvan.Data.Excel;
 
 sealed class XlsxWorkbookReader : ExcelDataReader
-{	
-    readonly ZipArchive package;
+{
+	readonly ZipArchive package;
 	Dictionary<int, ExcelFormat> formats;
 	int[] xfMap;
 	int sheetIdx = -1;
@@ -547,8 +547,8 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 							throw new FormatException();
 						}
 #else
-							var str = reader.Value;
-							fi.numValue = double.Parse(str, NumberStyles.Float, ci);
+						var str = reader.Value;
+						fi.numValue = double.Parse(str, NumberStyles.Float, ci);
 #endif
 						break;
 					case CellType.Date:
