@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net6.0</TargetFrameworks>
+    <TargetFrameworks>net48;net6.0</TargetFrameworks>
     <RootNamespace>Sylvan.Data.Excel</RootNamespace>
     <IsPackable>false</IsPackable>
     <DisableImplicitNamespaceImports>true</DisableImplicitNamespaceImports>
@@ -11,9 +11,9 @@
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.5.0" />
     <PackageReference Include="Sylvan.Data" Version="0.1.0-B0021" />
     <PackageReference Include="Sylvan.Data.Csv" Version="0.10.0" />
-    <PackageReference Include="xunit" Version="2.4.0" />
-    <PackageReference Include="xunit.runner.visualstudio" Version="2.4.0" />
     <PackageReference Include="coverlet.collector" Version="1.2.0" />
+	<PackageReference Include="xunit" Version="2.4.0" />
+	<PackageReference Include="xunit.runner.visualstudio" Version="2.4.0" />
   </ItemGroup>
 
   <ItemGroup>
