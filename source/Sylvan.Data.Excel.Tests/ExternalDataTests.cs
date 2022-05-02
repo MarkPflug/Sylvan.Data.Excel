@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace Sylvan.Data.Excel;
 
@@ -10,6 +11,13 @@ namespace Sylvan.Data.Excel;
 // containing files that will be tested by this set of tests.
 public class ExternalDataTests
 {
+	ITestOutputHelper o;
+
+	public ExternalDataTests(ITestOutputHelper o)
+	{
+		this.o = o;
+	}
+
 	public static IEnumerable<object[]> GetInputs()
 	{
 		var paths = Environment.GetEnvironmentVariable("SylvanExcelTestData");
@@ -51,7 +59,7 @@ public class ExternalDataTests
 		var offset = 0;
 		while (offset < buf.Length)
 		{
-			var l = 999;// Random.Shared.Next(1000, 3000);
+			var l = Random.Shared.Next(500, 1500);
 			l = Math.Min(buf.Length - offset, l);
 			var r = ps.Read(buf, offset, l);
 			if (r == 0)
@@ -69,7 +77,7 @@ public class ExternalDataTests
 			if (len > max)
 			{
 				max = len;
-				Debug.WriteLine($"{p} {len}");
+				o.WriteLine($"{code} {p} {len}");
 			}
 			p += 2;
 			p += len;

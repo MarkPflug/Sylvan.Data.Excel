@@ -80,7 +80,9 @@ partial class Ole2Package
 
 		byte[] clsId = reader.ReadBytes(16);
 		if (!clsId.All(b => b == 0))
-			throw new InvalidDataException();//"Invalid class id"
+		{
+		//	throw new InvalidDataException();//"Invalid class id"
+		}
 
 		this.verMinor = reader.ReadUInt16();
 		this.verMajor = reader.ReadUInt16();
@@ -212,11 +214,6 @@ partial class Ole2Package
 		return reader.ReadUInt32();
 	}
 
-	protected Ole2PackagePart[] GetPartsCore()
-	{
-		var entries = GetEntries();
-		return entries.Select(entry => new Ole2PackagePart(entry)).ToArray();
-	}
 
 	IEnumerable<Ole2Entry> GetEntries()
 	{
