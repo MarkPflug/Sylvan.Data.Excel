@@ -671,10 +671,10 @@ public class XlsxTests
 		// when created with a stream, disposing the reader
 		// doesn't close the stream.
 		var file = GetFile("Numbers");
-		using var stream = new TestStream(File.OpenRead(file));
+		using var fs = File.OpenRead(file);
+		using var stream = new TestStream(fs);
 		using (var edr = ExcelDataReader.Create(stream, WorkbookType))
 		{
-
 			while (edr.Read())
 			{
 				// implied assertion that this doesn't throw.
