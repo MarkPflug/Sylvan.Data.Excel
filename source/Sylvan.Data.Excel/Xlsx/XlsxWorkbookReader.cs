@@ -248,7 +248,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 
 		this.sheetStream = sheetPart.Open();
 
-		var tr = new StreamReader(this.sheetStream, Encoding.Default, true, 0x10000);
+		var tr = new StreamReader(this.sheetStream, Encoding.UTF8, true, 0x10000);
 
 		this.reader = XmlReader.Create(tr, settings);
 		refName = this.reader.NameTable.Add("r");

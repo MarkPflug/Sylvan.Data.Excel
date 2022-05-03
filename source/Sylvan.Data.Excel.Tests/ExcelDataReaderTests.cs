@@ -683,6 +683,23 @@ public class XlsxTests
 		}
 		Assert.False(stream.IsClosed);
 	}
+	
+	[Fact]
+	public void NonAscii()
+	{
+		// when created with a stream, disposing the reader
+		// doesn't close the stream.
+		var file = GetFile("NonAscii");
+		using (var edr = ExcelDataReader.Create(file))
+		{
+			while (edr.Read())
+			{				
+				var actual = edr.GetString(0);
+				Assert.Equal("SCA Axéréal", actual);
+				break;
+			}
+		}		
+	}
 }
 
 public sealed class XlsTests : XlsxTests
