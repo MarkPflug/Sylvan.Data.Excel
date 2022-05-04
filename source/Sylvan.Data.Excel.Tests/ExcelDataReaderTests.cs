@@ -687,9 +687,7 @@ public class XlsxTests
 	[Fact]
 	public void NonAscii()
 	{
-		// when created with a stream, disposing the reader
-		// doesn't close the stream.
-		var file = GetFile("NonAscii");
+		var file = GetFile();
 		using (var edr = ExcelDataReader.Create(file))
 		{
 			while (edr.Read())
@@ -700,6 +698,36 @@ public class XlsxTests
 			}
 		}		
 	}
+
+	[Fact]
+	public void Blank2ndSheet()
+	{
+		var file = GetFile();
+
+		var sheetNumber = 1;
+		
+		using (var edr = ExcelDataReader.Create(file, noHeaders))
+		{
+			do
+			{
+				if (sheetNumber == 2)
+				{
+					var readValues = edr.Read();
+					Assert.False(readValues);
+				}
+				else
+				{
+					while (edr.Read())
+					{
+						;
+					}
+				}				
+				sheetNumber++;
+
+			} while (edr.NextResult()) ;			
+		}
+	}
+
 }
 
 public sealed class XlsTests : XlsxTests
