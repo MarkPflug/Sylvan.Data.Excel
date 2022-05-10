@@ -56,10 +56,11 @@ public class ExternalDataTests
 
 		var buf = new byte[ps.Length];
 
+		var rand = new Random();
 		var offset = 0;
 		while (offset < buf.Length)
 		{
-			var l = Random.Shared.Next(500, 1500);
+			var l = rand.Next(500, 1500);
 			l = Math.Min(buf.Length - offset, l);
 			var r = ps.Read(buf, offset, l);
 			if (r == 0)

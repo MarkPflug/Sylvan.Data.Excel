@@ -272,11 +272,6 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 		{
 			if (reader.NodeType == XmlNodeType.Element)
 			{
-				if (reader.LocalName == "dimensions")
-				{
-
-				}
-
 				if (reader.LocalName == "sheetData")
 				{
 					break;
@@ -298,8 +293,11 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 			throw new InvalidOperationException();
 		}
 		this.parsedRowIndex = -1;
-		NextRow();
-		var c = ParseRowValues();
+		if (!NextRow())
+		{
+			return false;
+		}
+		ParseRowValues();
 		this.rowIndex = 0;
 
 		var hasHeaders = schema.HasHeaders(this.WorksheetName!);
@@ -396,6 +394,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 
 	public override bool Read()
 	{
+		start:
 		rowIndex++;
 		if (state == State.Open)
 		{
@@ -419,6 +418,8 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 			if (hasRows)
 			{
 				this.state = State.Open;
+				if (this.RowFieldCount == 0 && skipEmptyRows)
+					goto start;
 				return true;
 			}
 		}
