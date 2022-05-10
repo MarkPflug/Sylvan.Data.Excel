@@ -366,7 +366,9 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 		int ifmt = reader.ReadInt16();
 		string str;
 		if (biffVersion == 0x0500)
+		{
 			str = await reader.ReadByteString(1);
+		}
 		else
 		{
 			str = await reader.ReadString16();

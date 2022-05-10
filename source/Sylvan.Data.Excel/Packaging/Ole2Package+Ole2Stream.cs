@@ -37,18 +37,18 @@ partial class Ole2Package
 			this.streamPos = -1;
 		}
 
-		bool NextSector()
-		{
-			sectorIdx++;
-			if (sectorIdx < sectors.Length)
-			{
-				this.sector = sectors[sectorIdx];
+		//bool NextSector()
+		//{
+		//	sectorIdx++;
+		//	if (sectorIdx < sectors.Length)
+		//	{
+		//		this.sector = sectors[sectorIdx];
 
-				this.sectorOff = 0;
-				return true;
-			}
-			return false;
-		}
+		//		this.sectorOff = 0;
+		//		return true;
+		//	}
+		//	return false;
+		//}
 
 		public override long Position
 		{
