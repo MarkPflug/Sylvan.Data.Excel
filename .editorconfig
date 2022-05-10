@@ -2,6 +2,7 @@ root = true
 
 [*.cs]
 indent_style = tab
+end_of_line=LF
 
 dotnet_style_qualification_for_field = true
 dotnet_style_qualification_for_property = true

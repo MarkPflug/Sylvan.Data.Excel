@@ -683,6 +683,50 @@ public class XlsxTests
 		}
 		Assert.False(stream.IsClosed);
 	}
+
+	[Fact]
+	public void NonAscii()
+	{
+		var file = this.GetFile("NonAscii");
+		using (var edr = ExcelDataReader.Create(file))
+		{
+			while (edr.Read())
+			{
+				var actual = edr.GetString(0);
+				Assert.Equal("SCA Axéréal", actual);
+				break;
+			}
+		}
+	}
+
+	[Fact]
+	public void Blank2ndSheet()
+	{
+		var file = this.GetFile();
+
+		var sheetNumber = 1;
+
+		using (var edr = ExcelDataReader.Create(file, this.noHeaders))
+		{
+			do
+			{
+				if (sheetNumber == 2)
+				{
+					var readValues = edr.Read();
+					Assert.False(readValues);
+				}
+				else
+				{
+					while (edr.Read())
+					{
+						;
+					}
+				}
+				sheetNumber++;
+
+			} while (edr.NextResult());
+		}
+	}
 }
 
 public sealed class XlsTests : XlsxTests
