@@ -31,7 +31,7 @@ public class XlsxTests
 		{
 			Schema = ExcelSchema.NoHeaders
 		};
-
+	
 	public XlsxTests()
 	{
 #if NET6_0_OR_GREATER
@@ -682,6 +682,42 @@ public class XlsxTests
 			}
 		}
 		Assert.False(stream.IsClosed);
+	}
+
+	[Fact]
+	public void NonAscii()
+	{
+		var file = this.GetFile("NonAscii");
+		using var edr = ExcelDataReader.Create(file, this.noHeaders);
+		Assert.True(edr.Read());
+		var actual = edr.GetString(0);
+		Assert.Equal("Axéréal", actual);
+	}
+
+	[Fact]
+	public void Blank2ndSheet()
+	{
+		var file = this.GetFile();
+
+		var sheetNumber = 1;
+
+		using var edr = ExcelDataReader.Create(file, this.noHeaders);
+			do
+			{
+				if (sheetNumber == 2)
+				{
+					Assert.False(edr.Read());
+				}
+				else
+				{
+					while (edr.Read())
+					{
+						;
+					}
+				}
+				sheetNumber++;
+
+			} while (edr.NextResult());
 	}
 }
 

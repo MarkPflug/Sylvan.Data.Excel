@@ -150,6 +150,8 @@ sealed partial class XlsWorkbookReader
 			return str;
 		}
 
+		static readonly Encoding Encoding1252 = Encoding.GetEncoding(1252);
+
 		internal async Task<string> ReadStringBufferAsync(int charCount, bool compressed)
 		{
 			var strLen = charCount;
@@ -157,7 +159,7 @@ sealed partial class XlsWorkbookReader
 			int strPos = 0;
 			for (int i = 0; ; i++)
 			{
-				var encoding = compressed ? Encoding.ASCII : Encoding.Unicode;
+				var encoding = compressed ? Encoding1252 : Encoding.Unicode;
 				int charSize = compressed ? 1 : 2;
 				int byteCount = charCount * charSize;
 

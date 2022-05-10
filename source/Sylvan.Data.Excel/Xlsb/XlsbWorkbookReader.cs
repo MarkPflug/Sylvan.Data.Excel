@@ -179,7 +179,7 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 
 		NextResult();
 	}
-		
+
 	public override bool NextResult()
 	{
 		sheetIdx++;
@@ -228,7 +228,6 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 		while (true)
 		{
 			reader.NextRecord();
-			//reader.DebugInfo("header");
 			if (reader.RecordType == RecordType.Dimension)
 			{
 				var rowLast = reader.GetInt32(4);
@@ -245,6 +244,11 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 		}
 
 		var c = ParseRowValues();
+
+		if (c == -1)
+		{
+			return false;
+		}
 
 		var hasHeaders = schema.HasHeaders(this.WorksheetName!);
 
