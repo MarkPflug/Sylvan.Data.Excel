@@ -272,6 +272,13 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 		{
 			if (reader.NodeType == XmlNodeType.Element)
 			{
+				if (reader.LocalName == "dimension")
+				{
+					var dim = reader.GetAttribute("ref");
+					var idx = dim.IndexOf(':');
+					var p = CellPosition.Parse(dim.Substring(idx + 1));
+					this.rowCount = p.Row + 1;
+				}
 				if (reader.LocalName == "sheetData")
 				{
 					break;
