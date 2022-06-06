@@ -2,6 +2,7 @@
 _0.1.11_
 - Fix bug with reading certain numeric values in xlsb files.
 - Fix bug where stream wasn't closed when reader was disposed.
+- Fix `RowCount` for .xlsx and .xlsb files.
 
 _0.1.10_
 - Fix bug with .xlsx file containing empty element in shared string table.

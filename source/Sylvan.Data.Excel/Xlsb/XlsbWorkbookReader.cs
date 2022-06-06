@@ -236,6 +236,7 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 				{
 					Array.Resize(ref values, colLast + 1);
 				}
+				this.rowCount = rowLast + 1;
 			}
 			if (reader.RecordType == RecordType.DataStart)
 			{
