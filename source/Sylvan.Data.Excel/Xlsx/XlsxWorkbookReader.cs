@@ -401,7 +401,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 
 	public override bool Read()
 	{
-		start:
+	start:
 		rowIndex++;
 		if (state == State.Open)
 		{
@@ -696,11 +696,6 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 		Boolean,
 		Error,
 		Date,
-	}
-
-	public override string GetName(int ordinal)
-	{
-		return this.columnSchema?[ordinal].ColumnName ?? "";
 	}
 
 	public override int GetOrdinal(string name)

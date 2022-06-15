@@ -491,11 +491,6 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 		return notNull;
 	}
 
-	public override string GetName(int ordinal)
-	{
-		return this.columnSchema?[ordinal].ColumnName ?? "";
-	}
-
 	public override int GetOrdinal(string name)
 	{
 		if (this.columnSchema == null)
