@@ -202,11 +202,6 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 		return ReadAsync(CancellationToken.None).GetAwaiter().GetResult();
 	}
 
-	public override string GetName(int ordinal)
-	{
-		return columnSchema[ordinal].ColumnName;
-	}
-
 	public override int GetOrdinal(string name)
 	{
 		for (int i = 0; i < this.columnSchema.Count; i++)

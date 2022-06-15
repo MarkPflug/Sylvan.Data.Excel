@@ -168,6 +168,20 @@ public abstract class ExcelDataReader : DbDataReader, IDisposable, IDbColumnSche
 	/// <inheritdoc/>
 	public sealed override int FieldCount => this.fieldCount;
 
+	/// <inheritdoc/>
+	public sealed override string GetName(int ordinal)
+	{
+		var cs = this.columnSchema;
+		if (cs != null)
+		{
+			if (ordinal < cs.Count)
+			{
+				return cs[ordinal].ColumnName;
+			}
+		}
+		return string.Empty;
+	}
+
 	/// <summary>
 	/// Gets the type of data in the given cell.
 	/// </summary>

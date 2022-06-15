@@ -3,6 +3,7 @@ _0.1.11_
 - Fix bug with reading certain numeric values in xlsb files.
 - Fix bug where stream wasn't closed when reader was disposed.
 - Fix `RowCount` for .xlsx and .xlsb files.
+- GetName returns empty string for out of range access, instead of throwing.
 
 _0.1.10_
 - Fix bug with .xlsx file containing empty element in shared string table.

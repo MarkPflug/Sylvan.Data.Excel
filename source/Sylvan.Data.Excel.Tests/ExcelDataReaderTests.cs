@@ -719,6 +719,26 @@ public class XlsxTests
 
 			} while (edr.NextResult());
 	}
+
+	[Fact]
+	public void GetNameOutOfBounds()
+	{
+		var file = this.GetFile("Schema");
+
+		using var edr = ExcelDataReader.Create(file);
+		int i = 0;
+		string header;
+		for(; i < edr.FieldCount; i++)
+		{
+			header = edr.GetName(i);
+			Assert.NotNull(header);
+			Assert.NotEqual("", header);
+		}
+
+		header = edr.GetName(i);
+		Assert.NotNull(header);
+		Assert.Equal(string.Empty, header);
+	}
 }
 
 public sealed class XlsTests : XlsxTests
