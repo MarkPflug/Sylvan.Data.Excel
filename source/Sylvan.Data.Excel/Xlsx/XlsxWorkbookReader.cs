@@ -45,6 +45,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 	string styleName;
 	string rowName;
 	string valueName;
+	string inlineStringName;
 	string cellName;
 	string sheetNS;
 
@@ -89,7 +90,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 		this.values = Array.Empty<FieldInfo>();
 		this.sheetStream = Stream.Null;
 
-		this.rowName = this.cellName = this.valueName = this.refName = this.styleName = this.typeName = string.Empty;
+		this.rowName = this.cellName = this.valueName = this.refName = this.styleName = this.typeName = this.inlineStringName = string.Empty;
 		this.sheetNS = string.Empty;
 		this.errorAsNull = opts.GetErrorAsNull;
 		this.readHiddenSheets = opts.ReadHiddenWorksheets;
@@ -256,6 +257,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 		styleName = this.reader.NameTable.Add("s");
 		rowName = this.reader.NameTable.Add("row");
 		valueName = this.reader.NameTable.Add("v");
+		inlineStringName = this.reader.NameTable.Add("is");
 		cellName = this.reader.NameTable.Add("c");
 
 		// worksheet
@@ -536,6 +538,21 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 			reader.MoveToElement();
 			var depth = reader.Depth;
 
+			if (type == CellType.InlineString)
+			{
+				valueCount++;
+				this.rowFieldCount = col + 1;
+				if (ReadToDescendant(reader, inlineStringName))
+				{
+					fi.strValue = ReadString(reader);
+					fi.type = ExcelDataType.String;
+				} 
+				else
+				{
+					throw new InvalidDataException();
+				}
+			}
+			else
 			if (ReadToDescendant(reader, valueName))
 			{
 				valueCount++;
@@ -972,6 +989,10 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 						{
 
 							s = reader.Value;
+						}
+						else if(reader.NodeType == XmlNodeType.EndElement && reader.LocalName == "t")
+						{
+							
 						}
 						else
 						{

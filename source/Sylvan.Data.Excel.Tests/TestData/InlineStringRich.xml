@@ -1,0 +1,44 @@
+﻿<worksheet>
+	<sheetData>
+		<row r="1">
+			<c r="A1" t="inlineStr">
+				<is>
+					<t>a</t>
+				</is>
+			</c>
+			<c r="B1" t="inlineStr">
+				<is>
+					<r>
+						<t>a</t>
+					</r>
+					<r>
+						<rPr>
+							<b/>
+							<sz val="11"/>
+							<color theme="1"/>
+							<rFont val="Calibri"/>
+							<family val="2"/>
+							<scheme val="minor"/>
+						</rPr>
+						<t>b</t>
+					</r>
+					<r>
+						<rPr>
+							<sz val="11"/>
+							<color theme="1"/>
+							<rFont val="Calibri"/>
+							<family val="2"/>
+							<scheme val="minor"/>
+						</rPr>
+						<t>c</t>
+					</r>
+				</is>
+			</c>
+			<c r="C1" t="inlineStr">
+				<is>
+					<t>c</t>
+				</is>
+			</c>
+		</row>
+	</sheetData>
+</worksheet>
