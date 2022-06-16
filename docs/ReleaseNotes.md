@@ -1,4 +1,8 @@
 # Sylvan.Data.Excel Release Notes
+
+_0.1.12_
+- Fix for reading .xlsx files with inline-string values, believed to be created with Apache POI.
+
 _0.1.11_
 - Fix bug with reading certain numeric values in xlsb files.
 - Fix bug where stream wasn't closed when reader was disposed.
