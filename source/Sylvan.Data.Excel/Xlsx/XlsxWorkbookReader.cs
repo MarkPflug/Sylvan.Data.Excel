@@ -33,7 +33,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 
 	FieldInfo[] values;
 	int rowFieldCount;
-	State state;
+	
 	bool hasRows;
 	bool skipEmptyRows = true; // TODO: make this an option?
 	SheetInfo[] sheetNames;
@@ -47,7 +47,6 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 	string valueName;
 	string inlineStringName;
 	string cellName;
-	string sheetNS;
 
 	char[] valueBuffer = new char[64];
 
@@ -91,7 +90,6 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 		this.sheetStream = Stream.Null;
 
 		this.rowName = this.cellName = this.valueName = this.refName = this.styleName = this.typeName = this.inlineStringName = string.Empty;
-		this.sheetNS = string.Empty;
 		this.errorAsNull = opts.GetErrorAsNull;
 		this.readHiddenSheets = opts.ReadHiddenWorksheets;
 
@@ -265,7 +263,6 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 		{
 			if (reader.NodeType == XmlNodeType.Element && reader.LocalName == "worksheet")
 			{
-				sheetNS = this.reader.NameTable.Add(reader.NamespaceURI);
 				break;
 			}
 		}

@@ -161,6 +161,11 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 		{
 			return false;
 		}
+		if(state == State.Initialized)
+		{
+			this.state = State.Open;
+			return true;
+		}
 		rowIndex++;
 
 		// "catch up" to the next non-empty row

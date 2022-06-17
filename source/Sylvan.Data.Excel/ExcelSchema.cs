@@ -111,12 +111,9 @@ public sealed class ExcelSchema : IExcelSchemaProvider
 					}
 				}
 			}
-			else
+			if (ordinal < Columns.Length)
 			{
-				if (ordinal < Columns.Length)
-				{
-					return Columns[ordinal];
-				}
+				return Columns[ordinal];
 			}
 			return null;
 		}

@@ -29,7 +29,7 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 
 	FieldInfo[] values;
 	int rowFieldCount;
-	State state;
+	
 	bool hasRows = false;
 	bool skipEmptyRows = true; // TODO: make this an option?
 

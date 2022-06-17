@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Data;
 using System.Data.Common;
+using System.Globalization;
 using System.IO;
 
 namespace Sylvan.Data.Excel;
@@ -15,12 +16,15 @@ public abstract class ExcelDataReader : DbDataReader, IDisposable, IDbColumnSche
 {
 	static ReadOnlyCollection<DbColumn> EmptySchema = new ReadOnlyCollection<DbColumn>(Array.Empty<DbColumn>());
 
-	private protected IExcelSchemaProvider schema;
 	int fieldCount;
-	private protected ReadOnlyCollection<DbColumn> columnSchema = EmptySchema;
-	private protected bool ownsStream;
 	bool isClosed;
 	Stream stream;
+
+	private protected IExcelSchemaProvider schema;
+	private protected State state;
+	private protected ReadOnlyCollection<DbColumn> columnSchema = EmptySchema;
+	private protected bool ownsStream;
+
 
 	/// <inheritdoc/>
 	public sealed override Type GetFieldType(int ordinal)
@@ -43,6 +47,7 @@ public abstract class ExcelDataReader : DbDataReader, IDisposable, IDbColumnSche
 	{
 		this.stream = stream;
 		this.schema = schema;
+		this.state = State.Initializing;
 	}
 
 	/// <summary>
@@ -238,19 +243,20 @@ public abstract class ExcelDataReader : DbDataReader, IDisposable, IDbColumnSche
 	/// <summary>
 	/// Initializes the schema starting with the current row.
 	/// </summary>
-	public void InitializeSchema(IEnumerable<DbColumn> schema, bool useHeaders)
+	public void Initialize()
 	{
-		int i = 0;
-		var cols = new List<DbColumn>();
-		foreach (var col in schema)
+		var sheet = this.WorksheetName;
+		if (sheet == null)
 		{
-			var name = useHeaders ? this.GetString(i) : col.ColumnName;
-			cols.Add(new ExcelColumn(name, i, col));
-			i++;
+			throw new InvalidOperationException();
 		}
 
-		this.columnSchema = new ReadOnlyCollection<DbColumn>(cols);
-		this.fieldCount = columnSchema.Count;
+		var useHeaders = schema.HasHeaders(sheet);
+		LoadSchema(!useHeaders);
+		if (!useHeaders)
+		{
+			this.state = State.Initialized;
+		}
 	}
 
 	private protected void LoadSchema(bool ordinalOnly)
@@ -284,7 +290,7 @@ public abstract class ExcelDataReader : DbDataReader, IDisposable, IDbColumnSche
 
 	internal void AssertRange(int ordinal)
 	{
-		if((uint) ordinal >= MaxFieldCount)
+		if ((uint)ordinal >= MaxFieldCount)
 		{
 			throw new ArgumentOutOfRangeException(nameof(ordinal));
 		}
@@ -337,7 +343,10 @@ public abstract class ExcelDataReader : DbDataReader, IDisposable, IDbColumnSche
 	/// <inheritdoc/>
 	public sealed override IEnumerator GetEnumerator()
 	{
-		throw new NotSupportedException();
+		while (this.Read())
+		{
+			yield return this;
+		}
 	}
 
 	/// <inheritdoc/>
@@ -588,6 +597,8 @@ public abstract class ExcelDataReader : DbDataReader, IDisposable, IDbColumnSche
 	{
 		None = 0,
 		Initializing,
+		// this state indicates that the next row is already in the field buffer
+		// and should be returned as the next Read operation.
 		Initialized,
 		Open,
 		End,
