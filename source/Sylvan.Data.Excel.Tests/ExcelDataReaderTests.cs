@@ -60,8 +60,8 @@ public class XlsxTests
 
 	static readonly string[] ColumnHeaders = new[]
 	{
-			"Id", "Name", "Date", "Amount", "Code", "Flagged", "Lat", "Lon"
-		};
+		"Id", "Name", "Date", "Amount", "Code", "Flagged", "Lat", "Lon"
+	};
 
 	[Fact]
 	public void Headers()
