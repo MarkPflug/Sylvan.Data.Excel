@@ -1,8 +1,7 @@
 ﻿#nullable enable
+
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.Data.Common;
 using System.Diagnostics;
 using System.IO;
 using System.Threading;
@@ -16,37 +15,26 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 	const int Biff8EntryDataSize = 8224;
 	const int RowBatchSize = 32;
 
-	int rowCount;
 	RecordReader reader;
 	short biffVersion = 0;
 
 	int yearOffset = 1900;
-	int xfIdx = 0;
 
 	Row[] rowBatch = new Row[RowBatchSize];
-	CellData[][] rowDatas = new CellData[RowBatchSize][];
+	FieldInfo[][] fieldInfos = new FieldInfo[RowBatchSize][];
 
 	int batchOffset = 0;
 	int batchIdx = 0;
-
-	bool getErrorAsNull;
-	bool readHiddenSheets;
 
 	int rS = 0;
 	int rE = 0;
 	int cS = 0;
 	int cE = 0;
 
-	int sheetIdx = -1;
 	int rowIndex;
 	int parsedRowIndex;
 
 	int epoch;
-
-	string[] sst;
-	Dictionary<int, ExcelFormat> formats;
-	List<SheetInfo> sheets = new List<SheetInfo>();
-	Dictionary<int, XFRecord> xfRecords = new Dictionary<int, XFRecord>();
 
 	internal static async Task<XlsWorkbookReader> CreateAsync(Stream iStream, ExcelDataReaderOptions options)
 	{
@@ -56,9 +44,8 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 		return reader;
 	}
 
-	private XlsWorkbookReader(Stream stream, ExcelDataReaderOptions options) : base(stream, options.Schema)
+	private XlsWorkbookReader(Stream stream, ExcelDataReaderOptions options) : base(stream, options)
 	{
-
 		var pkg = new Ole2Package(stream);
 		var part = pkg.GetEntry("Workbook\0");
 		if (part == null)
@@ -67,72 +54,18 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 
 		this.epoch = 1900;
 		this.reader = new RecordReader(ps);
-		this.getErrorAsNull = options.GetErrorAsNull;
-		this.readHiddenSheets = options.ReadHiddenWorksheets;
-
-		this.columnSchema = new ReadOnlyCollection<DbColumn>(Array.Empty<DbColumn>());
-		this.sst = Array.Empty<string>();
-		this.formats = ExcelFormat.CreateFormatCollection();
 	}
-
-	public override int WorksheetCount => this.sheets.Count;
 
 	public override ExcelWorkbookType WorkbookType => ExcelWorkbookType.Excel;
 
-	public override string? WorksheetName
-	{
-		get
-		{
-			return
-				sheetIdx < this.sheets.Count
-				? this.sheets[sheetIdx].name
-				: null;
-		}
-	}
-
 	internal override int DateEpochYear => epoch;
 
-	public override ExcelFormat? GetFormat(int ordinal)
-	{
-		var cell = GetCell(ordinal);
-		XFRecord xf = this.xfRecords[cell.ifx];
-
-		if (formats.TryGetValue(xf.ifmt, out var fmt))
-		{
-			return fmt;
-		}
-		return null;
-	}
-
-	public override ExcelErrorCode GetFormulaError(int ordinal)
-	{
-		var cell = GetCell(ordinal);
-		if (cell.type == CellType.Error)
-			return (ExcelErrorCode)cell.val;
-		throw new InvalidOperationException();
-	}
-
 	public override int RowNumber => rowIndex + 1;
-
-	public override ExcelDataType GetExcelDataType(int ordinal)
-	{
-		AssertRange(ordinal);
-		var cell = GetCell(ordinal);
-		return cell.type switch
-		{
-			CellType.Null => ExcelDataType.Null,
-			CellType.Boolean => ExcelDataType.Boolean,
-			CellType.Error => ExcelDataType.Error,
-			CellType.Double => ExcelDataType.Numeric,
-			CellType.String => ExcelDataType.String,
-			_ => ExcelDataType.Null
-		};
-	}
 
 	public override async Task<bool> NextResultAsync(CancellationToken cancellationToken)
 	{
 		sheetIdx++;
-		for (; sheetIdx < this.sheets.Count; sheetIdx++)
+		for (; sheetIdx < this.sheetNames.Length; sheetIdx++)
 		{
 
 			while (Read())
@@ -142,7 +75,7 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 
 			batchOffset = 0;
 			await InitSheet().ConfigureAwait(false);
-			if (this.readHiddenSheets || this.sheets[sheetIdx].visibility == 0)
+			if (this.readHiddenSheets || this.sheetNames[sheetIdx].Hidden == false)
 			{
 				return true;
 			}
@@ -160,6 +93,11 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 		if (this.rowIndex >= rowCount)
 		{
 			return false;
+		}
+		if (state == State.Initialized)
+		{
+			this.state = State.Open;
+			return true;
 		}
 		rowIndex++;
 
@@ -187,6 +125,8 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 					return false;
 				}
 			}
+
+			this.rowFieldCount = this.rowBatch[batchIdx].rowFieldCount;
 
 			if (rowBatch[batchIdx].rowFieldCount > 0)
 			{
@@ -218,17 +158,7 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 		throw new ArgumentOutOfRangeException(nameof(name));
 	}
 
-	public override int RowFieldCount
-	{
-		get
-		{
-			return this.rowBatch[batchIdx].rowFieldCount;
-		}
-	}
-
 	public override int MaxFieldCount => 256;
-
-	public override int RowCount => this.rowCount;
 
 	BOFType ReadBOF()
 	{
@@ -252,8 +182,10 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 		BOFType type = ReadBOF();
 		if (type != BOFType.WorkbookGlobals)
 			throw new InvalidDataException();//"First Stream must be workbook globals stream"
-
-		while (true)
+		List<SheetInfo> sheets = new List<SheetInfo>();
+		List<int> xfs = new List<int>();
+		bool atEndOfHeader = false;
+		while (!atEndOfHeader)
 		{
 			await reader.NextRecordAsync();
 			var recordType = reader.Type;
@@ -263,13 +195,13 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 					await LoadSharedStringTable();
 					break;
 				case RecordType.Sheet:
-					await LoadSheetRecord();
+					sheets.Add(await LoadSheetRecord());
 					break;
 				case RecordType.Style:
 					ParseStyle();
 					break;
 				case RecordType.XF:
-					ParseXF();
+					xfs.Add(ParseXF());
 					break;
 				case RecordType.Format:
 					await ParseFormat();
@@ -278,12 +210,15 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 					//ParseColInfo();
 					break;
 				case RecordType.EOF:
-					return;
+					atEndOfHeader = true;
+					break;
 				default:
 					Debug.WriteLine($"Header: {recordType:x} {recordType}");
 					break;
 			}
 		}
+		this.sheetNames = sheets.ToArray();
+		this.xfMap = xfs.ToArray();
 	}
 
 	async Task<bool> InitSheet()
@@ -340,20 +275,13 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 		return LoadSchema();
 	}
 
-	void ParseXF()
+	int ParseXF()
 	{
 		short ifnt = reader.ReadInt16();
 		short ifmt = reader.ReadInt16();
 		short flags = reader.ReadInt16();
-		XFRecordType type = ((flags & 0x04) == 0) ? XFRecordType.Cell : XFRecordType.Style;
 
-		int parentIdx = (flags & 0xfff0) >> 4;
-
-		xfRecords.Add(xfIdx, new XFRecord { ifmt = ifmt, ifnt = ifnt, ixfParent = parentIdx, type = type });
-
-		Debug.Assert(type == XFRecordType.Cell || parentIdx == 0xfff); // style records must always be 0xfff
-
-		xfIdx++;
+		return ifmt;
 	}
 
 	async Task ParseFormat()
@@ -386,7 +314,9 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 	// return value indicates if there are any rows in the sheet.
 	bool LoadSchema()
 	{
-		var sheetName = sheets[sheetIdx].name;
+		var sheetName = this.WorksheetName;
+
+		if (sheetName == null) return false;
 
 		var hasHeaders = schema.HasHeaders(sheetName);
 
@@ -433,7 +363,7 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 			int rk = reader.ReadInt32();
 
 			double rkVal = GetRKVal(rk);
-			SetRowData(rowIdx, colIdx++, new CellData(rkVal, ixfe));
+			SetRowData(rowIdx, colIdx++, new FieldInfo(rkVal, ixfe));
 		}
 	}
 
@@ -443,7 +373,7 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 		int colIdx = reader.ReadUInt16();
 		int xfIdx = reader.ReadUInt16();
 		string str = await reader.ReadByteString(2);
-		SetRowData(rowIdx, colIdx, new CellData(str));
+		SetRowData(rowIdx, colIdx, new FieldInfo(str));
 	}
 
 	void ParseLabelSST()
@@ -453,7 +383,7 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 		int xfIdx = reader.ReadUInt16();
 		int strIdx = reader.ReadInt32();
 
-		SetRowData(rowIdx, colIdx, new CellData(sst[strIdx]));
+		SetRowData(rowIdx, colIdx, new FieldInfo(sst[strIdx]));
 	}
 
 	void ParseRK()
@@ -464,7 +394,7 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 		int rk = reader.ReadInt32();
 
 		double rkVal = GetRKVal(rk);
-		SetRowData(rowIdx, colIdx, new CellData(rkVal, xfIdx));
+		SetRowData(rowIdx, colIdx, new FieldInfo(rkVal, xfIdx));
 	}
 
 	void ParseNumber()
@@ -480,7 +410,7 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 			val = ((long)uL) | ((long)uH << 32);
 		}
 		double d = BitConverter.Int64BitsToDouble(val);
-		SetRowData(rowIdx, colIdx, new CellData(d, xfIdx));
+		SetRowData(rowIdx, colIdx, new FieldInfo(d, xfIdx));
 	}
 
 	async Task ParseFormula()
@@ -515,13 +445,13 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 					int len = reader.ReadUInt16();
 					byte kind = reader.ReadByte();
 					var str = await reader.ReadStringAsync(len, kind == 0);
-					SetRowData(rowIdx, colIdx, new CellData(str));
+					SetRowData(rowIdx, colIdx, new FieldInfo(str));
 					break;
 				case 1: // boolean
-					SetRowData(rowIdx, colIdx, new CellData(rval, CellType.Boolean));
+					SetRowData(rowIdx, colIdx, new FieldInfo(rval != 0));
 					break;
 				case 2: // error
-					SetRowData(rowIdx, colIdx, new CellData(rval, CellType.Error));
+					SetRowData(rowIdx, colIdx, new FieldInfo((ExcelErrorCode)rval));
 					break;
 				default:
 					throw new InvalidDataException();
@@ -530,14 +460,13 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 		else
 		{
 			double d = BitConverter.Int64BitsToDouble((long)val);
-			SetRowData(rowIdx, colIdx, new CellData(d, xfIdx));
+			SetRowData(rowIdx, colIdx, new FieldInfo(d, xfIdx));
 		}
 	}
 
 	string FormatVal(int xfIdx, double val)
 	{
-		XFRecord xf = this.xfRecords[xfIdx];
-		var fmtIdx = xf.ifmt;
+		var fmtIdx = this.xfMap[xfIdx];
 		if (formats.TryGetValue(fmtIdx, out var fmt))
 		{
 			return fmt.FormatValue(val, this.yearOffset);
@@ -548,9 +477,7 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 		}
 	}
 
-
-
-	void SetRowData(int rowIdx, int colIdx, CellData cd)
+	void SetRowData(int rowIdx, int colIdx, FieldInfo cd)
 	{
 		int offset = rowIdx - batchOffset;
 
@@ -558,14 +485,13 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 			throw new IOException(); //cell refers to row that is not in the current batch
 
 		ref var rb = ref rowBatch[offset];
-		bool isNull = cd.type == CellType.Null;
+		bool isNull = cd.type == ExcelDataType.Null;
 		if (!isNull)
 		{
 			rb.rowFieldCount = Math.Max(rb.firstColIdx, colIdx + 1);
 		}
 		int rowOff = rb.firstColIdx;
-		rowDatas[offset][colIdx - rowOff] = cd;
-
+		fieldInfos[offset][colIdx - rowOff] = cd;
 	}
 
 	async Task<bool> NextRowBatch()
@@ -579,7 +505,6 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 			switch (reader.Type)
 			{
 				case RecordType.Row:
-					//batchCount++;
 					ParseRow();
 					break;
 				case RecordType.LabelSST:
@@ -654,13 +579,13 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 
 		int rowLen = lastColIdx - firstColIdx;
 
-		if (rowDatas[idx] == null || rowDatas[idx].Length < rowLen)
+		if (fieldInfos[idx] == null || fieldInfos[idx].Length < rowLen)
 		{
-			rowDatas[idx] = new CellData[rowLen];
+			fieldInfos[idx] = new FieldInfo[rowLen];
 		}
 		for (int i = 0; i < rowLen; i++)
 		{
-			rowDatas[idx][i] = default;
+			fieldInfos[idx][i] = default;
 		}
 	}
 
@@ -685,7 +610,7 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 			throw new InvalidDataException();
 	}
 
-	async Task LoadSheetRecord()
+	async Task<SheetInfo> LoadSheetRecord()
 	{
 		reader.ReadInt32();
 		byte visibility = reader.ReadByte();
@@ -696,7 +621,7 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 			? await reader.ReadByteString(1)
 			: await reader.ReadString8();
 
-		sheets.Add(new SheetInfo(type, visibility, name));
+		return new SheetInfo(name, visibility != 0);
 	}
 
 	async Task LoadSharedStringTable()
@@ -715,97 +640,25 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 		this.sst = strings;
 	}
 
-	public override bool IsDBNull(int ordinal)
-	{
-		if (ordinal < this.columnSchema.Count && this.columnSchema[ordinal].AllowDBNull == false)
-		{
-			return false;
-		}
-		if (ordinal >= this.RowFieldCount)
-		{
-			return true;
-		}
-		ref var cell = ref GetCell(ordinal);
-
-		switch (cell.type)
-		{
-			case CellType.Null:
-				return true;
-			case CellType.Boolean:
-			case CellType.Double:
-				return false;
-			case CellType.Error:
-				return
-					this.getErrorAsNull
-					? true
-					: throw new ExcelFormulaException(ordinal, rowIndex, (ExcelErrorCode)cell.val);
-			case CellType.String:
-			default:
-				return string.IsNullOrEmpty(cell.str);
-		}
-	}
-
-	ref CellData GetCell(int ordinal)
+	private protected override ref readonly FieldInfo GetFieldValue(int ordinal)
 	{
 		if (rowIndex < parsedRowIndex)
-			return ref CellData.Null;
+			return ref FieldInfo.Null;
 
 		ref var r = ref this.rowBatch[batchIdx];
 
-		if (r.index == 0) return ref CellData.Null;
+		if (r.index == 0) return ref FieldInfo.Null;
 
 		int rowOffset = r.firstColIdx;
 		if (ordinal < rowOffset || ordinal >= r.lastColIdx)
-			return ref CellData.Null;
+			return ref FieldInfo.Null;
 
 		int dataIdx = ordinal - rowOffset;
-		var row = this.rowDatas[batchIdx];
+		var row = this.fieldInfos[batchIdx];
 		if (dataIdx < 0 || dataIdx >= row.Length)
-			return ref CellData.Null;
+			return ref FieldInfo.Null;
 
 		return ref row[dataIdx];
-	}
-
-	public override string GetString(int ordinal)
-	{
-		AssertRange(ordinal);
-		ref var cell = ref GetCell(ordinal);
-		switch (cell.type)
-		{
-			case CellType.String:
-				return cell.str!;
-			case CellType.Double:
-				return FormatVal(cell.ifx, cell.dVal);
-			case CellType.Boolean:
-				return cell.val != 0 ? bool.TrueString : bool.FalseString;
-			case CellType.Error:
-				if (this.getErrorAsNull)
-				{
-					goto case CellType.Null;
-				}
-				var errorCode = (ExcelErrorCode)cell.val;
-				throw new ExcelFormulaException(ordinal, -1, errorCode);
-			case CellType.Null:
-				return string.Empty;
-		}
-		// shouldn't get here.
-		throw new NotSupportedException();
-	}
-
-	public override double GetDouble(int ordinal)
-	{
-		ref var cell = ref GetCell(ordinal);
-		switch (cell.type)
-		{
-			case CellType.String:
-				return double.Parse(cell.str!);
-			case CellType.Double:
-				return cell.dVal;
-			case CellType.Error:
-				throw Error(ordinal);
-		}
-
-		throw new FormatException();
 	}
 
 	internal override DateTime GetDateTimeValue(int ordinal)
@@ -813,86 +666,6 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 		// only xlsx persists date values this way.
 		// in xls files date/time are always stored as formatted numeric values.
 		throw new NotSupportedException();
-	}
-
-	ExcelFormulaException Error(int ordinal)
-	{
-		var cell = GetCell(ordinal);
-		return new ExcelFormulaException(ordinal, RowNumber, (ExcelErrorCode)cell.val);
-	}
-
-	public override bool GetBoolean(int ordinal)
-	{
-		var cell = GetCell(ordinal);
-		switch (cell.type)
-		{
-			case CellType.Boolean:
-				return cell.val != 0;
-			case CellType.Double:
-				return cell.dVal != 0;
-			case CellType.String:
-				return bool.Parse(cell.str!);
-			case CellType.Error:
-				throw new ExcelFormulaException(ordinal, RowNumber, (ExcelErrorCode)cell.val);
-			case CellType.Null:
-			default:
-				throw new InvalidCastException();
-		}
-	}
-
-	class XFRecord
-	{
-		public int ifnt;
-		public int ifmt;
-		public XFRecordType type;
-		public int ixfParent;
-	}
-
-	struct CellData
-	{
-		internal static CellData Null = default;
-
-		public CellData(string str)
-		{
-			this = default;
-			this.type = CellType.String;
-			this.str = str;
-		}
-
-		public CellData(uint val, CellType type)
-		{
-			this = default;
-			this.val = val;
-			this.type = type;
-		}
-
-		public CellData(double val, ushort ifIdx)
-		{
-			this = default;
-			this.type = CellType.Double;
-			this.str = null;
-			this.dVal = val;
-			this.ifx = ifIdx;
-		}
-
-		public string? str;
-		public ushort ifx;
-		public double dVal;
-		public uint val;
-
-		public CellType type;
-
-		public override string ToString()
-		{
-			switch (type)
-			{
-				case CellType.Double:
-					return "Double: " + dVal;
-				case CellType.String:
-					return "String: " + str;
-			}
-			return "NULL";
-		}
 	}
 
 	struct Row
@@ -906,23 +679,9 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 #if DEBUG
 		public override string ToString()
 		{
-			return $"{index} { firstColIdx} {lastColIdx} {ixfe}";
+			return $"{index} {firstColIdx} {lastColIdx} {ixfe}";
 		}
 #endif
-	}
-
-	class SheetInfo
-	{
-		public byte visibility;
-		public byte type;
-		public string name;
-
-		public SheetInfo(byte type, byte vis, string name)
-		{
-			this.type = type;
-			this.visibility = vis;
-			this.name = name;
-		}
 	}
 
 	enum RecordType
@@ -1002,20 +761,5 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 		Chart = 0x0020,
 		Biff4MacroSheet = 0x0040,
 		Biff4WorkbookGlobals = 0x0100,
-	}
-
-	enum XFRecordType
-	{
-		Cell = 0,
-		Style = 1,
-	}
-
-	enum CellType
-	{
-		Null = 0,
-		String,
-		Double,
-		Boolean,
-		Error,
 	}
 }

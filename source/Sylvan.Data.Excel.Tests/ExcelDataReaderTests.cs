@@ -31,7 +31,7 @@ public class XlsxTests
 		{
 			Schema = ExcelSchema.NoHeaders
 		};
-	
+
 	public XlsxTests()
 	{
 #if NET6_0_OR_GREATER
@@ -60,8 +60,8 @@ public class XlsxTests
 
 	static readonly string[] ColumnHeaders = new[]
 	{
-			"Id", "Name", "Date", "Amount", "Code", "Flagged", "Lat", "Lon"
-		};
+		"Id", "Name", "Date", "Amount", "Code", "Flagged", "Lat", "Lon"
+	};
 
 	[Fact]
 	public void Headers()
@@ -514,22 +514,72 @@ public class XlsxTests
 	}
 
 	[Fact]
-	public void SkipHeaders()
+	public void SkipRowsNoHeadersNoSchema()
 	{
-		var file = GetFile();
+		// tests when data doesn't start on the first row
+		// and there are no headers. The file used does have a header row
+		// but it is skipped over.
+
+		var file = GetFile("SkipHeaders");
 		var opts = new ExcelDataReaderOptions { Schema = ExcelSchema.NoHeaders };
 		using var edr = ExcelDataReader.Create(file, opts);
-
-		Assert.Equal(0, edr.RowNumber);
-		var schema = Data.Schema.Parse(":int,,:decimal?,:date?,:boolean,");
 
 		// locate the sheet
 		while (edr.WorksheetName != "Annual Report 2022")
 		{
-			edr.NextResult();
+			Assert.True(edr.NextResult());
 		}
 
-		Assert.Equal(0, edr.RowNumber);
+		// look for the row containing headers.
+		while (edr.Read())
+		{
+			if (edr.GetString(0) == "CustomerId")
+			{
+				break;
+			}
+		}
+
+		edr.Read();// skip over the row containing headers.
+
+		// initialize the sheet using the first row of data.
+		edr.Initialize();
+
+		var table = new DataTable();
+		try
+		{
+			table.Load(edr);
+
+			Assert.Equal(12, table.Rows.Count);
+			// the 6th column is not seen here, because it has no header
+			Assert.Equal(5, table.Columns.Count);
+
+			Assert.Equal(typeof(string), table.Columns[0].DataType);
+			Assert.Equal(typeof(string), table.Columns[3].DataType);
+		}
+		catch
+		{
+			var err = table.GetErrors();
+			throw;
+		}
+	}
+
+	[Fact]
+	public void SkipRowsSchema()
+	{
+		var file = GetFile("SkipHeaders");
+		var schema = Data.Schema.Parse(":int,,:decimal?,:date?,:boolean,");
+		var opts = new ExcelDataReaderOptions { Schema = new ExcelSchema(true, schema) };
+		using var edr = ExcelDataReader.Create(file, opts);
+
+		Assert.Equal(1, edr.RowNumber);
+
+		// locate the sheet
+		while (edr.WorksheetName != "Annual Report 2022")
+		{
+			Assert.True(edr.NextResult());
+		}
+
+		Assert.Equal(1, edr.RowNumber);
 		// look for the row containing headers.
 		while (edr.Read())
 		{
@@ -540,13 +590,20 @@ public class XlsxTests
 		}
 
 		Assert.Equal(4, edr.RowNumber);
+
 		// set the column schema
-		edr.InitializeSchema(schema.GetColumnSchema(), true);
+		edr.Initialize();
 
 		var table = new DataTable();
 		try
 		{
 			table.Load(edr);
+
+			Assert.Equal(12, table.Rows.Count);
+			Assert.Equal(6, table.Columns.Count);
+
+			Assert.Equal(typeof(int), table.Columns[0].DataType);
+			Assert.Equal(typeof(DateTime), table.Columns[3].DataType);
 		}
 		catch
 		{
@@ -702,22 +759,22 @@ public class XlsxTests
 		var sheetNumber = 1;
 
 		using var edr = ExcelDataReader.Create(file, this.noHeaders);
-			do
+		do
+		{
+			if (sheetNumber == 2)
 			{
-				if (sheetNumber == 2)
+				Assert.False(edr.Read());
+			}
+			else
+			{
+				while (edr.Read())
 				{
-					Assert.False(edr.Read());
+					;
 				}
-				else
-				{
-					while (edr.Read())
-					{
-						;
-					}
-				}
-				sheetNumber++;
+			}
+			sheetNumber++;
 
-			} while (edr.NextResult());
+		} while (edr.NextResult());
 	}
 
 	[Fact]
@@ -728,7 +785,7 @@ public class XlsxTests
 		using var edr = ExcelDataReader.Create(file);
 		int i = 0;
 		string header;
-		for(; i < edr.FieldCount; i++)
+		for (; i < edr.FieldCount; i++)
 		{
 			header = edr.GetName(i);
 			Assert.NotNull(header);

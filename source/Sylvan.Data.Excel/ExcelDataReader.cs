@@ -5,22 +5,38 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Data;
 using System.Data.Common;
+using System.Globalization;
 using System.IO;
 
 namespace Sylvan.Data.Excel;
 /// <summary>
 /// A DbDataReader implementation that reads data from an Excel file.
 /// </summary>
-public abstract class ExcelDataReader : DbDataReader, IDisposable, IDbColumnSchemaGenerator
+public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbColumnSchemaGenerator
 {
 	static ReadOnlyCollection<DbColumn> EmptySchema = new ReadOnlyCollection<DbColumn>(Array.Empty<DbColumn>());
 
-	private protected IExcelSchemaProvider schema;
 	int fieldCount;
-	private protected ReadOnlyCollection<DbColumn> columnSchema = EmptySchema;
-	private protected bool ownsStream;
 	bool isClosed;
 	Stream stream;
+
+	private protected IExcelSchemaProvider schema;
+	private protected State state;
+	private protected ReadOnlyCollection<DbColumn> columnSchema = EmptySchema;
+	private protected bool ownsStream;
+	private protected Dictionary<int, ExcelFormat> formats;
+	private protected int[] xfMap;
+	private protected FieldInfo[] values;
+	private protected string[] sst;
+
+	private protected SheetInfo[] sheetNames;
+	private protected int sheetIdx = -1;
+
+	private protected bool readHiddenSheets;
+	private protected bool errorAsNull;
+
+	private protected int rowCount;
+	private protected int rowFieldCount;
 
 	/// <inheritdoc/>
 	public sealed override Type GetFieldType(int ordinal)
@@ -39,10 +55,21 @@ public abstract class ExcelDataReader : DbDataReader, IDisposable, IDbColumnSche
 		return SchemaTable.GetSchemaTable(this.GetColumnSchema());
 	}
 
-	private protected ExcelDataReader(Stream stream, IExcelSchemaProvider schema)
+	private protected ExcelDataReader(Stream stream, ExcelDataReaderOptions options)
 	{
 		this.stream = stream;
-		this.schema = schema;
+		this.schema = options.Schema;
+		this.errorAsNull = options.GetErrorAsNull;
+		this.readHiddenSheets = options.ReadHiddenWorksheets;
+		this.state = State.Initializing;
+		this.values = Array.Empty<FieldInfo>();
+		this.sst = Array.Empty<string>();
+		// TODO:
+		this.xfMap = Array.Empty<int>();
+		this.sheetNames = Array.Empty<SheetInfo>();
+
+		this.columnSchema = new ReadOnlyCollection<DbColumn>(Array.Empty<DbColumn>());
+		this.formats = ExcelFormat.CreateFormatCollection();
 	}
 
 	/// <summary>
@@ -90,7 +117,8 @@ public abstract class ExcelDataReader : DbDataReader, IDisposable, IDbColumnSche
 	/// Gets the number of fields in the current row.
 	/// This may be different than FieldCount.
 	/// </summary>
-	public abstract int RowFieldCount { get; }
+	public int RowFieldCount => this.rowFieldCount;
+
 
 	/// <summary>
 	/// Gets the maximum number of fields supported by the
@@ -145,12 +173,21 @@ public abstract class ExcelDataReader : DbDataReader, IDisposable, IDbColumnSche
 	/// <summary>
 	/// Gets the number of worksheets in the workbook.
 	/// </summary>
-	public abstract int WorksheetCount { get; }
+	public int WorksheetCount => this.sheetNames.Length;
 
 	/// <summary>
 	/// Gets the name of the current worksheet.
 	/// </summary>
-	public abstract string? WorksheetName { get; }
+	public string? WorksheetName
+	{
+		get
+		{
+			return
+				sheetIdx < this.sheetNames.Length
+				? this.sheetNames[sheetIdx].Name
+				: null;
+		}
+	}
 
 	/// <summary>
 	/// Gets the type of workbook being read.
@@ -163,7 +200,7 @@ public abstract class ExcelDataReader : DbDataReader, IDisposable, IDbColumnSche
 	/// <remarks>
 	/// Can return -1 to indicate that the number of rows is unknown.
 	/// </remarks>
-	public abstract int RowCount { get; }
+	public int RowCount => rowCount;
 
 	/// <inheritdoc/>
 	public sealed override int FieldCount => this.fieldCount;
@@ -194,7 +231,20 @@ public abstract class ExcelDataReader : DbDataReader, IDisposable, IDbColumnSche
 	/// </remarks>
 	/// <param name="ordinal">The zero-based column ordinal.</param>
 	/// <returns>An ExcelDataType.</returns>
-	public abstract ExcelDataType GetExcelDataType(int ordinal);
+	public ExcelDataType GetExcelDataType(int ordinal)
+	{
+		ValidateSheetRange(ordinal);
+		ref readonly var cell = ref GetFieldValue(ordinal);
+		return cell.type;
+	}
+
+	void ValidateSheetRange(int ordinal)
+	{
+		if((uint) ordinal >= this.MaxFieldCount)
+		{
+			throw new ArgumentOutOfRangeException(nameof(ordinal));
+		}
+	}
 
 	/// <summary>
 	/// Gets the value as represented in excel.
@@ -238,19 +288,20 @@ public abstract class ExcelDataReader : DbDataReader, IDisposable, IDbColumnSche
 	/// <summary>
 	/// Initializes the schema starting with the current row.
 	/// </summary>
-	public void InitializeSchema(IEnumerable<DbColumn> schema, bool useHeaders)
+	public void Initialize()
 	{
-		int i = 0;
-		var cols = new List<DbColumn>();
-		foreach (var col in schema)
+		var sheet = this.WorksheetName;
+		if (sheet == null)
 		{
-			var name = useHeaders ? this.GetString(i) : col.ColumnName;
-			cols.Add(new ExcelColumn(name, i, col));
-			i++;
+			throw new InvalidOperationException();
 		}
 
-		this.columnSchema = new ReadOnlyCollection<DbColumn>(cols);
-		this.fieldCount = columnSchema.Count;
+		var useHeaders = schema.HasHeaders(sheet);
+		LoadSchema(!useHeaders);
+		if (!useHeaders)
+		{
+			this.state = State.Initialized;
+		}
 	}
 
 	private protected void LoadSchema(bool ordinalOnly)
@@ -284,7 +335,7 @@ public abstract class ExcelDataReader : DbDataReader, IDisposable, IDbColumnSche
 
 	internal void AssertRange(int ordinal)
 	{
-		if((uint) ordinal >= MaxFieldCount)
+		if ((uint)ordinal >= MaxFieldCount)
 		{
 			throw new ArgumentOutOfRangeException(nameof(ordinal));
 		}
@@ -337,7 +388,10 @@ public abstract class ExcelDataReader : DbDataReader, IDisposable, IDbColumnSche
 	/// <inheritdoc/>
 	public sealed override IEnumerator GetEnumerator()
 	{
-		throw new NotSupportedException();
+		while (this.Read())
+		{
+			yield return this;
+		}
 	}
 
 	/// <inheritdoc/>
@@ -366,7 +420,13 @@ public abstract class ExcelDataReader : DbDataReader, IDisposable, IDbColumnSche
 	/// <summary>
 	/// Gets the <see cref="ExcelErrorCode"/> of the error in the given cell.
 	/// </summary>
-	public abstract ExcelErrorCode GetFormulaError(int ordinal);
+	public ExcelErrorCode GetFormulaError(int ordinal)
+	{
+		var cell = GetFieldValue(ordinal);
+		if (cell.type == ExcelDataType.Error)
+			return cell.ErrorCode;
+		throw new InvalidOperationException();
+	}
 
 	internal ExcelFormulaException GetError(int ordinal)
 	{
@@ -378,7 +438,26 @@ public abstract class ExcelDataReader : DbDataReader, IDisposable, IDbColumnSche
 	/// </summary>
 	/// <param name="ordinal"></param>
 	/// <returns></returns>
-	public abstract ExcelFormat? GetFormat(int ordinal);
+	public ExcelFormat? GetFormat(int ordinal)
+	{
+		var fi = GetFieldValue(ordinal);
+		var idx = fi.xfIdx;
+
+		idx = idx <= 0 ? 0 : xfMap[idx];
+		if (this.formats.TryGetValue(idx, out var fmt))
+		{
+			return fmt;
+		}
+		return null;
+	}
+
+	private protected virtual ref readonly FieldInfo GetFieldValue(int ordinal)
+	{
+		if (ordinal >= this.rowFieldCount)
+			return ref FieldInfo.Null;
+
+		return ref values[ordinal];
+	}
 
 	/// <summary>
 	/// Gets the number of the current row, as would be reported in Excel.
@@ -452,6 +531,31 @@ public abstract class ExcelDataReader : DbDataReader, IDisposable, IDbColumnSche
 		return true;
 	}
 
+	/// <inheritdoc/>
+	public sealed override bool IsDBNull(int ordinal)
+	{
+		if (ordinal < this.columnSchema.Count && this.columnSchema[ordinal].AllowDBNull == false)
+		{
+			return false;
+		}
+
+		var type = this.GetExcelDataType(ordinal);
+		switch (type)
+		{
+			case ExcelDataType.String:
+				return string.IsNullOrEmpty(this.GetString(ordinal));
+			case ExcelDataType.Null:
+				return true;
+			case ExcelDataType.Error:
+				if (errorAsNull)
+				{
+					return true;
+				}
+				return false;
+		}
+		return false;
+	}
+
 	/// <summary>
 	/// Gets the value of the column as a string.
 	/// </summary>
@@ -461,12 +565,94 @@ public abstract class ExcelDataReader : DbDataReader, IDisposable, IDbColumnSche
 	/// </remarks>
 	/// <param name="ordinal">The zero-based column ordinal.</param>
 	/// <returns>A string representing the value of the column.</returns>
-	public abstract override string GetString(int ordinal);
+	public sealed override string GetString(int ordinal)
+	{
+		ref readonly FieldInfo fi = ref GetFieldValue(ordinal);
+		if (ordinal >= MaxFieldCount)
+			throw new ArgumentOutOfRangeException(nameof(ordinal));
+
+		switch (fi.type)
+		{
+			case ExcelDataType.Error:
+				if (errorAsNull)
+				{
+					return string.Empty;
+				}
+				throw GetError(ordinal);
+			case ExcelDataType.Boolean:
+				return fi.BoolValue ? bool.TrueString : bool.FalseString;
+			case ExcelDataType.Numeric:
+				return FormatVal(fi.xfIdx, fi.numValue);
+		}
+		return fi.strValue ?? string.Empty;
+	}
+
+	string FormatVal(int xfIdx, double val)
+	{
+		var fmtIdx = xfIdx >= this.xfMap.Length ? -1 : this.xfMap[xfIdx];
+		if (fmtIdx == -1)
+		{
+			return val.ToString();
+		}
+
+		if (formats.TryGetValue(fmtIdx, out var fmt))
+		{
+			return fmt.FormatValue(val, 1900);
+		}
+		else
+		{
+			throw new FormatException();
+		}
+	}
 
 	/// <inheritdoc/>
-	public override float GetFloat(int ordinal)
+	public sealed override float GetFloat(int ordinal)
 	{
 		return (float)GetDouble(ordinal);
+	}
+
+	/// <inheritdoc/>
+	public sealed override double GetDouble(int ordinal)
+	{
+		ref readonly var cell = ref GetFieldValue(ordinal);
+		switch (cell.type)
+		{
+			case ExcelDataType.String:
+				return double.Parse(cell.strValue!, CultureInfo.InvariantCulture);
+			case ExcelDataType.Numeric:
+				return cell.numValue;
+			case ExcelDataType.Error:
+				throw Error(ordinal);
+		}
+
+		throw new FormatException();
+	}
+
+	ExcelFormulaException Error(int ordinal)
+	{
+		ref readonly var cell = ref GetFieldValue(ordinal);
+		return new ExcelFormulaException(ordinal, RowNumber, cell.ErrorCode);
+	}
+
+	/// <inheritdoc/>
+	public sealed override bool GetBoolean(int ordinal)
+	{
+		ref readonly var fi = ref this.GetFieldValue(ordinal);
+		switch (fi.type)
+		{
+			case ExcelDataType.Boolean:
+				return fi.BoolValue;
+			case ExcelDataType.Numeric:
+				return this.GetDouble(ordinal) != 0;
+			case ExcelDataType.String:
+				return bool.TryParse(fi.strValue, out var b)
+					? b
+					: throw new FormatException();
+			case ExcelDataType.Error:
+				var code = fi.ErrorCode;
+				throw new ExcelFormulaException(ordinal, RowNumber, code);
+		}
+		throw new InvalidCastException();
 	}
 
 	/// <inheritdoc/>
@@ -588,6 +774,8 @@ public abstract class ExcelDataReader : DbDataReader, IDisposable, IDbColumnSche
 	{
 		None = 0,
 		Initializing,
+		// this state indicates that the next row is already in the field buffer
+		// and should be returned as the next Read operation.
 		Initialized,
 		Open,
 		End,

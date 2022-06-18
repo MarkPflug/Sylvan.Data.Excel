@@ -11,63 +11,20 @@ namespace Sylvan.Data.Excel;
 
 sealed class XlsbWorkbookReader : ExcelDataReader
 {
-	static readonly Dictionary<int, ExcelFormat> EmptyFormats = new Dictionary<int, ExcelFormat>(0);
-
 	const string RelationsNS = "http://schemas.openxmlformats.org/package/2006/relationships";
 
-	Dictionary<int, ExcelFormat> formats = EmptyFormats;
-	int[] xfMap = Array.Empty<int>();
-
-	string[] stringData;
-
 	readonly ZipArchive package;
-	int sheetIdx = -1;
-	int rowCount;
 
 	Stream sheetStream;
 	RecordReader? reader;
-
-	FieldInfo[] values;
-	int rowFieldCount;
-	State state;
+		
 	bool hasRows = false;
 	bool skipEmptyRows = true; // TODO: make this an option?
 
 	int rowIndex;
 	int parsedRowIndex;
 
-	SheetInfo[] sheetNames;
-
-	bool readHiddenSheets;
-	bool errorAsNull;
-
-	struct FieldInfo
-	{
-		public ExcelDataType type;
-		public string strValue;
-		public double numValue;
-		public int xfIdx;
-		public ExcelErrorCode err;
-		public bool b;
-	}
-
-	public override int RowCount => rowCount;
-
 	public override ExcelWorkbookType WorkbookType => ExcelWorkbookType.ExcelXml;
-
-	class SheetInfo
-	{
-		public SheetInfo(string name, string part, bool hidden)
-		{
-			this.Name = name;
-			this.Part = part;
-			this.Hidden = hidden;
-		}
-
-		public string Name { get; }
-		public string Part { get; }
-		public bool Hidden { get; }
-	}
 
 	public override void Close()
 	{
@@ -75,13 +32,8 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 		base.Close();
 	}
 
-	public XlsbWorkbookReader(Stream stream, ExcelDataReaderOptions opts) : base(stream, opts.Schema)
+	public XlsbWorkbookReader(Stream stream, ExcelDataReaderOptions opts) : base(stream, opts)
 	{
-		this.rowCount = -1;
-		this.values = Array.Empty<FieldInfo>();
-		this.errorAsNull = opts.GetErrorAsNull;
-		this.readHiddenSheets = opts.ReadHiddenWorksheets;
-
 		this.sheetStream = Stream.Null;
 		package = new ZipArchive(stream, ZipArchiveMode.Read);
 
@@ -117,7 +69,7 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 			}
 		}
 
-		stringData = ReadSharedStrings();
+		sst = ReadSharedStrings();
 
 		var sheetNameList = new List<SheetInfo>();
 		using (Stream sheetsStream = sheetsPart.Open())
@@ -178,6 +130,14 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 		}
 
 		NextResult();
+	}
+
+	private protected override ref readonly FieldInfo GetFieldValue(int ordinal)
+	{
+		if (rowIndex < parsedRowIndex || ordinal >= this.RowFieldCount)
+			return ref FieldInfo.Null;
+
+		return ref values[ordinal];
 	}
 
 	public override bool NextResult()
@@ -444,19 +404,19 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 							case RecordType.CellBool:
 							case RecordType.CellFmlaBool:
 								type = ExcelDataType.Boolean;
-								fi.b = reader.GetByte(8) != 0;
+								fi = new FieldInfo(reader.GetByte(8) != 0);
 								notNull++;
 								break;
 							case RecordType.CellError:
 							case RecordType.CellFmlaError:
 								type = ExcelDataType.Error;
-								fi.err = (ExcelErrorCode)reader.GetByte(8);
+								fi = new FieldInfo((ExcelErrorCode)reader.GetByte(8));
 								notNull++;
 								break;
 							case RecordType.CellIsst:
 								type = ExcelDataType.String;
 								var sstIdx = reader.GetInt32(8);
-								fi.strValue = stringData[sstIdx];
+								fi.strValue = sst[sstIdx];
 								notNull++;
 								break;
 							case RecordType.CellSt:
@@ -503,157 +463,21 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 		return -1;
 	}
 
-	public override ExcelDataType GetExcelDataType(int ordinal)
-	{
-		AssertRange(ordinal);
-		if (rowIndex < parsedRowIndex)
-			return ExcelDataType.Null;
-		if (ordinal >= this.rowFieldCount)
-			return ExcelDataType.Null;
-		return values[ordinal].type;
-	}
-
-	public override bool GetBoolean(int ordinal)
-	{
-		var fi = this.values[ordinal];
-		switch (fi.type)
-		{
-			case ExcelDataType.Boolean:
-				return fi.b;
-			case ExcelDataType.Numeric:
-				return this.GetDouble(ordinal) != 0;
-			case ExcelDataType.String:
-				return bool.TryParse(fi.strValue, out var b)
-					? b
-					: throw new FormatException();
-			case ExcelDataType.Error:
-				var code = values[ordinal].err;
-				throw new ExcelFormulaException(ordinal, RowNumber, code);
-		}
-		throw new InvalidCastException();
-	}
-
 	internal override DateTime GetDateTimeValue(int ordinal)
 	{
 		throw new NotSupportedException();
 	}
 
-	public override double GetDouble(int ordinal)
-	{
-		if (rowIndex == parsedRowIndex)
-		{
-			ref var fi = ref values[ordinal];
-			var type = fi.type;
-			switch (type)
-			{
-				case ExcelDataType.Numeric:
-					return fi.numValue;
-				case ExcelDataType.String:
-					return double.Parse(fi.strValue);
-				case ExcelDataType.Error:
-					throw GetError(ordinal);
-			}
-		}
-		throw new InvalidCastException();
-	}
 
-	public override string GetString(int ordinal)
-	{
-		if (rowIndex < parsedRowIndex)
-		{
-			return string.Empty;
-		}
-		if (ordinal >= MaxFieldCount)
-			throw new ArgumentOutOfRangeException(nameof(ordinal));
-		if (ordinal >= rowFieldCount)
-			return String.Empty;
-		ref var fi = ref values[ordinal];
-		switch (fi.type)
-		{
-			case ExcelDataType.Error:
-				if (errorAsNull)
-				{
-					return string.Empty;
-				}
-				throw GetError(ordinal);
-			case ExcelDataType.Boolean:
-				return fi.b ? bool.TrueString : bool.FalseString;
-			case ExcelDataType.Numeric:
-				return FormatVal(fi.xfIdx, fi.numValue);
-		}
-		return fi.strValue ?? string.Empty;
-	}
 
-	string FormatVal(int xfIdx, double val)
-	{
-		var fmtIdx = xfIdx >= this.xfMap.Length ? -1 : this.xfMap[xfIdx];
-		if (fmtIdx == -1)
-		{
-			return val.ToString();
-		}
 
-		if (formats.TryGetValue(fmtIdx, out var fmt))
-		{
-			return fmt.FormatValue(val, 1900);
-		}
-		else
-		{
-			throw new FormatException();
-		}
-	}
 
-	public override bool IsDBNull(int ordinal)
-	{
-		if (ordinal < this.columnSchema.Count && this.columnSchema[ordinal].AllowDBNull == false)
-		{
-			return false;
-		}
-
-		var type = this.GetExcelDataType(ordinal);
-		switch (type)
-		{
-			case ExcelDataType.Null:
-				return true;
-			case ExcelDataType.Error:
-				if (errorAsNull)
-				{
-					return true;
-				}
-				return false;
-		}
-		return false;
-	}
-
-	public override ExcelErrorCode GetFormulaError(int ordinal)
-	{
-		var fi = values[ordinal];
-		if (fi.type == ExcelDataType.Error)
-		{
-			return values[ordinal].err;
-		}
-		throw new InvalidOperationException();
-	}
-
-	public override ExcelFormat? GetFormat(int ordinal)
-	{
-		var fi = values[ordinal];
-		var idx = fi.xfIdx;
-
-		idx = idx <= 0 ? 0 : xfMap[idx];
-		if (this.formats.TryGetValue(idx, out var fmt))
-		{
-			return fmt;
-		}
-		return null;
-	}
-
-	public override int RowFieldCount => this.rowFieldCount;
 
 	public override int MaxFieldCount => 16384;
 
-	public override int WorksheetCount => this.sheetNames.Length;
 
-	public override string? WorksheetName => sheetIdx < sheetNames.Length ? this.sheetNames[this.sheetIdx].Name : null;
+
+
 
 	internal override int DateEpochYear => 1900;
 

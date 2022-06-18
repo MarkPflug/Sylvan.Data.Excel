@@ -45,4 +45,17 @@ public class CustomTests
 		Assert.Equal("c", reader.GetString(2));
 		Assert.False(reader.Read());
 	}
+
+	[Fact]
+	public void MissingStyle()
+	{
+		// Tests formatted shared string text
+		var reader = XlsxBuilder.Create(TestData.UnknownFormat);
+
+		Assert.True(reader.Read());
+		Assert.Equal("1", reader.GetString(0));
+		Assert.Equal("2", reader.GetString(1));
+		Assert.Equal("3", reader.GetString(2));
+		Assert.False(reader.Read());
+	}
 }

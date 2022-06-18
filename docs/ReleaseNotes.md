@@ -1,4 +1,8 @@
 # Sylvan.Data.Excel Release Notes
+_0.2.0_
+- Remove InitializeSchema API and replace with Initialize.
+- Fix for exception on unknown format, now defaults to .NET default double format.
+- Fix for schema mappings falling back to ordinal not working.
 
 _0.1.12_
 - Fix for reading .xlsx files with inline-string values, believed to be created with Apache POI.
