@@ -25,7 +25,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 	Stream sheetStream;
 	XmlReader? reader;
 
-	
+
 	bool hasRows;
 	bool skipEmptyRows = true; // TODO: make this an option?
 
@@ -111,7 +111,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 				var refId = sheetElem.Attributes.OfType<XmlAttribute>().Single(a => a.LocalName == "id").Value;
 
 				var hidden = StringComparer.OrdinalIgnoreCase.Equals(state, "hidden");
-				var si = new SheetInfo(name, sheetRelMap[refId],hidden );
+				var si = new SheetInfo(name, sheetRelMap[refId], hidden);
 				sheets.Add(si);
 			}
 			this.sheetNames = sheets.ToArray();
@@ -178,7 +178,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 
 	private protected override ref readonly FieldInfo GetFieldValue(int ordinal)
 	{
-		if(rowIndex < this.parsedRowIndex)
+		if (rowIndex < this.parsedRowIndex)
 		{
 			return ref FieldInfo.Null;
 		}
@@ -512,7 +512,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 				{
 					fi.strValue = ReadString(reader);
 					fi.type = ExcelDataType.String;
-				} 
+				}
 				else
 				{
 					throw new InvalidDataException();
@@ -523,7 +523,10 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 			{
 				valueCount++;
 				this.rowFieldCount = col + 1;
-				reader.Read();
+				if (!reader.IsEmptyElement)
+				{
+					reader.Read();
+				}
 				switch (type)
 				{
 					case CellType.Numeric:
@@ -558,14 +561,21 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 						fi.type = ExcelDataType.DateTime;
 						break;
 					case CellType.SharedString:
-						len = reader.ReadValueChunk(valueBuffer, 0, valueBuffer.Length);
-						if (len >= valueBuffer.Length)
-							throw new FormatException();
-						if (!TryParse(valueBuffer.AsSpan(0, len), out int strIdx))
+						if (reader.NodeType == XmlNodeType.Text)
 						{
-							throw new FormatException();
+							len = reader.ReadValueChunk(valueBuffer, 0, valueBuffer.Length);
+							if (len >= valueBuffer.Length)
+								throw new FormatException();
+							if (!TryParse(valueBuffer.AsSpan(0, len), out int strIdx))
+							{
+								throw new FormatException();
+							}
+							fi.strValue = GetSharedString(strIdx);
 						}
-						fi.strValue = GetSharedString(strIdx);
+						else
+						{
+							fi.strValue = string.Empty;
+						}
 						fi.type = ExcelDataType.String;
 						break;
 					case CellType.String:
@@ -578,7 +588,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 						break;
 					case CellType.Boolean:
 						len = reader.ReadValueChunk(valueBuffer, 0, valueBuffer.Length);
-						if(len < 1)
+						if (len < 1)
 						{
 							throw new FormatException();
 						}
@@ -631,7 +641,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 
 		throw new FormatException();
 	}
-	
+
 	static bool ReadToFollowing(XmlReader reader, string localName)
 	{
 		while (reader.Read())
@@ -822,9 +832,9 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 
 							s = reader.Value;
 						}
-						else if(reader.NodeType == XmlNodeType.EndElement && reader.LocalName == "t")
+						else if (reader.NodeType == XmlNodeType.EndElement && reader.LocalName == "t")
 						{
-							
+
 						}
 						else
 						{
