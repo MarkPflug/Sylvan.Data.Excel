@@ -1,4 +1,5 @@
-﻿using Xunit;
+﻿using System.Data;
+using Xunit;
 
 namespace Sylvan.Data.Excel;
 
@@ -56,6 +57,23 @@ public class CustomTests
 		Assert.Equal("1", reader.GetString(0));
 		Assert.Equal("2", reader.GetString(1));
 		Assert.Equal("3", reader.GetString(2));
+		Assert.False(reader.Read());
+	}
+
+	[Fact]
+	public void EmptySharedStringValue()
+	{
+		// Test a degenerate case produced by AG grid export to excel.
+		var reader = XlsxBuilder.Create(TestData.EmptyValue, TestData.SharedStringSimple);
+		Assert.True(reader.Read());
+		// <v>0</v>
+		Assert.Equal("a", reader.GetString(0));
+		//<v></v> 
+		Assert.True(reader.IsDBNull(1));
+		Assert.Equal(string.Empty, reader.GetString(1));
+		//<v/> 
+		Assert.True(reader.IsDBNull(2));
+		Assert.Equal(string.Empty, reader.GetString(2));
 		Assert.False(reader.Read());
 	}
 }
