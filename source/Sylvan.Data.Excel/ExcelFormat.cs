@@ -134,6 +134,18 @@ public sealed class ExcelFormat
 						}
 					}
 					break;
+				case '\"':
+					for (var j = i + 1; j < spec.Length; j++)
+					{
+						c = spec[j];
+						if (c == '\"')
+						{
+							i = j;
+							break;
+						}
+					}
+					break;
+
 				case 'a':
 				case 'p':
 					if (i + 1 < spec.Length)

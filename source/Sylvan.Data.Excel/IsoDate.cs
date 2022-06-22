@@ -7,8 +7,7 @@ using System.Runtime.CompilerServices;
 
 #if !NETSTANDARD2_1_OR_GREATER
 using System.Text;
-using ReadonlyCharSpan = System.String;
-using CharSpan = System.Text.StringBuilder;
+using ReadonlyCharSpan = Sylvan.CharSpan;
 #else
 using ReadonlyCharSpan = System.ReadOnlySpan<char>;
 using CharSpan = System.Span<char>;
@@ -173,9 +172,9 @@ static partial class IsoDate
 		}
 
 		if (source[4] != '-'
-			|| !TryGetNextTwoDigits(source.Slice(start: 5, length: 2), ref parseData.Month)
+			|| !TryGetNextTwoDigits(source.Slice(5, 2), ref parseData.Month)
 			|| source[7] != '-'
-			|| !TryGetNextTwoDigits(source.Slice(start: 8, length: 2), ref parseData.Day))
+			|| !TryGetNextTwoDigits(source.Slice(8, 2), ref parseData.Day))
 		{
 			return false;
 		}
@@ -232,8 +231,8 @@ static partial class IsoDate
 		// Parse THH:MM (e.g. "T10:32")
 		var timeSep = source[10];
 		if (!(timeSep == 'T' || timeSep == ' ') || source[13] != ':'
-			|| !TryGetNextTwoDigits(source.Slice(start: 11, length: 2), ref parseData.Hour)
-			|| !TryGetNextTwoDigits(source.Slice(start: 14, length: 2), ref parseData.Minute))
+			|| !TryGetNextTwoDigits(source.Slice(11, 2), ref parseData.Hour)
+			|| !TryGetNextTwoDigits(source.Slice(14, 2), ref parseData.Minute))
 		{
 			return false;
 		}
@@ -265,7 +264,7 @@ static partial class IsoDate
 
 		// Try reading the seconds
 		if (source.Length < 19
-			|| !TryGetNextTwoDigits(source.Slice(start: 17, length: 2), ref parseData.Second))
+			|| !TryGetNextTwoDigits(source.Slice( 17,  2), ref parseData.Second))
 		{
 			return false;
 		}
@@ -561,7 +560,7 @@ static partial class IsoDate
 	{
 
 #if !NETSTANDARD2_1_OR_GREATER
-		return buffer;
+		return buffer.ToString();
 #else
 		return new string(buffer);
 #endif
@@ -670,7 +669,7 @@ static partial class IsoDate
 
 	static int FormatIsoInternal(long ticks, int offsetMinutes, bool offsetKnown, CharSpan buffer)
 	{
-		int len = 10;
+		 int len = 10;
 
 		// n = number of days since 1/1/0001
 		var n = Math.DivRem(ticks, TimeSpan.TicksPerDay, out long remain);
@@ -848,14 +847,6 @@ static partial class IsoDate
 		buffer[startingIndex] = (char)('0' + value);
 	}
 
-#if !NETSTANDARD2_1_OR_GREATER
-	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	static void WriteTwoDigits(uint value, ReadonlyCharSpan buffer, int startingIndex = 0)
-	{
-		WriteTwoDigits(value, new CharSpan(buffer), startingIndex);
-	}
-#endif
-
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	static void WriteTwoDigits(uint value, CharSpan buffer, int startingIndex = 0)
 	{
@@ -866,14 +857,6 @@ static partial class IsoDate
 
 		buffer[startingIndex] = (char)('0' + value);
 	}
-
-#if !NETSTANDARD2_1_OR_GREATER
-	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	static void WriteDigits(uint value, ReadonlyCharSpan buffer)
-	{
-		WriteDigits(value, new CharSpan(buffer));
-	}
-#endif
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	static void WriteDigits(uint value, CharSpan buffer)
