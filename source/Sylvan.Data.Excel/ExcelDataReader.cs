@@ -601,7 +601,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 		}
 		else
 		{
-			throw new FormatException();
+			return val.ToString();
 		}
 	}
 

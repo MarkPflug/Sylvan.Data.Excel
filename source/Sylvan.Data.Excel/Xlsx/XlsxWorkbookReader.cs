@@ -10,7 +10,6 @@ using System.Xml;
 
 #if !NETSTANDARD2_1_OR_GREATER
 using ReadonlyCharSpan = System.String;
-using CharSpan = System.Text.StringBuilder;
 #else
 using ReadonlyCharSpan = System.ReadOnlySpan<char>;
 using CharSpan = System.Span<char>;
@@ -430,7 +429,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 				if (ReferenceEquals(n, refName))
 				{
 					len = reader.ReadValueChunk(valueBuffer, 0, valueBuffer.Length);
-					var pos = CellPosition.Parse(valueBuffer.AsSpan(0, len));
+					var pos = CellPosition.Parse(valueBuffer.AsSpan().ToParsable(0, len));
 					if (pos.Column >= 0)
 					{
 						col = pos.Column;
@@ -446,7 +445,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 				if (ReferenceEquals(n, styleName))
 				{
 					len = reader.ReadValueChunk(valueBuffer, 0, valueBuffer.Length);
-					if (!TryParse(valueBuffer.AsSpan(0, len), out xfIdx))
+					if (!TryParse(valueBuffer.AsSpan().ToParsable(0, len), out xfIdx))
 					{
 						throw new FormatException();
 					}
@@ -566,7 +565,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 							len = reader.ReadValueChunk(valueBuffer, 0, valueBuffer.Length);
 							if (len >= valueBuffer.Length)
 								throw new FormatException();
-							if (!TryParse(valueBuffer.AsSpan(0, len), out int strIdx))
+							if (!TryParse(valueBuffer.AsSpan().ToParsable(0, len), out int strIdx))
 							{
 								throw new FormatException();
 							}
@@ -613,7 +612,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 		return valueCount == 0 ? 0 : col + 1;
 	}
 
-	static bool Equal(ReadonlyCharSpan l, ReadonlyCharSpan r)
+	static bool Equal(CharSpan l, ReadonlyCharSpan r)
 	{
 		if (l.Length != r.Length) return false;
 		for (int i = 0; i < l.Length; i++)
@@ -624,7 +623,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 		return true;
 	}
 
-	static ExcelErrorCode GetErrorCode(ReadonlyCharSpan str)
+	static ExcelErrorCode GetErrorCode(CharSpan str)
 	{
 		if (Equal(str, "#DIV/0!"))
 			return ExcelErrorCode.DivideByZero;
