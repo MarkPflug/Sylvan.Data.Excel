@@ -80,7 +80,8 @@ public class CustomTests
 	[Fact]
 	public void EmptyString()
 	{
-		// Test a degenerate case produced by AG grid export to excel.
+		// Test a reading values where a string is represented with an empty element.
+		// this happens when formula calculation produce empty values
 		var reader = XlsxBuilder.Create(TestData.EmptyString);
 		Assert.True(reader.Read());
 		Assert.False(reader.IsDBNull(0));
