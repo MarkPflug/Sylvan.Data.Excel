@@ -578,8 +578,15 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 						fi.type = ExcelDataType.String;
 						break;
 					case CellType.String:
-						fi.strValue = reader.ReadContentAsString();
-						fi.type = ExcelDataType.String;
+                        if (reader.NodeType == XmlNodeType.Element)
+                        {
+                            fi.strValue = reader.ReadElementContentAsString();
+                        }
+                        else
+                        {
+                            fi.strValue = reader.ReadContentAsString();
+                        }                
+                        fi.type = ExcelDataType.String;
 						break;
 					case CellType.InlineString:
 						fi.strValue = ReadString(reader);
