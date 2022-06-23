@@ -1,0 +1,15 @@
+﻿<worksheet>
+	<sheetData>
+		<row r="1">
+			<c r="A1" t="str">
+				<v>a</v>
+			</c>
+			<c r="B1" t="str">
+				<v/>
+			</c>
+			<c r="C1" t="str">
+				<v></v>
+			</c>
+		</row>
+	</sheetData>
+</worksheet>

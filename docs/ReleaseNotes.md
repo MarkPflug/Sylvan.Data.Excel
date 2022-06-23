@@ -6,6 +6,7 @@ _0.2.0_
 - Fix for empty shared string values created by AG Grid.
 - Fix handling of certain formats that would be misidentified as date-kind formats.
 - Fix Date formatting bug on netstandard2.0 where ticks values wouldn't be formatted as null characters.
+- Fix for reading formulas that produce empty values.
 
 _0.1.12_
 - Fix for reading .xlsx files with inline-string values, believed to be created with Apache POI.
