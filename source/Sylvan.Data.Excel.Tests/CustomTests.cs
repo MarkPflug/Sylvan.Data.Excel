@@ -76,4 +76,21 @@ public class CustomTests
 		Assert.Equal(string.Empty, reader.GetString(2));
 		Assert.False(reader.Read());
 	}
+
+	[Fact]
+	public void EmptyString()
+	{
+		// Test a degenerate case produced by AG grid export to excel.
+		var reader = XlsxBuilder.Create(TestData.EmptyString);
+		Assert.True(reader.Read());
+		Assert.False(reader.IsDBNull(0));
+		Assert.Equal("a", reader.GetString(0));
+		// <v/>
+		Assert.True(reader.IsDBNull(1));
+		Assert.Equal("", reader.GetString(1));
+		// <v></v> 
+		Assert.True(reader.IsDBNull(2));
+		Assert.Equal("", reader.GetString(2));
+		Assert.False(reader.Read());
+	}
 }
