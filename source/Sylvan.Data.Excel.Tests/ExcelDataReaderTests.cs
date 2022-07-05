@@ -796,6 +796,27 @@ public class XlsxTests
 		Assert.NotNull(header);
 		Assert.Equal(string.Empty, header);
 	}
+
+	[Fact]
+	public void Merge()
+	{
+		var file = this.GetFile();
+		using var edr = ExcelDataReader.Create(file, new ExcelDataReaderOptions { Schema = ExcelSchema.NoHeaders });
+		Assert.Equal(3, edr.RowCount);
+		Assert.True(edr.Read());
+		Assert.Equal("a", edr.GetString(0));
+		Assert.Equal("2", edr.GetString(3));
+		Assert.Equal("3", edr.GetString(4));
+		Assert.True(edr.Read());
+		Assert.Equal("b", edr.GetString(0));
+		Assert.Equal("c", edr.GetString(1));
+		Assert.Equal("4", edr.GetString(3));
+		Assert.Equal("5", edr.GetString(4));
+		Assert.True(edr.Read());
+		Assert.Equal("6", edr.GetString(3));
+		Assert.Equal("7", edr.GetString(4));
+		Assert.False(edr.Read());
+	}
 }
 
 public sealed class XlsTests : XlsxTests
