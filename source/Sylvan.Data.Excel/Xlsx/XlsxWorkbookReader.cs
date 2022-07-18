@@ -500,12 +500,12 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 
 			if (type == CellType.InlineString)
 			{
-				valueCount++;
-				this.rowFieldCount = col + 1;
 				if (ReadToDescendant(reader, inlineStringName))
 				{
 					fi.strValue = ReadString(reader);
 					fi.type = ExcelDataType.String;
+					valueCount++;
+					this.rowFieldCount = col + 1;
 				}
 				else
 				{
