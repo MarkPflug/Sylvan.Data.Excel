@@ -150,19 +150,14 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 				XmlElement xfsElem = (XmlElement)doc.SelectSingleNode("/x:styleSheet/x:cellXfs", nsm);
 				if (xfsElem != null)
 				{
-					var c =
-						xfsElem.HasAttribute("count")
-						? int.Parse(xfsElem.GetAttribute("count"))
-						: 0;
-
-					this.xfMap = new int[c];
-					int idx = 0;
-					foreach (XmlElement xf in xfsElem.ChildNodes)
+					this.xfMap = new int[xfsElem.ChildNodes.Count];
+					for (int idx = 0; idx < xfMap.Length; idx++)
 					{
-						var id = int.Parse(xf.GetAttribute("numFmtId"));
-						var apply = xf.HasAttribute("applyNumberFormat");
-						xfMap[idx] = apply ? id : 0;
-						idx++;
+						var xf = (XmlElement)xfsElem.ChildNodes[idx];
+						if (xf.HasAttribute("applyNumberFormat"))
+						{
+							xfMap[idx] = int.Parse(xf.GetAttribute("numFmtId"));
+						}
 					}
 				}
 				else
@@ -514,7 +509,8 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 				}
 				else
 				{
-					throw new InvalidDataException();
+					fi.strValue = string.Empty;
+					fi.type = ExcelDataType.Null;
 				}
 			}
 			else
