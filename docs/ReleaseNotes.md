@@ -1,4 +1,10 @@
 # Sylvan.Data.Excel Release Notes
+
+_0.2.1_
+- Fix reading .xlsx files created by JasperReports.
+  - No `count` on xfCells elements.
+  - Empty `inlineStr` values.
+
 _0.2.0_
 - Remove InitializeSchema API and replace with Initialize.
 - Fix for exception on unknown format, now defaults to .NET default double format.

@@ -27,7 +27,7 @@ class XlsxBuilder
 	}
 
 	// creates a minimal .xlsx file that contains the given worksheet xml and sharestrings table.
-	public static ExcelDataReader Create(string sheetXml, string sharedStringXml = null)
+	public static ExcelDataReader Create(string sheetXml, string sharedStringXml = null, string styleXml = null)
 	{
 		var ms = new MemoryStream();
 
@@ -39,6 +39,14 @@ class XlsxBuilder
 			using var os = ss.Open();
 			using var tw = new StreamWriter(os);
 			tw.Write(sharedStringXml);
+		}
+
+		if (styleXml != null)
+		{
+			var ss = archive.CreateEntry("xl/styles.xml");
+			using var os = ss.Open();
+			using var tw = new StreamWriter(os);
+			tw.Write(styleXml);
 		}
 
 		{

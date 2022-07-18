@@ -94,4 +94,36 @@ public class CustomTests
 		Assert.Equal("", reader.GetString(2));
 		Assert.False(reader.Read());
 	}
+
+	[Fact]
+	public void NoCountStyle()
+	{
+		// Test reading file produced by JasperReports, which doesn't write the count attribute
+		// on xfCells
+
+		var reader = XlsxBuilder.Create(TestData.EmptyString, null, TestData.NoCountStyle);
+		// implicit assert that creating the reader doesn't throw.
+		Assert.NotNull(reader);
+	}
+
+	[Fact]
+	public void EmptyInlineStr()
+	{
+		// Test reading file produced by JasperReports, which writes inlineStr values
+		// that are empty elements.
+
+		var reader = XlsxBuilder.Create(TestData.InlineStringEmpty2);
+		Assert.True(reader.Read());
+		Assert.Equal(3, reader.RowFieldCount);
+		Assert.Equal(string.Empty, reader.GetString(0));
+		Assert.Equal(ExcelDataType.Null, reader.GetExcelDataType(0));
+		Assert.Equal(string.Empty, reader.GetString(1));
+		Assert.Equal(ExcelDataType.Null, reader.GetExcelDataType(1));
+		Assert.Equal("c", reader.GetString(2));
+		Assert.True(reader.Read());
+		Assert.Equal("a", reader.GetString(0));
+		Assert.Equal("b", reader.GetString(1));
+		Assert.Equal("c", reader.GetString(2));
+		Assert.False(reader.Read());
+	}
 }
