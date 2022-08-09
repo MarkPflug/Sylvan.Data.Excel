@@ -140,23 +140,7 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 	public override bool Read()
 	{
 		return ReadAsync(CancellationToken.None).GetAwaiter().GetResult();
-	}
-
-	public override int GetOrdinal(string name)
-	{
-		for (int i = 0; i < this.columnSchema.Count; i++)
-		{
-			if (string.Compare(this.columnSchema[i].ColumnName, name, false) == 0)
-				return i;
-		}
-
-		for (int i = 0; i < this.columnSchema.Count; i++)
-		{
-			if (string.Compare(this.columnSchema[i].ColumnName, name, true) == 0)
-				return i;
-		}
-		throw new ArgumentOutOfRangeException(nameof(name));
-	}
+	}	
 
 	public override int MaxFieldCount => 256;
 

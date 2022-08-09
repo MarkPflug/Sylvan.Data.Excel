@@ -5,6 +5,13 @@ namespace Sylvan.Data.Excel;
 
 class ExcelColumn : DbColumn
 {
+
+	public string? Format { get; }
+
+	public string? TrueString { get; }
+
+	public string? FalseString { get; }
+
 	public ExcelColumn(string? name, int ordinal, DbColumn? schema = null)
 	{
 		// non-overridable
@@ -39,5 +46,23 @@ class ExcelColumn : DbColumn
 		this.BaseColumnName = schema?.BaseColumnName ?? name; // default in the orignal header name if they chose to remap it.
 		this.BaseCatalogName = schema?.BaseCatalogName;
 		this.UdtAssemblyQualifiedName = schema?.UdtAssemblyQualifiedName;
+
+		this.Format = schema?[nameof(Format)] as string;
+		
+		if (this.DataType == typeof(bool) && this.Format != null)
+		{
+			var idx = this.Format.IndexOf("|");
+			if (idx == -1)
+			{
+				this.TrueString = this.Format;
+			}
+			else
+			{
+				this.TrueString = this.Format.Substring(0, idx);
+				this.TrueString = this.TrueString.Length == 0 ? null : this.TrueString;
+				this.FalseString = this.Format.Substring(idx + 1);
+				this.FalseString = this.FalseString.Length == 0 ? null : this.FalseString;
+			}
+		}
 	}
 }

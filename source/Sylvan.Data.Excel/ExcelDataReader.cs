@@ -14,15 +14,13 @@ namespace Sylvan.Data.Excel;
 /// </summary>
 public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbColumnSchemaGenerator
 {
-	static ReadOnlyCollection<DbColumn> EmptySchema = new ReadOnlyCollection<DbColumn>(Array.Empty<DbColumn>());
-
 	int fieldCount;
 	bool isClosed;
 	Stream stream;
 
 	private protected IExcelSchemaProvider schema;
 	private protected State state;
-	private protected ReadOnlyCollection<DbColumn> columnSchema = EmptySchema;
+	private protected ExcelColumn[] columnSchema;
 	private protected bool ownsStream;
 	private protected Dictionary<int, ExcelFormat> formats;
 	private protected int[] xfMap;
@@ -37,6 +35,9 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 
 	private protected int rowCount;
 	private protected int rowFieldCount;
+
+	string? trueString;
+	string? falseString;
 
 	/// <inheritdoc/>
 	public sealed override Type GetFieldType(int ordinal)
@@ -68,8 +69,11 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 		this.xfMap = Array.Empty<int>();
 		this.sheetNames = Array.Empty<SheetInfo>();
 
-		this.columnSchema = new ReadOnlyCollection<DbColumn>(Array.Empty<DbColumn>());
+		this.columnSchema = Array.Empty<ExcelColumn>();
 		this.formats = ExcelFormat.CreateFormatCollection();
+
+		this.trueString = options.TrueString;
+		this.falseString = options.FalseString;
 	}
 
 	/// <summary>
@@ -211,12 +215,29 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 		var cs = this.columnSchema;
 		if (cs != null)
 		{
-			if (ordinal < cs.Count)
+			if (ordinal < cs.Length)
 			{
 				return cs[ordinal].ColumnName;
 			}
 		}
 		return string.Empty;
+	}
+
+	/// <inheritdoc/>
+	public sealed override int GetOrdinal(string name)
+	{
+		for (int i = 0; i < this.columnSchema.Length; i++)
+		{
+			if (string.Compare(this.columnSchema[i].ColumnName, name, false) == 0)
+				return i;
+		}
+
+		for (int i = 0; i < this.columnSchema.Length; i++)
+		{
+			if (string.Compare(this.columnSchema[i].ColumnName, name, true) == 0)
+				return i;
+		}
+		throw new ArgumentOutOfRangeException(nameof(name));
 	}
 
 	/// <summary>
@@ -240,7 +261,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 
 	void ValidateSheetRange(int ordinal)
 	{
-		if((uint) ordinal >= this.MaxFieldCount)
+		if ((uint)ordinal >= this.MaxFieldCount)
 		{
 			throw new ArgumentOutOfRangeException(nameof(ordinal));
 		}
@@ -282,7 +303,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 	/// </summary>
 	public ReadOnlyCollection<DbColumn> GetColumnSchema()
 	{
-		return this.columnSchema;
+		return new ReadOnlyCollection<DbColumn>(this.columnSchema);
 	}
 
 	/// <summary>
@@ -306,7 +327,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 
 	private protected void LoadSchema(bool ordinalOnly)
 	{
-		var cols = new List<DbColumn>();
+		var cols = new List<ExcelColumn>();
 		var sheet = this.WorksheetName;
 		if (sheet == null)
 			throw new InvalidOperationException();
@@ -317,8 +338,8 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 			var ecs = new ExcelColumn(header, i, col);
 			cols.Add(ecs);
 		}
-		this.columnSchema = new ReadOnlyCollection<DbColumn>(cols);
-		this.fieldCount = columnSchema.Count;
+		this.columnSchema = cols.ToArray();
+		this.fieldCount = columnSchema.Length;
 	}
 
 	/// <inheritdoc/>
@@ -436,8 +457,6 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 	/// <summary>
 	/// Gets the <see cref="ExcelFormat"/> of the format for the given cell.
 	/// </summary>
-	/// <param name="ordinal"></param>
-	/// <returns></returns>
 	public ExcelFormat? GetFormat(int ordinal)
 	{
 		var fi = GetFieldValue(ordinal);
@@ -534,7 +553,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 	/// <inheritdoc/>
 	public sealed override bool IsDBNull(int ordinal)
 	{
-		if (ordinal < this.columnSchema.Count && this.columnSchema[ordinal].AllowDBNull == false)
+		if (ordinal < this.columnSchema.Length && this.columnSchema[ordinal].AllowDBNull == false)
 		{
 			return false;
 		}
@@ -645,9 +664,39 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 			case ExcelDataType.Numeric:
 				return this.GetDouble(ordinal) != 0;
 			case ExcelDataType.String:
-				return bool.TryParse(fi.strValue, out var b)
-					? b
-					: throw new FormatException();
+
+				var col = (uint)ordinal < this.columnSchema.Length ? this.columnSchema[ordinal] : null;
+
+				var trueString = col?.TrueString ?? this.trueString;
+				var falseString = col?.FalseString ?? this.falseString;
+
+				var strVal = fi.strValue;
+				var c = StringComparer.OrdinalIgnoreCase;
+
+				if (trueString != null && c.Equals(strVal, trueString))
+				{
+					return true;
+				}
+				if (falseString != null && c.Equals(strVal, falseString))
+				{
+					return false;
+				}
+				if (falseString == null && trueString == null)
+				{
+					if (bool.TryParse(strVal, out bool b))
+					{
+						return b;
+					}
+					if (int.TryParse(strVal, out int v))
+					{
+						return v != 0;
+					}
+				}
+
+				if (falseString == null && trueString != null) return false;
+				if (trueString == null && falseString != null) return true;
+
+				throw new FormatException();
 			case ExcelDataType.Error:
 				var code = fi.ErrorCode;
 				throw new ExcelFormulaException(ordinal, RowNumber, code);
