@@ -812,13 +812,18 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 	/// <inheritdoc/>
 	public sealed override char GetChar(int ordinal)
 	{
-		throw new NotSupportedException();
+		var str = GetString(ordinal);
+		if(str.Length == 1)
+		{
+			return str[0];
+		}
+		throw new FormatException();
 	}
 
 	/// <inheritdoc/>
 	public sealed override long GetChars(int ordinal, long dataOffset, char[]? buffer, int bufferOffset, int length)
 	{
-		throw new NotSupportedException();
+		throw new NotSupportedException();		
 	}
 
 	/// <inheritdoc/>
@@ -831,6 +836,13 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 	public sealed override TextReader GetTextReader(int ordinal)
 	{
 		throw new NotSupportedException();
+	}
+
+	/// <inheritdoc/>
+	public override T GetFieldValue<T>(int ordinal)
+	{
+		var acc = Accessor<T>.Instance;
+		return acc.GetValue(this, ordinal);
 	}
 
 	private protected enum State
