@@ -1,5 +1,9 @@
 # Sylvan.Data.Excel Release Notes
 
+_0.2.2_
+  - Add the ability to convert string to boolean in GetBoolean via `ExcelDataReaderOptions.True/FalseString`.
+  - Unify implementation of `GetOrdinal(string)` to use case-insensitive matching.
+
 _0.2.1_
 - Fix reading .xlsx files created by JasperReports.
   - No `count` on xfCells elements.
