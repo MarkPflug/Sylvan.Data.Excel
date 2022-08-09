@@ -451,33 +451,12 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 		return notNull;
 	}
 
-	public override int GetOrdinal(string name)
-	{
-		if (this.columnSchema == null)
-			return -1;
-		for (int i = 0; i < this.columnSchema.Count; i++)
-		{
-			if (this.columnSchema[i].ColumnName == name)
-				return i;
-		}
-		return -1;
-	}
-
 	internal override DateTime GetDateTimeValue(int ordinal)
 	{
 		throw new NotSupportedException();
 	}
 
-
-
-
-
-
 	public override int MaxFieldCount => 16384;
-
-
-
-
 
 	internal override int DateEpochYear => 1900;
 

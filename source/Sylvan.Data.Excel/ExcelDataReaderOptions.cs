@@ -31,4 +31,14 @@ public sealed class ExcelDataReaderOptions
 	/// Defaults to false, which skips hidden sheets.
 	/// </summary>
 	public bool ReadHiddenWorksheets { get; set; }
+
+	/// <summary>
+	/// The string which represents true values when reading boolean. Defaults to null.
+	/// </summary>
+	public string? TrueString { get; set; }
+
+	/// <summary>
+	/// The string which represents false values when reading boolean. Defaults to null.
+	/// </summary>
+	public string? FalseString { get; set; }
 }

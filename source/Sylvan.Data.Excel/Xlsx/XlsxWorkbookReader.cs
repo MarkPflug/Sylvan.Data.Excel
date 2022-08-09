@@ -727,32 +727,10 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 		Date,
 	}
 
-	public override int GetOrdinal(string name)
-	{
-		if (this.columnSchema == null)
-			return -1;
-		for (int i = 0; i < this.columnSchema.Count; i++)
-		{
-			if (this.columnSchema[i].ColumnName == name)
-				return i;
-		}
-		return -1;
-	}
-
-
 	internal override DateTime GetDateTimeValue(int ordinal)
 	{
 		return this.values[ordinal].dtValue;
 	}
-
-
-
-
-
-
-
-
-
 
 	public override int MaxFieldCount => 16384;
 

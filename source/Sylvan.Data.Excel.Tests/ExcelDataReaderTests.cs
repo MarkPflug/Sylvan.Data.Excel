@@ -817,6 +817,81 @@ public class XlsxTests
 		Assert.Equal("7", edr.GetString(4));
 		Assert.False(edr.Read());
 	}
+
+	[Fact]
+	public void Bool()
+	{
+		var opts = new ExcelDataReaderOptions
+		{
+			TrueString = "Yes",
+		};
+		var file = this.GetFile();
+		using var edr = ExcelDataReader.Create(file, opts);
+		Assert.True(edr.Read());
+		Assert.True(edr.GetBoolean(0));
+		Assert.True(edr.GetBoolean(1));
+		Assert.True(edr.GetBoolean(2));
+		Assert.False(edr.GetBoolean(3));
+		Assert.True(edr.Read());
+		Assert.False(edr.GetBoolean(0));
+		Assert.False(edr.GetBoolean(1));
+		Assert.False(edr.GetBoolean(2));
+		Assert.False(edr.GetBoolean(3));
+		Assert.True(edr.Read());
+		Assert.True(edr.GetBoolean(0));
+		Assert.True(edr.GetBoolean(1));
+		Assert.False(edr.GetBoolean(2));
+		Assert.False(edr.GetBoolean(3));
+		Assert.True(edr.Read());
+		Assert.False(edr.GetBoolean(0));
+		Assert.False(edr.GetBoolean(1));
+		Assert.False(edr.GetBoolean(2));
+		Assert.False(edr.GetBoolean(3));
+	}
+
+	[Fact]
+	public void BoolSchema()
+	{
+		var schemaSpec = ":bool{Yes|No},:bool,:bool{Yes|},:bool{|0}";
+		var schema = Sylvan.Data.Schema.Parse(schemaSpec);
+		var opts = new ExcelDataReaderOptions
+		{
+			Schema = new ExcelSchema(true, schema)
+		};
+
+		var file = this.GetFile("Bool");
+		using var edr = ExcelDataReader.Create(file, opts);
+		Assert.True(edr.Read());
+		Assert.True(edr.GetBoolean(0));
+		Assert.True(edr.GetBoolean(1));
+		Assert.True(edr.GetBoolean(2));
+		Assert.True(edr.GetBoolean(3));
+		Assert.True(edr.Read());
+		Assert.False(edr.GetBoolean(0));
+		Assert.False(edr.GetBoolean(1));
+		Assert.False(edr.GetBoolean(2));
+		Assert.False(edr.GetBoolean(3));
+		Assert.True(edr.Read());
+		Assert.True(edr.GetBoolean(0));
+		Assert.True(edr.GetBoolean(1));
+		Assert.False(edr.GetBoolean(2));
+		Assert.True(edr.GetBoolean(3));
+		Assert.True(edr.Read());
+		Assert.False(edr.GetBoolean(0));
+		Assert.False(edr.GetBoolean(1));
+		Assert.False(edr.GetBoolean(2));
+		Assert.False(edr.GetBoolean(3));
+	}
+
+	[Fact]
+	public void GetOrdinal()
+	{
+		var reader = ExcelDataReader.Create(GetFile("Bool"));
+		Assert.Equal(0, reader.GetOrdinal("string"));
+		Assert.Equal(0, reader.GetOrdinal("sTrInG"));
+		Assert.Equal(3, reader.GetOrdinal("stringnum"));
+		Assert.Equal(3, reader.GetOrdinal("STRINGNUM"));
+	}
 }
 
 public sealed class XlsTests : XlsxTests
