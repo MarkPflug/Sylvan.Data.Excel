@@ -126,4 +126,18 @@ public class CustomTests
 		Assert.Equal("c", reader.GetString(2));
 		Assert.False(reader.Read());
 	}
+
+	[Fact]
+	public void EmptyTrailingRow()
+	{
+		// If the final (or trailing) row contains a shared string referencing
+		// an empty string, treat it as a null/empty value.
+
+		var reader = XlsxBuilder.Create(TestData.EmptySSTrailingRow, TestData.SharedStringEmpty);
+		Assert.True(reader.Read());
+		Assert.Equal(3, reader.RowFieldCount);
+		Assert.Equal("a", reader.GetString(0));
+		Assert.Equal("a", reader.GetString(1));
+		Assert.False(reader.Read());
+	}
 }
