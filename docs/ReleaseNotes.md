@@ -1,5 +1,10 @@
 # Sylvan.Data.Excel Release Notes
 
+_0.2.3_
+  - Fix an issue where a trailing row appears empty, but contains a cell with an empty string value. 
+    Previously, calls to `Read()` would return `true` and there rows would be processed. 
+    With this fix, these rows will be skipped `Read()` will return `false`.
+
 _0.2.2_
   - Add the ability to convert string to boolean in GetBoolean via `ExcelDataReaderOptions.True/FalseString`.
   - Unify implementation of `GetOrdinal(string)` to use case-insensitive matching.

@@ -516,8 +516,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 			else
 			if (ReadToDescendant(reader, valueName))
 			{
-				valueCount++;
-				this.rowFieldCount = col + 1;
+
 				if (!reader.IsEmptyElement)
 				{
 					reader.Read();
@@ -571,22 +570,27 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 						{
 							fi.strValue = string.Empty;
 						}
-						fi.type = ExcelDataType.String;
+						fi.type = fi.strValue.Length == 0 ? ExcelDataType.Null : ExcelDataType.String;
 						break;
 					case CellType.String:
-						if(reader.NodeType == XmlNodeType.Text)
+						if (reader.NodeType == XmlNodeType.Text)
 						{
 							fi.strValue = reader.ReadContentAsString();
+							fi.type = ExcelDataType.String;
 						}
 						else
 						{
 							fi.strValue = string.Empty;
+							fi.type = ExcelDataType.Null;
 						}
-						fi.type = ExcelDataType.String;
 						break;
 					case CellType.InlineString:
 						fi.strValue = ReadString(reader);
 						fi.type = ExcelDataType.String;
+						if (fi.strValue.Length == 0)
+						{
+							fi.type = ExcelDataType.Null;
+						}
 						break;
 					case CellType.Boolean:
 						len = reader.ReadValueChunk(valueBuffer, 0, valueBuffer.Length);
@@ -603,6 +607,11 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 						break;
 					default:
 						throw new InvalidDataException();
+				}
+				if (fi.type != ExcelDataType.Null)
+				{
+					valueCount++;
+					this.rowFieldCount = col + 1;
 				}
 			}
 
