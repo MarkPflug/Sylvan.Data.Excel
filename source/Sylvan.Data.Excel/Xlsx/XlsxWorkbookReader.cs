@@ -267,24 +267,18 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 			return false;
 		}
 		ParseRowValues();
-		this.rowIndex = 0;
 
-		var hasHeaders = schema.HasHeaders(this.WorksheetName!);
-
-		LoadSchema(!hasHeaders);
-
-		if (hasHeaders)
+		if (LoadSchema())
 		{
-			this.state = State.Open;
-			Read();
-			this.rowIndex = 0;
+			this.state = State.Initialized;
+			this.rowIndex = -1;
 		}
 		else
 		{
-			this.rowIndex = -1;
+			this.state = State.Open;
+			this.rowIndex = 0;
 		}
-
-		this.state = State.Initialized;
+		
 		return true;
 	}
 

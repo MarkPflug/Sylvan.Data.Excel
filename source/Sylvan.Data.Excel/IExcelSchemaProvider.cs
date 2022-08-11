@@ -16,11 +16,25 @@ public interface IExcelSchemaProvider
 	bool HasHeaders(string sheetName);
 
 	/// <summary>
+	/// Called to get the number of fields in the worksheet.
+	/// </summary>
+	/// <param name="reader">The reader being initialized.</param>
+	/// <returns>The number of fields.</returns>
+	int GetFieldCount(ExcelDataReader reader)
+#if NETSTANDARD2_1_OR_GREATER
+	{
+		return reader.RowFieldCount;
+	}
+#else
+	; // abstract
+#endif
+
+	/// <summary>
 	/// Called to determine the schema for a column in a worksheet.
 	/// </summary>
 	/// <param name="sheetName">The name of the worksheet.</param>
-	/// <param name="name"></param>
-	/// <param name="ordinal"></param>
-	/// <returns></returns>
+	/// <param name="name">The name of the column</param>
+	/// <param name="ordinal">The ordinal position of the column.</param>
+	/// <returns>A DbColumn that defines the schema for the column.</returns>
 	DbColumn? GetColumn(string sheetName, string? name, int ordinal);
 }

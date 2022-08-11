@@ -17,7 +17,7 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 
 	Stream sheetStream;
 	RecordReader? reader;
-		
+
 	bool hasRows = false;
 	bool skipEmptyRows = true; // TODO: make this an option?
 
@@ -211,18 +211,17 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 			return false;
 		}
 
-		var hasHeaders = schema.HasHeaders(this.WorksheetName!);
-
-		LoadSchema(!hasHeaders);
-
-		if (hasHeaders)
+		if (LoadSchema())
 		{
+			this.rowIndex = -1;
+			this.state = State.Initialized;
+		}
+		else
+		{
+			this.rowIndex = 0;
 			this.state = State.Open;
-			Read();
 		}
 
-		this.rowIndex = hasHeaders ? 0 : -1;
-		this.state = State.Initialized;
 		return true;
 	}
 

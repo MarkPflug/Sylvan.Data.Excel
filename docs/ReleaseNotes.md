@@ -1,5 +1,10 @@
 # Sylvan.Data.Excel Release Notes
 
+_0.3.0_
+  - Add `IExcelSchemaProvider.GetFieldCount(ExcelDataReader)` to allow the provider to explicitly
+    define the number of columns. Previously, the number of columns in the current row would be used.
+  - Fix an issue where calling `Initialize()` on the first row would not work as expected.
+
 _0.2.3_
   - Fix an issue where a trailing row appears empty, but contains a cell with an empty string value. 
     Previously, calls to `Read()` would return `true` and there rows would be processed. 

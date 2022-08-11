@@ -140,7 +140,7 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 	public override bool Read()
 	{
 		return ReadAsync(CancellationToken.None).GetAwaiter().GetResult();
-	}	
+	}
 
 	public override int MaxFieldCount => 256;
 
@@ -256,7 +256,7 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 		}
 	done:
 		await NextRowBatch().ConfigureAwait(false);
-		return LoadSchema();
+		return LoadSchemaXls();
 	}
 
 	int ParseXF()
@@ -296,7 +296,7 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 	}
 
 	// return value indicates if there are any rows in the sheet.
-	bool LoadSchema()
+	bool LoadSchemaXls()
 	{
 		var sheetName = this.WorksheetName;
 
@@ -308,9 +308,7 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 		{
 			return false;
 		}
-		LoadSchema(!hasHeaders);
-
-		if (!hasHeaders)
+		if (LoadSchema())
 		{
 			// "unread" the first row.
 			rowIndex--;

@@ -5,6 +5,7 @@ using System.Data.Common;
 using System.Linq;
 
 namespace Sylvan.Data.Excel;
+
 sealed class DefaultExcelSchema : IExcelSchemaProvider
 {
 	readonly bool hasHeaders;
@@ -37,6 +38,11 @@ sealed class DefaultExcelSchema : IExcelSchemaProvider
 	{
 		return hasHeaders;
 	}
+
+	public int GetFieldCount(ExcelDataReader reader)
+	{
+		return reader.RowFieldCount;
+	}
 }
 
 /// <summary>
@@ -61,7 +67,6 @@ public sealed class ExcelSchema : IExcelSchemaProvider
 		public ExcelSchemaColumn(string? name)
 		{
 			this.ColumnName = name ?? string.Empty;
-
 		}
 	}
 
@@ -191,5 +196,11 @@ public sealed class ExcelSchema : IExcelSchemaProvider
 			name = ((char)('A' + rem)) + name;
 		}
 		return name;
+	}
+
+	/// <inheritdoc/>
+	public int GetFieldCount(ExcelDataReader reader)
+	{
+		return reader.RowFieldCount;
 	}
 }
