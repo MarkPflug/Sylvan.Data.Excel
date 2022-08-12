@@ -1,6 +1,9 @@
 # Sylvan.Data.Excel Release Notes
 
 _0.3.0_
+  - Add non-allocating implementation of `GetFieldValue<T>()`.
+  - Support for reading enum values via `GetFieldValue<T>()`.
+  - Add support for `GetChar(int ordinal)`.
   - Add `IExcelSchemaProvider.GetFieldCount(ExcelDataReader)` to allow the provider to explicitly
     define the number of columns. Previously, the number of columns in the current row would be used.
   - Fix an issue where calling `Initialize()` on the first row would not work as expected.

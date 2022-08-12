@@ -898,6 +898,43 @@ public class XlsxTests
 		Assert.Equal(3, reader.GetOrdinal("STRINGNUM"));
 	}
 
+	enum MyEnum
+	{
+		Yes = 1,
+		Some,
+		Maybe,
+		None,
+	}
+
+	[Fact]
+	public void Enum()
+	{
+		var reader = ExcelDataReader.Create(GetFile("Bool"));
+		Assert.True(reader.Read());
+		Assert.Equal(MyEnum.Yes, reader.GetFieldValue<MyEnum>(2));
+		Assert.True(reader.Read());
+		Assert.Equal(MyEnum.Some, reader.GetFieldValue<MyEnum>(2));
+		Assert.True(reader.Read());
+		Assert.Equal(MyEnum.Maybe, reader.GetFieldValue<MyEnum>(2));
+		Assert.True(reader.Read());
+		Assert.Equal(MyEnum.None, reader.GetFieldValue<MyEnum>(2));
+		Assert.False(reader.Read());
+	}
+
+	[Fact]
+	public void GetFieldValue()
+	{
+		var reader = ExcelDataReader.Create(GetFile("Schema"));
+		Assert.True(reader.Read());
+		Assert.Equal(1, reader.GetFieldValue<int>(0));
+		Assert.Equal("James", reader.GetFieldValue<string>(1));
+		Assert.Equal(new DateTime(2020,1,1), reader.GetFieldValue<DateTime>(2));
+		Assert.Equal(1234.56m, reader.GetFieldValue<decimal>(3));
+		Assert.Equal('A', reader.GetFieldValue<char>(4));
+		Assert.False(reader.GetFieldValue<bool>(5));
+		Assert.Equal(45.65452, reader.GetFieldValue<double>(6));
+	}
+
 	[Fact]
 	public void Init()
 	{

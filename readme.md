@@ -1,4 +1,4 @@
-# Sylvan.Data.Excel
+# <img src="Sylvan.png" height="48" alt="Sylvan Logo"/> # Sylvan.Data.Excel
 
 A cross-platform .NET library for reading Excel data files in .xlsx, .xlsb and .xls formats.
 Provides readonly, row by row, forward-only access to the data.
@@ -9,11 +9,10 @@ The library is a purely managed implementation with no external dependencies.
 This library is currently the [fastest and lowest allocating](https://github.com/MarkPflug/Benchmarks/blob/main/docs/ExcelBenchmarks.md) 
 library for reading Excel data files in the .NET ecosystem, for all supported formats.
 
-## Installing
-
-This library is still relatively immature and you might encounter issues while using it.
-If you do encounter any bugs, please report an issue in the github repository.
+If you encounter any issues while using this library, please report an issue in the github repository.
 Be aware that I will be unlikely to investigate any issue unless an example file can be provided reproducing the issue.
+
+## Installing
 
 [Sylvan.Data.Excel Nuget Package](https://www.nuget.org/packages/Sylvan.Data.Excel/)
 
