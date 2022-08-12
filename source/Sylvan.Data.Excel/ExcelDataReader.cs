@@ -317,29 +317,43 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 			throw new InvalidOperationException();
 		}
 
-		var useHeaders = schema.HasHeaders(sheet);
-		LoadSchema(!useHeaders);
-		if (!useHeaders)
+		if (this.state == State.Initialized)
+		{
+			// prevent reinitializing on the first row, which is already implicitly initialized
+			// the values array will already hold the second row of data, so reinitialization
+			// isn't possible.
+			return;
+		}
+
+		if (LoadSchema())
 		{
 			this.state = State.Initialized;
 		}
 	}
 
-	private protected void LoadSchema(bool ordinalOnly)
+	private protected bool LoadSchema()
 	{
-		var cols = new List<ExcelColumn>();
 		var sheet = this.WorksheetName;
 		if (sheet == null)
 			throw new InvalidOperationException();
-		for (int i = 0; i < RowFieldCount; i++)
+
+		var hasHeaders = schema.HasHeaders(sheet);
+		var fieldCount = schema.GetFieldCount(this);
+		var cols = new ExcelColumn[fieldCount];
+		for (int i = 0; i < fieldCount; i++)
 		{
-			string? header = ordinalOnly ? null : GetString(i);
+			string? header = hasHeaders ? GetString(i) : null;
 			var col = schema.GetColumn(sheet, header, i);
 			var ecs = new ExcelColumn(header, i, col);
-			cols.Add(ecs);
+			cols[i] = ecs;
 		}
-		this.columnSchema = cols.ToArray();
-		this.fieldCount = columnSchema.Length;
+		this.columnSchema = cols;
+		this.fieldCount = fieldCount;
+
+		// return value indicates if the current data row is already
+		// sitting in the values array, indicating that the next call
+		// to Read() should used the existing values.
+		return !hasHeaders;
 	}
 
 	/// <inheritdoc/>

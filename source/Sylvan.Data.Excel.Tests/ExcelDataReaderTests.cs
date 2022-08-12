@@ -352,6 +352,11 @@ public class XlsxTests
 		{
 			return hasHeaders;
 		}
+
+		public int GetFieldCount(ExcelDataReader reader)
+		{
+			return reader.RowFieldCount;
+		}
 	}
 
 	[Fact]
@@ -891,6 +896,22 @@ public class XlsxTests
 		Assert.Equal(0, reader.GetOrdinal("sTrInG"));
 		Assert.Equal(3, reader.GetOrdinal("stringnum"));
 		Assert.Equal(3, reader.GetOrdinal("STRINGNUM"));
+	}
+
+	[Fact]
+	public void Init()
+	{
+		var reader = ExcelDataReader.Create(GetFile());
+		Assert.Equal(3, reader.FieldCount);
+		Assert.Equal("a", reader.GetName(0));
+		Assert.Equal("b", reader.GetName(1));
+		Assert.Equal("c", reader.GetName(2));
+		// calling Initialize shouldn't change anything if Read hasn't been called.
+		reader.Initialize(); 
+		Assert.Equal(3, reader.FieldCount);
+		Assert.Equal("a", reader.GetName(0));
+		Assert.Equal("b", reader.GetName(1));
+		Assert.Equal("c", reader.GetName(2));
 	}
 }
 
