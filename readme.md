@@ -1,4 +1,4 @@
-# <img src="Sylvan.png" height="48" alt="Sylvan Logo"/> # Sylvan.Data.Excel
+# <img src="Sylvan.png" height="48" alt="Sylvan Logo"/> Sylvan.Data.Excel
 
 A cross-platform .NET library for reading Excel data files in .xlsx, .xlsb and .xls formats.
 Provides readonly, row by row, forward-only access to the data.
