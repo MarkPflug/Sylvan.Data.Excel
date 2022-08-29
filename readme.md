@@ -1,9 +1,9 @@
-# <img src="Sylvan.png" height="48" alt="Sylvan Logo"/> Sylvan.Data.Excel
+# Sylvan.Data.Excel
 
 A cross-platform .NET library for reading Excel data files in .xlsx, .xlsb and .xls formats.
 Provides readonly, row by row, forward-only access to the data.
 There is no support for creating or editing Excel files.
-Provides a familiar API via `DbDataReader`, which is ideal for accessing rectangular, tabular data sets.
+Provides a familiar API via `DbDataReader`, which is ideal for accessing rectangular, tabular data sets. Exposes a single, unified API for accessing all supported file formats.
 The library is a purely managed implementation with no external dependencies.
 
 This library is currently the [fastest and lowest allocating](https://github.com/MarkPflug/Benchmarks/blob/main/docs/ExcelBenchmarks.md) 
@@ -19,6 +19,16 @@ Be aware that I will be unlikely to investigate any issue unless an example file
 `Install-Package Sylvan.Data.Excel`
 
 ## Basic Usage
+
+ExcelDataReader derives from DbDataReader, so it exposes an API that should be familiar for anyone who has worked with ADO.NET before. The field accessors allow reading data in an efficient, strongly-typed manner: `GetString`, `GetInt32`, `GetDateTime`, `GetBoolean`, etc. 
+
+The `GetExcelDataType` method allows inspecting the native Excel data type of a cell, which may vary from row to row. `FieldCount`, returns the number of columns in the header row, and doesn't change while processing each row in a sheet. `RowFieldCount` returns the number of fields in the current row, which might vary from row to row, and can be used to access cells in a "jagged", non-rectangular file.
+
+### Reading Raw Data
+
+The ExcelDataReader provides a forward only, row by row access to the data
+in a worksheet. It allows iterating over sheets using the `NextResult()` method, and iterating over rows using the `Read()` method. Fields are accessed using standard accessors, most commonly `GetString()`. `GetString()` is designed to not throw an exception, except in the case that a cell contains a formula error.
+
 ```C#
 using Sylvan.Data.Excel;
 
@@ -33,6 +43,7 @@ do
 	while(edr.Read())
 	{
 		// iterate cells in row.
+		// can use edr.RowFieldCount when sheet contains jagged, non-rectangular data
 		for(int i = 0; i < edr.FieldCount; i++)
 		{
 			var value = edr.GetString(i);
@@ -46,12 +57,39 @@ do
 } while(edr.NextResult());
 ```
 
-Exporting Excel data to CSV(s): (using Sylvan.Data.Excel and Sylvan.Data.Csv)
+### Bind Excel data to objects using Sylvan.Data
+
+The Sylvan.Data library includes a general-purpose data binder that can bind a DbDataReader to objects.
+This can be used to easily read an Excel file as a series of strongly typed objects.
+
+```C#
+using Sylvan.Data;
+using Sylvan.Data.Excel;
+
+using var edr = ExcelDataReader.Create("data.xlsx");
+foreach (MyRecord item in edr.GetRecords<MyRecord>())
+{
+    Console.WriteLine($"{item.Name} {item.Quantity}");
+}
+
+class MyRecord
+{
+    public int Id { get; set; }
+    public string Name { get; set; }
+    public int? Quantity { get; set; }
+    public DateTime Date { get; set; }
+}
+```
+
+### Exporting Excel data to CSV(s) 
+
+The Sylvan.Data.Csv library can be used to convert Excel worksheet data to CSV.
+
 ```C#
 using Sylvan.Data.Excel;
 using Sylvan.Data.Csv;
 
-using var edr = ExcelDataReader.Create("data.xls");
+using var edr = ExcelDataReader.Create("data.xlsx");
 
 do 
 {
