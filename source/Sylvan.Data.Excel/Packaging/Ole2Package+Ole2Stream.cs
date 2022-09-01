@@ -37,19 +37,6 @@ partial class Ole2Package
 			this.streamPos = -1;
 		}
 
-		//bool NextSector()
-		//{
-		//	sectorIdx++;
-		//	if (sectorIdx < sectors.Length)
-		//	{
-		//		this.sector = sectors[sectorIdx];
-
-		//		this.sectorOff = 0;
-		//		return true;
-		//	}
-		//	return false;
-		//}
-
 		public override long Position
 		{
 			get
@@ -64,16 +51,35 @@ partial class Ole2Package
 
 		public override long Seek(long offset, SeekOrigin origin)
 		{
-			throw new NotSupportedException();
+			long pos = 0;
+			switch (origin)
+			{
+				case SeekOrigin.Begin:
+					pos = offset;
+					break;
+				case SeekOrigin.Current:
+					pos = this.position + offset;
+					break;
+				case SeekOrigin.End:
+					pos = this.length + offset;
+					break;
+			}
+			if (pos < 0 || pos > this.length)
+			{
+				throw new ArgumentOutOfRangeException(nameof(offset));
+			}
+
+			this.position = pos;
+			return this.position;
 		}
 
 		public override async Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
 		{
-			if(offset + count > buffer.Length)
+			if (offset + count > buffer.Length)
 				throw new ArgumentOutOfRangeException();
 
 			//Debug.WriteLine($"{offset} {count} {this.position}");
-						
+
 			var sectors = this.sectors;
 
 			int bytesRead = 0;
@@ -84,7 +90,7 @@ partial class Ole2Package
 				var readLen = 0;
 				var readStart = (sector + 1) * sectorLen + sectorOff;
 				var curSector = sector;
-				
+
 				while (readLen < c)
 				{
 					if (this.sectorOff >= this.sectorLen)
@@ -101,7 +107,8 @@ partial class Ole2Package
 							// next sector is not coniguious, so read
 							// the current contig block
 							sector = nextSector;
-							if(readLen > 0) { 
+							if (readLen > 0)
+							{
 								break;
 							}
 						}

@@ -24,6 +24,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 	Stream sheetStream;
 	XmlReader? reader;
 
+	StringBuilder? stringBuilder;
 
 	bool hasRows;
 	bool skipEmptyRows = true; // TODO: make this an option?
@@ -278,7 +279,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 			this.state = State.Open;
 			this.rowIndex = 0;
 		}
-		
+
 		return true;
 	}
 
@@ -750,44 +751,48 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 		using Stream ssStream = entry.Open();
 		using var reader = XmlReader.Create(ssStream);
 
-		string ns = "";
 		while (reader.Read())
 		{
 			if (reader.NodeType == XmlNodeType.Element && reader.LocalName == "sst")
 			{
-				ns = reader.NamespaceURI;
 				break;
 			}
 		}
 
-		string countStr = reader.GetAttribute("uniqueCount")!;
-		if (countStr == null)
+		var countStr = reader.GetAttribute("uniqueCount");
+
+		var count = 0;
+		if (!string.IsNullOrEmpty(countStr) && int.TryParse(countStr, out count) && count >= 0)
 		{
-			return;
+
+		}
+		else
+		{
+			// try to estimate the number of strings based on the entry size
+			// Estimate ~24 bytes per string record.
+			var estimatedCount = (int)(entry.Length / 24);
+			count = Math.Max(1, estimatedCount);
 		}
 
-		var count = int.Parse(countStr);
+		var sstList = new List<string>(count);
 
-		this.sst = new string[count];
-
-		for (int i = 0; i < count; i++)
+		while (reader.Read())
 		{
-			while (reader.Read())
+			if (reader.NodeType == XmlNodeType.Element && reader.LocalName == "si")
 			{
-				if (reader.NodeType == XmlNodeType.Element && reader.LocalName == "si")
-					break;
+				var str = ReadString(reader);
+				sstList.Add(str);
 			}
-
-			var str = ReadString(reader);
-
-			this.sst[i] = str;
 		}
-	}
 
-	StringBuilder stringBuilder = new StringBuilder();
+		this.sst = sstList.ToArray();
+	}
 
 	string ReadString(XmlReader reader)
 	{
+		if (this.stringBuilder == null)
+			this.stringBuilder = new StringBuilder();
+
 		var empty = reader.IsEmptyElement;
 		string str = string.Empty;
 		if (empty)

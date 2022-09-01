@@ -1,5 +1,9 @@
 # Sylvan.Data.Excel Release Notes
 
+_0.3.1_
+  - Fix reading .xlsx files that don't specify shared string count (Crystal Decisions).
+  - Skipping sheets (`NextResult`) in .xls files is faster.
+
 _0.3.0_
   - Add non-allocating implementation of `GetFieldValue<T>()`.
   - Support for reading enum values via `GetFieldValue<T>()`.

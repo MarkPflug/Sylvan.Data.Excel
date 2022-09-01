@@ -107,6 +107,19 @@ public class CustomTests
 	}
 
 	[Fact]
+	public void NoCountSharedStrings()
+	{
+		// Test reading file produced by Crystal Reports, which doesn't write the
+		// count/unique attribute on the shared strings table
+
+		var reader = XlsxBuilder.Create(TestData.NoCountSSTWS, TestData.NoCountSST);
+		Assert.True(reader.Read());
+		Assert.Equal("a", reader.GetString(0));
+		Assert.Equal("b", reader.GetString(1));
+		Assert.False(reader.Read());
+	}
+
+	[Fact]
 	public void EmptyInlineStr()
 	{
 		// Test reading file produced by JasperReports, which writes inlineStr values

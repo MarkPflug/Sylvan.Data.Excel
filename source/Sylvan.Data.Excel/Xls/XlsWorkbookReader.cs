@@ -11,6 +11,16 @@ namespace Sylvan.Data.Excel;
 
 sealed partial class XlsWorkbookReader : ExcelDataReader
 {
+	sealed class XlsSheetInfo : SheetInfo
+	{
+		public XlsSheetInfo(string name, int offset, bool hidden) : base(name, hidden)
+		{
+			this.Offset = offset;
+		}
+
+		public int Offset { get; }
+	}
+
 	const int Biff8VersionCode = 0x0600;
 	const int Biff8EntryDataSize = 8224;
 	const int RowBatchSize = 32;
@@ -67,11 +77,9 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 		sheetIdx++;
 		for (; sheetIdx < this.sheetNames.Length; sheetIdx++)
 		{
+			var info = (XlsSheetInfo) this.sheetNames[sheetIdx];
 
-			while (Read())
-			{
-				// process any remaining content in the current sheet
-			}
+			reader.SetPosition(info.Offset);
 
 			batchOffset = 0;
 			await InitSheet().ConfigureAwait(false);
@@ -166,8 +174,8 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 		BOFType type = ReadBOF();
 		if (type != BOFType.WorkbookGlobals)
 			throw new InvalidDataException();//"First Stream must be workbook globals stream"
-		List<SheetInfo> sheets = new List<SheetInfo>();
-		List<int> xfs = new List<int>();
+		var sheets = new List<XlsSheetInfo>();
+		var xfs = new List<int>();
 		bool atEndOfHeader = false;
 		while (!atEndOfHeader)
 		{
@@ -299,11 +307,7 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 	bool LoadSchemaXls()
 	{
 		var sheetName = this.WorksheetName;
-
 		if (sheetName == null) return false;
-
-		var hasHeaders = schema.HasHeaders(sheetName);
-
 		if (!Read())
 		{
 			return false;
@@ -592,9 +596,9 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 			throw new InvalidDataException();
 	}
 
-	async Task<SheetInfo> LoadSheetRecord()
+	async Task<XlsSheetInfo> LoadSheetRecord()
 	{
-		reader.ReadInt32();
+		int offset = reader.ReadInt32();
 		byte visibility = reader.ReadByte();
 		byte type = reader.ReadByte();
 
@@ -603,7 +607,7 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 			? await reader.ReadByteString(1)
 			: await reader.ReadString8();
 
-		return new SheetInfo(name, visibility != 0);
+		return new XlsSheetInfo(name, offset, visibility != 0);
 	}
 
 	async Task LoadSharedStringTable()
