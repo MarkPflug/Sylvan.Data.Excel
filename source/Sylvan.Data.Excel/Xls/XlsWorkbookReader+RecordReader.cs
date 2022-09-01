@@ -4,6 +4,7 @@ using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
+using static Sylvan.Data.Excel.Ole2Package;
 
 namespace Sylvan.Data.Excel;
 
@@ -14,7 +15,7 @@ sealed partial class XlsWorkbookReader
 		const int BufferSize = 0x40000;
 		const int MaxRecordSize = 8228;
 
-		Stream stream;
+		Ole2Stream stream;
 
 		// the working buffer. The current biff record is guaranteed to be loaded entirely in this buffer.
 		byte[] buffer;
@@ -35,7 +36,7 @@ sealed partial class XlsWorkbookReader
 		public RecordType Type { get { return (RecordType)recordCode; } }
 		public int Length { get { return recordLen; } }
 
-		public RecordReader(Stream stream)
+		public RecordReader(Ole2Stream stream)
 		{
 			this.stream = stream;
 			this.buffer = new byte[BufferSize];
@@ -71,6 +72,11 @@ sealed partial class XlsWorkbookReader
 				this.bufferLen = len + c;
 			}
 			return c >= required;
+		}
+
+		public void SetPosition(long offset)
+		{
+			this.stream.Seek(offset, SeekOrigin.Begin);
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
