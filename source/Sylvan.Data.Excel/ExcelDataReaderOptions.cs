@@ -1,4 +1,6 @@
-﻿namespace Sylvan.Data.Excel;
+﻿using System.Globalization;
+
+namespace Sylvan.Data.Excel;
 
 /// <summary>
 /// Options for controlling the behavior of an <see cref="ExcelDataReader"/>.
@@ -13,6 +15,7 @@ public sealed class ExcelDataReaderOptions
 	public ExcelDataReaderOptions()
 	{
 		this.Schema = ExcelSchema.Default;
+		this.Culture = CultureInfo.InvariantCulture;
 	}
 
 	/// <summary>
@@ -41,4 +44,19 @@ public sealed class ExcelDataReaderOptions
 	/// The string which represents false values when reading boolean. Defaults to null.
 	/// </summary>
 	public string? FalseString { get; set; }
+
+	/// <summary>
+	/// A format string used to parse DateTime values.
+	/// </summary>
+	/// <remarks>
+	/// This is only used in the very rare case that a date value is stored as a string
+	/// in Excel, and is being accessed with GetDateTime() accessor.
+	/// </remarks>
+	public string? DateTimeFormat { get; set; }
+
+	/// <summary>
+	/// The culture to use when parsing values. 
+	/// This is only used when accessing and converting values stored as a string.
+	/// </summary>
+	public CultureInfo Culture { get; set; }
 }

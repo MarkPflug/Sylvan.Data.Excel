@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
 using System.IO.Compression;
 using System.Xml;
 
@@ -27,7 +28,7 @@ class XlsxBuilder
 	}
 
 	// creates a minimal .xlsx file that contains the given worksheet xml and sharestrings table.
-	public static ExcelDataReader Create(string sheetXml, string sharedStringXml = null, string styleXml = null)
+	public static ExcelDataReader Create(string sheetXml, string sharedStringXml = null, string styleXml = null, Action<ExcelDataReaderOptions> opts = null)
 	{
 		var ms = new MemoryStream();
 
@@ -84,6 +85,8 @@ class XlsxBuilder
 		}
 		archive.Dispose();
 		ms.Seek(0, SeekOrigin.Begin);
-		return ExcelDataReader.Create(ms, ExcelWorkbookType.ExcelXml, new ExcelDataReaderOptions { Schema = ExcelSchema.NoHeaders });
+		var o = new ExcelDataReaderOptions { Schema = ExcelSchema.NoHeaders };
+		opts?.Invoke(o);
+		return ExcelDataReader.Create(ms, ExcelWorkbookType.ExcelXml, o);
 	}
 }

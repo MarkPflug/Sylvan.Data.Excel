@@ -1,5 +1,10 @@
 # Sylvan.Data.Excel Release Notes
 
+_0.3.2_
+  - Fix for format not being applied to some cells (Crystal Decisions).
+  - Add DateTimeFormat option, which applies when dates are stored as strings.
+  - Replace FormatException with InvalidCastException, as documented by DbDataReader.
+
 _0.3.1_
   - Fix reading .xlsx files that don't specify shared string count (Crystal Decisions).
   - Skipping sheets (`NextResult`) in .xls files is faster.

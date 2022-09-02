@@ -139,8 +139,8 @@ public class XlsxTests
 			{
 				var s = edr.GetString(1);
 				Assert.Equal("", s);
-				Assert.Throws<FormatException>(() => edr.GetDateTime(1));
-				Assert.Throws<FormatException>(() => edr.GetDateTime(2));
+				Assert.Throws<InvalidCastException>(() => edr.GetDateTime(1));
+				Assert.Throws<InvalidCastException>(() => edr.GetDateTime(2));
 				Assert.Equal(System.DateTime.MinValue.AddMinutes(i * 144), edr.GetDateTime(3));
 			}
 			else

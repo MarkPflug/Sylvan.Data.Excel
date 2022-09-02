@@ -1,0 +1,10 @@
+﻿<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+	<numFmts>
+		<numFmt numFmtId="0" formatCode="General"/>
+		<numFmt numFmtId="165" formatCode="dd/mm/yyyy"/>
+	</numFmts>
+	<cellXfs>
+		<xf numFmtId="0" applyNumberFormat="1"/>
+		<xf numFmtId="165" />
+	</cellXfs>
+</styleSheet>

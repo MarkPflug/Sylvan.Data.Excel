@@ -28,8 +28,6 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 	RecordReader reader;
 	short biffVersion = 0;
 
-	int yearOffset = 1900;
-
 	Row[] rowBatch = new Row[RowBatchSize];
 	FieldInfo[][] fieldInfos = new FieldInfo[RowBatchSize][];
 
@@ -447,19 +445,6 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 		{
 			double d = BitConverter.Int64BitsToDouble((long)val);
 			SetRowData(rowIdx, colIdx, new FieldInfo(d, xfIdx));
-		}
-	}
-
-	string FormatVal(int xfIdx, double val)
-	{
-		var fmtIdx = this.xfMap[xfIdx];
-		if (formats.TryGetValue(fmtIdx, out var fmt))
-		{
-			return fmt.FormatValue(val, this.yearOffset);
-		}
-		else
-		{
-			throw new FormatException();
 		}
 	}
 

@@ -155,10 +155,8 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 					for (int idx = 0; idx < xfMap.Length; idx++)
 					{
 						var xf = (XmlElement)xfsElem.ChildNodes[idx];
-						if (xf.HasAttribute("applyNumberFormat"))
-						{
-							xfMap[idx] = int.Parse(xf.GetAttribute("numFmtId"));
-						}
+						var fmtIdStr = xf.GetAttribute("numFmtId");
+						xfMap[idx] = int.Parse(fmtIdStr);
 					}
 				}
 				else
