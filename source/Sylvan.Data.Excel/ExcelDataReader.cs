@@ -676,7 +676,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 				throw Error(ordinal);
 		}
 
-		throw new FormatException();
+		throw new InvalidCastException();
 	}
 
 	ExcelFormulaException Error(int ordinal)
@@ -728,7 +728,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 				if (falseString == null && trueString != null) return false;
 				if (trueString == null && falseString != null) return true;
 
-				throw new FormatException();
+				throw new InvalidCastException();
 			case ExcelDataType.Error:
 				var code = fi.ErrorCode;
 				throw new ExcelFormulaException(ordinal, RowNumber, code);
@@ -835,7 +835,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 		{
 			return str[0];
 		}
-		throw new FormatException();
+		throw new InvalidCastException();
 	}
 
 	/// <inheritdoc/>

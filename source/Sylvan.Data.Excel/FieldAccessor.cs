@@ -82,7 +82,7 @@ sealed class EnumAccessor<T> : IFieldAccessor<T>
 		return
 			parser(span, true, out T value)
 			? value
-			: throw new FormatException();
+			: throw new InvalidCastException();
 	}
 }
 
