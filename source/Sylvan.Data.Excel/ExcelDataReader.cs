@@ -39,6 +39,9 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 	string? trueString;
 	string? falseString;
 
+	CultureInfo culture;
+	string? dateTimeFormat;
+
 	/// <inheritdoc/>
 	public sealed override Type GetFieldType(int ordinal)
 	{
@@ -74,6 +77,8 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 
 		this.trueString = options.TrueString;
 		this.falseString = options.FalseString;
+		this.culture = options.Culture;
+		this.dateTimeFormat = options.DateTimeFormat;
 	}
 
 	/// <summary>
@@ -507,6 +512,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 	public override DateTime GetDateTime(int ordinal)
 	{
 		var type = this.GetExcelDataType(ordinal);
+		DateTime value;
 		switch (type)
 		{
 			case ExcelDataType.Boolean:
@@ -517,15 +523,27 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 			case ExcelDataType.Numeric:
 				var val = GetDouble(ordinal);
 				var fmt = GetFormat(ordinal) ?? ExcelFormat.Default;
-				return TryGetDate(fmt, val, DateEpochYear, out var dt)
-					? dt
-					: throw new FormatException();
+				return TryGetDate(fmt, val, DateEpochYear, out value)
+					? value
+					: throw new InvalidCastException();
 			case ExcelDataType.DateTime:
 				return GetDateTimeValue(ordinal);
 			case ExcelDataType.String:
 			default:
 				var str = GetString(ordinal);
-				return DateTime.Parse(str);
+				var fmtStr = this.columnSchema[ordinal]?.Format ?? this.dateTimeFormat;
+				if (fmtStr != null)
+				{
+					if (DateTime.TryParseExact(str, fmtStr, culture, DateTimeStyles.None, out value))
+					{
+						return value;
+					}
+				}
+
+				return
+					DateTime.TryParse(str, culture, DateTimeStyles.None, out value)
+					? value
+					: throw new InvalidCastException();
 		}
 	}
 
@@ -651,7 +669,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 		switch (cell.type)
 		{
 			case ExcelDataType.String:
-				return double.Parse(cell.strValue!, CultureInfo.InvariantCulture);
+				return double.Parse(cell.strValue!, culture);
 			case ExcelDataType.Numeric:
 				return cell.numValue;
 			case ExcelDataType.Error:
@@ -701,7 +719,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 					{
 						return b;
 					}
-					if (int.TryParse(strVal, out int v))
+					if (int.TryParse(strVal, NumberStyles.None, culture, out int v))
 					{
 						return v != 0;
 					}
@@ -735,7 +753,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 		switch (type)
 		{
 			case ExcelDataType.String:
-				return int.Parse(GetString(ordinal));
+				return int.Parse(GetString(ordinal), culture);
 			case ExcelDataType.Numeric:
 				var val = GetDouble(ordinal);
 				var iVal = (int)val;
@@ -813,7 +831,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 	public sealed override char GetChar(int ordinal)
 	{
 		var str = GetString(ordinal);
-		if(str.Length == 1)
+		if (str.Length == 1)
 		{
 			return str[0];
 		}
@@ -823,7 +841,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 	/// <inheritdoc/>
 	public sealed override long GetChars(int ordinal, long dataOffset, char[]? buffer, int bufferOffset, int length)
 	{
-		throw new NotSupportedException();		
+		throw new NotSupportedException();
 	}
 
 	/// <inheritdoc/>

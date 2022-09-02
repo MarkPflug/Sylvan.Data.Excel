@@ -1,0 +1,12 @@
+﻿<worksheet>
+	<sheetData>
+		<row r="1">
+			<c r="A1" s="1">
+				<v>44721</v>
+			</c>
+			<c r="B1" t="string">
+				<v>09/06/2022</v>
+			</c>
+		</row>
+	</sheetData>
+</worksheet>

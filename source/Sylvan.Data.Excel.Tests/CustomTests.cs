@@ -1,4 +1,4 @@
-﻿using System.Data;
+﻿using System;
 using Xunit;
 
 namespace Sylvan.Data.Excel;
@@ -152,5 +152,53 @@ public class CustomTests
 		Assert.Equal("a", reader.GetString(0));
 		Assert.Equal("a", reader.GetString(1));
 		Assert.False(reader.Read());
+	}
+
+	[Fact]
+	public void DateFormat()
+	{
+		var edr = XlsxBuilder.Create(
+			TestData.DateFormatData, 
+			null, 
+			TestData.DateFormatStyle, 
+			o => o.DateTimeFormat = "dd/MM/yyyy"
+			);
+
+		Assert.True(edr.Read());
+
+		Assert.Equal(new DateTime(2022, 6, 9), edr.GetDateTime(0));
+		Assert.Equal(ExcelDataType.Numeric, edr.GetExcelDataType(0));
+		Assert.Equal("2022-06-09", edr.GetValue(0));
+
+		Assert.Equal(new DateTime(2022, 6, 9), edr.GetDateTime(1));
+		Assert.Equal(ExcelDataType.String, edr.GetExcelDataType(1));
+		Assert.Equal("09/06/2022", edr.GetValue(1));
+
+	}
+
+	[Fact]
+	public void DateFormat2()
+	{
+		var schema = Schema.Parse("a:date,b:date{dd/MM/yyyy}");
+		var edr = XlsxBuilder.Create(
+			TestData.DateFormatData,
+			null,
+			TestData.DateFormatStyle,
+			o => o.Schema = new ExcelSchema(false, schema)
+			);
+
+		Assert.True(edr.Read());
+
+		var value = new DateTime(2022, 6, 9);
+
+		Assert.Equal(value, edr.GetDateTime(0));
+		Assert.Equal(ExcelDataType.Numeric, edr.GetExcelDataType(0));
+		// applying a schema returns a DateTime value
+		Assert.Equal(value, edr.GetValue(0));
+
+		Assert.Equal(new DateTime(2022, 6, 9), edr.GetDateTime(1));
+		Assert.Equal(ExcelDataType.String, edr.GetExcelDataType(1));
+		Assert.Equal(value, edr.GetValue(1));
+
 	}
 }
