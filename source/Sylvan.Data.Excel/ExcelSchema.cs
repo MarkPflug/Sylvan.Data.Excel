@@ -6,7 +6,7 @@ using System.Linq;
 
 namespace Sylvan.Data.Excel;
 
-sealed class DefaultExcelSchema : IExcelSchemaProvider
+sealed class DefaultExcelSchema : ExcelSchemaProvider
 {
 	readonly bool hasHeaders;
 
@@ -28,27 +28,22 @@ sealed class DefaultExcelSchema : IExcelSchemaProvider
 		this.hasHeaders = hasHeaders;
 	}
 
-	public DbColumn? GetColumn(string sheetName, string? columName, int ordinal)
+	public override DbColumn? GetColumn(string sheetName, string? columName, int ordinal)
 	{
 		var name = hasHeaders ? columName : ExcelSchema.GetExcelColumnName(ordinal);
 		return new DefaultExcelSchemaColumn(name);
 	}
 
-	public bool HasHeaders(string sheetName)
+	public override bool HasHeaders(string sheetName)
 	{
 		return hasHeaders;
-	}
-
-	public int GetFieldCount(ExcelDataReader reader)
-	{
-		return reader.RowFieldCount;
 	}
 }
 
 /// <summary>
 /// An implementation of IExcelSchemaProvider that allows defining per-column types.
 /// </summary>
-public sealed class ExcelSchema : IExcelSchemaProvider
+public sealed class ExcelSchema : ExcelSchemaProvider
 {
 	/// <summary>
 	/// A schema that expects each sheet to have a header row, and describes
@@ -110,7 +105,9 @@ public sealed class ExcelSchema : IExcelSchemaProvider
 			{
 				foreach (var col in Columns)
 				{
-					if (StringComparer.OrdinalIgnoreCase.Equals(col.ColumnName, name))
+					var columnName = col.BaseColumnName ?? col.ColumnName;
+
+					if (StringComparer.OrdinalIgnoreCase.Equals(columnName, name))
 					{
 						return col;
 					}
@@ -118,7 +115,12 @@ public sealed class ExcelSchema : IExcelSchemaProvider
 			}
 			if (ordinal < Columns.Length)
 			{
-				return Columns[ordinal];
+				var col = Columns[ordinal];
+
+				if (col.BaseColumnName == null)
+				{
+					return Columns[ordinal];
+				}
 			}
 			return null;
 		}
@@ -143,7 +145,7 @@ public sealed class ExcelSchema : IExcelSchemaProvider
 	}
 
 	/// <inheritdoc/>
-	public DbColumn? GetColumn(string sheetName, string? columnName, int ordinal)
+	public override DbColumn? GetColumn(string sheetName, string? columnName, int ordinal)
 	{
 		if (sheets != null)
 		{
@@ -172,7 +174,7 @@ public sealed class ExcelSchema : IExcelSchemaProvider
 	}
 
 	/// <inheritdoc/>
-	public bool HasHeaders(string sheetName)
+	public override bool HasHeaders(string sheetName)
 	{
 		if (sheets != null && sheets.TryGetValue(sheetName, out SheetInfo? info))
 		{
@@ -196,11 +198,5 @@ public sealed class ExcelSchema : IExcelSchemaProvider
 			name = ((char)('A' + rem)) + name;
 		}
 		return name;
-	}
-
-	/// <inheritdoc/>
-	public int GetFieldCount(ExcelDataReader reader)
-	{
-		return reader.RowFieldCount;
 	}
 }

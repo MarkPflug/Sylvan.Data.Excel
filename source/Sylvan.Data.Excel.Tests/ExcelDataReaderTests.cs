@@ -950,6 +950,19 @@ public class XlsxTests
 		Assert.Equal("b", reader.GetName(1));
 		Assert.Equal("c", reader.GetName(2));
 	}
+
+	[Fact]
+	public void SchemaColumnRename()
+	{
+		var file = GetFile("Schema");
+		var s = Data.Schema.Parse("Name>Account Name,Date>Account Creation Date,Flagged>Is Flagged for Deletion");
+		var schema = new ExcelSchema(true, s);
+		var opts = new ExcelDataReaderOptions { Schema = schema };
+		var edr = ExcelDataReader.Create(file, opts);
+		Assert.Equal(1, edr.GetOrdinal("Account Name"));
+		Assert.Equal(2, edr.GetOrdinal("Account Creation Date"));
+		Assert.Equal(5, edr.GetOrdinal("Is Flagged for Deletion"));
+	}
 }
 
 public sealed class XlsTests : XlsxTests
