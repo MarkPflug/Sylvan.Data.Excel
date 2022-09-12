@@ -4,6 +4,24 @@ using System.Data.Common;
 namespace Sylvan.Data.Excel;
 
 /// <summary>
+/// A base implementation of IExcelSchemaProvider
+/// </summary>
+public abstract class ExcelSchemaProvider : IExcelSchemaProvider
+{
+	/// <inheritdoc/>
+	public abstract DbColumn? GetColumn(string sheetName, string? name, int ordinal);
+
+	/// <inheritdoc/>
+	public abstract bool HasHeaders(string sheetName);
+
+	/// <inheritdoc/>
+	public virtual int GetFieldCount(ExcelDataReader reader)
+	{
+		return reader.RowFieldCount;
+	}	
+}
+
+/// <summary>
 /// Provides schema information for an Excel data file.
 /// </summary>
 public interface IExcelSchemaProvider

@@ -1,5 +1,8 @@
 # Sylvan.Data.Excel Release Notes
 
+_0.3.3_
+  - Adds ExcelSchema support for renaming columns via BaseColumnName.
+
 _0.3.2_
   - Fix for format not being applied to some cells (Crystal Decisions).
   - Add DateTimeFormat option, which applies when dates are stored as strings.
