@@ -51,7 +51,7 @@ public abstract class ExcelDataWriterTests
 select
 e.id,
 e.Name, 
-createddate,
+CreatedDate,
 ClosedDate,
 s.name as state,
 o.name as Org,
@@ -79,7 +79,12 @@ left join core.Account oa
 			w.Write("data", data);
 		}
 
-		Directory.Delete("unpack", true);
+		try
+		{
+
+			Directory.Delete("unpack", true);
+		}
+		catch { }
 		ZipFile.ExtractToDirectory(f, Path.GetDirectoryName(f) + "unpack");
 
 		//var psi = new ProcessStartInfo(f)
