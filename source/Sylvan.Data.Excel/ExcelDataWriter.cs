@@ -13,7 +13,7 @@ public abstract class ExcelDataWriter : IDisposable
 {
 	private protected class SharedStringTable
 	{
-		Dictionary<SharedStringEntry, int> dict;
+		Dictionary<SharedStringEntry, string> dict;
 		List<SharedStringEntry> entries;
 
 		public int UniqueCount => entries.Count;
@@ -22,7 +22,7 @@ public abstract class ExcelDataWriter : IDisposable
 
 		public SharedStringTable()
 		{
-			this.dict = new Dictionary<SharedStringEntry, int>();
+			this.dict = new Dictionary<SharedStringEntry, string>();
 			this.entries = new List<SharedStringEntry>();
 		}
 
@@ -30,11 +30,13 @@ public abstract class ExcelDataWriter : IDisposable
 		{
 			public string str;
 			public bool isFormatted;
+			public string idxStr;
 
 			public SharedStringEntry(string str, bool isFormatted = false)
 			{
 				this.str = str;
 				this.isFormatted = isFormatted;
+				this.idxStr = "";
 			}
 
 			public override int GetHashCode()
@@ -47,13 +49,13 @@ public abstract class ExcelDataWriter : IDisposable
 			}
 		}
 
-		public int GetString(string str)
+		public string GetString(string str)
 		{
 			var entry = new SharedStringEntry(str);
-			int idx;
+			string idx;
 			if (!dict.TryGetValue(entry, out idx))
 			{
-				idx = this.entries.Count;
+				idx = this.entries.Count.ToString();
 				this.entries.Add(entry);
 				this.dict.Add(entry, idx);
 			}
@@ -71,6 +73,14 @@ public abstract class ExcelDataWriter : IDisposable
 	public static ExcelDataWriter Create(string file)
 	{
 		var stream = File.Create(file);
+		return new XlsxDataWriter(stream);
+	}
+
+	/// <summary>
+	/// Creates a new ExcelDataWriter.
+	/// </summary>
+	public static ExcelDataWriter Create(Stream stream)
+	{
 		return new XlsxDataWriter(stream);
 	}
 

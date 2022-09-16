@@ -48,7 +48,7 @@ public abstract class ExcelDataWriterTests
 	{
 		const string query = @"
 
-select
+select top 100
 e.id,
 e.Name, 
 CreatedDate,
@@ -87,11 +87,11 @@ left join core.Account oa
 		catch { }
 		ZipFile.ExtractToDirectory(f, Path.GetDirectoryName(f) + "unpack");
 
-		//var psi = new ProcessStartInfo(f)
-		//{
-		//	UseShellExecute = true,
-		//};
-		//Process.Start(psi);
+		var psi = new ProcessStartInfo(f)
+		{
+			UseShellExecute = true,
+		};
+		Process.Start(psi);
 
 
 	}

@@ -186,7 +186,7 @@ public sealed class ExcelSchema : ExcelSchemaProvider
 		}
 		return false;
 	}
-
+	
 	internal static string GetExcelColumnName(int idx)
 	{
 		var col = idx + 1;
