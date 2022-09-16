@@ -17,4 +17,8 @@
 		<InternalsVisibleTo Include="Sylvan.Data.Excel.Tests" />
 	</ItemGroup>
 
+	<ItemGroup>
+	  <PackageReference Include="System.IO.Packaging" Version="6.0.0" />
+	</ItemGroup>
+
 </Project>
