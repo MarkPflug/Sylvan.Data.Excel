@@ -2,10 +2,9 @@
 using System.Collections.Generic;
 using System.Data.Common;
 using System.IO;
-using System.Xml;
 using System.IO.Packaging;
 using System.Reflection;
-using System.Globalization;
+using System.Xml;
 
 namespace Sylvan.Data.Excel.Xlsx;
 
@@ -17,6 +16,7 @@ sealed class XlsxDataWriter : ExcelDataWriter
 
 	int fmtOffset = 165;
 	List<string> formats = new List<string>();
+	CompressionOption compression = CompressionOption.Normal;
 
 	public XlsxDataWriter(Stream stream) : base(stream)
 	{
@@ -32,7 +32,7 @@ sealed class XlsxDataWriter : ExcelDataWriter
 	{
 		this.worksheets.Add(worksheetName);
 		var idx = this.worksheets.Count;
-		var entry = zipArchive.CreatePart(new Uri("/xl/worksheets/sheet" + idx + ".xml", UriKind.Relative), "application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml", CompressionOption.Maximum);
+		var entry = zipArchive.CreatePart(new Uri("/xl/worksheets/sheet" + idx + ".xml", UriKind.Relative), "application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml", compression);
 		using var es = entry.GetStream();
 		using var xw = XmlWriter.Create(es, new XmlWriterSettings { CheckCharacters = false });
 		xw.WriteStartElement("worksheet", NS);
@@ -230,7 +230,7 @@ sealed class XlsxDataWriter : ExcelDataWriter
 
 	void WriteSharedStrings()
 	{
-		var e = this.zipArchive.CreatePart(new Uri("/xl/sharedStrings.xml", UriKind.Relative), "application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml", CompressionOption.Maximum);
+		var e = this.zipArchive.CreatePart(new Uri("/xl/sharedStrings.xml", UriKind.Relative), "application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml", compression);
 		using var s = e.GetStream();
 		using var w = XmlWriter.Create(s);
 		w.WriteStartElement("sst", NS);
