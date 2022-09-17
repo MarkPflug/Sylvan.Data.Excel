@@ -10,22 +10,13 @@
 			<scheme val="minor"/>
 		</font>
 	</fonts>
-	<fills count="2">
+	<fills count="1">
 		<fill>
 			<patternFill patternType="none"/>
-		</fill>
-		<fill>
-			<patternFill patternType="gray125"/>
-		</fill>
+		</fill>		
 	</fills>
 	<borders count="1">
-		<border>
-			<left/>
-			<right/>
-			<top/>
-			<bottom/>
-			<diagonal/>
-		</border>
+		<border/>
 	</borders>
 	<cellStyleXfs count="1">
 		<xf numFmtId="0" fontId="0" fillId="0" borderId="0"/>
@@ -38,6 +29,6 @@
 		<cellStyle name="Normal" xfId="0" builtinId="0"/>
 	</cellStyles>
 	<dxfs count="0"/>
-	<tableStyles count="0" defaultTableStyle="TableStyleMedium2" defaultPivotStyle="PivotStyleLight16"/>
+	<tableStyles count="0"/>
 	
 </styleSheet>
