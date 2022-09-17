@@ -26,7 +26,7 @@ public abstract class ExcelDataWriter : IDisposable
 			this.entries = new List<SharedStringEntry>();
 		}
 
-		struct SharedStringEntry
+		struct SharedStringEntry : IEquatable<SharedStringEntry>
 		{
 			public string str;
 			public bool isFormatted;
@@ -46,6 +46,21 @@ public abstract class ExcelDataWriter : IDisposable
 #else
 				throw new NotImplementedException();
 #endif
+			}
+
+			public override bool Equals(object obj)
+			{
+				return 
+					(obj is SharedStringEntry e) 
+					? this.Equals(e) 
+					: false;
+			}
+
+			public bool Equals(SharedStringEntry other)
+			{
+				return 
+					this.isFormatted == other.isFormatted &&
+					this.str.Equals(other.str);
 			}
 		}
 
