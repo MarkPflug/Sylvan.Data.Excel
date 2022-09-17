@@ -1,14 +1,7 @@
 <workbook 
 	xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" 
-		xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" 
-		>
-	<fileVersion appName="xl" lastEdited="7" lowestEdited="6" rupBuild="25601"/>
-	<workbookPr/>
-	<bookViews>
-		<workbookView xWindow="2445" yWindow="1860" windowWidth="21600" windowHeight="12735" />
-	</bookViews>
+	xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
 	<sheets>
 		<sheet name="Sheet1" sheetId="1" r:id="rId1"/>
 	</sheets>
-	<calcPr calcId="162913"/>
 </workbook>
