@@ -45,10 +45,10 @@ sealed class XlsxDataWriter : ExcelDataWriter
 		{
 			row++;
 			xw.WriteStartElement("row", NS);
-			xw.WriteStartAttribute("r");
-			xw.WriteValue(row);
-			xw.WriteEndAttribute();
-
+			//xw.WriteStartAttribute("r");
+			//xw.WriteValue(row);
+			//xw.WriteEndAttribute();
+			int last = -1;
 			for (int i = 0; i < data.FieldCount; i++)
 			{
 				var colName = data.GetName(i);
@@ -56,10 +56,14 @@ sealed class XlsxDataWriter : ExcelDataWriter
 
 				xw.WriteStartElement("c", NS);
 
-				xw.WriteStartAttribute("r");
-				var cn = ExcelSchema.GetExcelColumnName(i);
-				xw.WriteValue(cn + "" + row);
-				xw.WriteEndAttribute();
+				if (i != last + 1)
+				{
+					xw.WriteStartAttribute("r");
+					var cn = ExcelSchema.GetExcelColumnName(i);
+					xw.WriteValue(cn + "" + row);
+					xw.WriteEndAttribute();
+				}
+				last = i;
 
 				xw.WriteStartAttribute("t");
 				xw.WriteValue("s");
@@ -87,14 +91,14 @@ sealed class XlsxDataWriter : ExcelDataWriter
 		while (data.Read())
 		{
 			row++;
-			var rowStr = row.ToString();
+			string? rowStr = null;
 
 			xw.WriteStartElement("row", NS);
-			xw.WriteStartAttribute("r");
-			xw.WriteValue(rowStr);
-			//xw.WriteRaw(rowSpan, 0, cw);
-			xw.WriteEndAttribute();
+			//xw.WriteStartAttribute("r");
+			//xw.WriteValue(rowStr);
+			//xw.WriteEndAttribute();
 
+			int last = -1;
 			for (int i = 0; i < data.FieldCount; i++)
 			{
 				if (data.IsDBNull(i))
@@ -107,12 +111,18 @@ sealed class XlsxDataWriter : ExcelDataWriter
 
 				xw.WriteStartElement("c", NS);
 
-				xw.WriteStartAttribute("r");
-				var cn = colCode[i] ?? (colCode[i] = ExcelSchema.GetExcelColumnName(i));
-				xw.WriteValue(cn);
-				xw.WriteValue(rowStr);
-				//xw.WriteRaw(rowSpan, 0, cw);
-				xw.WriteEndAttribute();
+				if (i != last + 1)
+				{
+					xw.WriteStartAttribute("r");
+					var cn = ExcelSchema.GetExcelColumnName(i);
+					if (rowStr == null)
+						rowStr = row.ToString();
+					xw.WriteValue(cn);
+					xw.WriteValue(rowStr);
+					xw.WriteEndAttribute();
+				}
+				last = i;
+				
 
 				switch (c)
 				{
@@ -425,8 +435,6 @@ sealed class XlsxDataWriter : ExcelDataWriter
 
 		appX.WriteEndElement();
 	}
-
-
 
 	void Close()
 	{
