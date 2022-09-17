@@ -21,6 +21,7 @@ sealed class XlsxDataWriter : ExcelDataWriter
 	public XlsxDataWriter(Stream stream) : base(stream)
 	{
 		this.zipArchive = Package.Open(stream, FileMode.CreateNew);
+		
 		this.worksheets = new List<string>();
 		this.formats = new List<string>();
 		this.formats.Add("yyyy\\-mm\\-dd\\ hh:mm:ss");
@@ -32,7 +33,8 @@ sealed class XlsxDataWriter : ExcelDataWriter
 	{
 		this.worksheets.Add(worksheetName);
 		var idx = this.worksheets.Count;
-		var entry = zipArchive.CreatePart(new Uri("/xl/worksheets/sheet" + idx + ".xml", UriKind.Relative), "application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml", compression);
+		var partUri = new Uri("/xl/worksheets/sheet" + idx + ".xml", UriKind.Relative);
+		var entry = zipArchive.CreatePart(partUri, "application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml", compression);
 		using var es = entry.GetStream();
 		using var xw = XmlWriter.Create(es, new XmlWriterSettings { CheckCharacters = false });
 		xw.WriteStartElement("worksheet", NS);
@@ -301,7 +303,9 @@ sealed class XlsxDataWriter : ExcelDataWriter
 		appX.WriteValue(asmName.Name);
 		appX.WriteEndElement();
 		appX.WriteStartElement("AppVersion", PropNS);
-		appX.WriteValue(asmName.Version.ToString());
+		var v = asmName.Version;
+		var ver = v.Major + "." + v.Minor + "." + v.Build;
+		appX.WriteValue(ver);
 		appX.WriteEndElement();
 		appX.WriteEndElement();
 	}
@@ -325,15 +329,11 @@ sealed class XlsxDataWriter : ExcelDataWriter
 	{
 		var styleUri = new Uri("/xl/styles.xml", UriKind.Relative);
 		var appEntry = zipArchive.CreatePart(styleUri, "application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml");
-		zipArchive.CreateRelationship(styleUri, TargetMode.Internal, "http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties");
 		using var appStream = appEntry.GetStream();
 		using var appX = XmlWriter.Create(appStream);
 		appX.WriteStartElement("styleSheet", NS);
 
 		appX.WriteStartElement("numFmts", NS);
-		appX.WriteStartAttribute("count");
-		appX.WriteValue(formats.Count);
-		appX.WriteEndAttribute();
 		for (int i = 0; i < formats.Count; i++)
 		{
 			appX.WriteStartElement("numFmt", NS);
@@ -351,15 +351,46 @@ sealed class XlsxDataWriter : ExcelDataWriter
 		appX.WriteEndElement();
 
 
+		appX.WriteStartElement("fonts", NS);
+		appX.WriteStartElement("font", NS);
+		appX.WriteStartElement("name", NS);
+		appX.WriteAttributeString("val", "Calibri");
+		appX.WriteEndElement();
+		appX.WriteEndElement();
+		appX.WriteEndElement();
+
+		appX.WriteStartElement("fills");
+		appX.WriteStartElement("fill");
+		appX.WriteEndElement();
+		appX.WriteEndElement();
+
+		appX.WriteStartElement("borders");
+		appX.WriteStartElement("border");
+		appX.WriteEndElement();
+		appX.WriteEndElement();
+
+		appX.WriteStartElement("cellStyleXfs");
+		appX.WriteStartElement("xf");
+		appX.WriteEndElement();
+		appX.WriteEndElement();
+
+
+
+		
+
 		appX.WriteStartElement("cellXfs", NS);
-		appX.WriteStartAttribute("count");
-		appX.WriteValue(formats.Count + 1);
-		appX.WriteEndAttribute();
+		//appX.WriteStartAttribute("count");
+		//appX.WriteValue(formats.Count + 1);
+		//appX.WriteEndAttribute();
 
 		{
 			appX.WriteStartElement("xf", NS);
 
 			appX.WriteStartAttribute("numFmtId");
+			appX.WriteValue(0);
+			appX.WriteEndAttribute();
+
+			appX.WriteStartAttribute("xfId");
 			appX.WriteValue(0);
 			appX.WriteEndAttribute();
 
@@ -374,10 +405,24 @@ sealed class XlsxDataWriter : ExcelDataWriter
 			appX.WriteValue(fmtOffset + i);
 			appX.WriteEndAttribute();
 
+			appX.WriteStartAttribute("xfId");
+			appX.WriteValue(0);
+			appX.WriteEndAttribute();
+
 			appX.WriteEndElement();
 		}
 
 		appX.WriteEndElement();
+
+
+		appX.WriteStartElement("cellStyles");
+		appX.WriteStartElement("cellStyle");
+		appX.WriteAttributeString("name", "Normal");
+		appX.WriteAttributeString("xfId", "0");
+		appX.WriteEndElement();
+		appX.WriteEndElement();
+
+
 		appX.WriteEndElement();
 	}
 
