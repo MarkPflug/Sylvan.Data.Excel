@@ -31,6 +31,8 @@ sealed class XlsxDataWriter : ExcelDataWriter
 
 	public override void Write(string worksheetName, DbDataReader data)
 	{
+		if (this.worksheets.Contains(worksheetName))
+			throw new ArgumentException(nameof(worksheetName));
 		this.worksheets.Add(worksheetName);
 		var idx = this.worksheets.Count;
 		var partUri = new Uri("/xl/worksheets/sheet" + idx + ".xml", UriKind.Relative);
