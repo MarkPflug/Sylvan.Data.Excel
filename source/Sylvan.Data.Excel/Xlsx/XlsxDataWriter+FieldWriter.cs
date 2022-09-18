@@ -6,6 +6,20 @@ namespace Sylvan.Data.Excel.Xlsx;
 
 partial class XlsxDataWriter
 {
+	sealed class Context
+	{
+		public Context(XlsxDataWriter dw, XmlWriter xw, DbDataReader dr)
+		{
+			this.dw = dw;
+			this.xw = xw;
+			this.dr = dr;
+		}
+
+		internal XlsxDataWriter dw;
+		internal XmlWriter xw;
+		internal DbDataReader dr;
+
+	}
 	abstract class FieldWriter
 	{
 		protected char[] scratch = new char[100];
@@ -31,107 +45,116 @@ partial class XlsxDataWriter
 			}
 		}
 
-		public void WriteField(XlsxDataWriter dw, XmlWriter w, DbDataReader r, int ordinal)
-		{
-			w.WriteStartElement("c", NS);
-			Element(w);
-
-			w.WriteStartElement("v", NS);
-			WriteValue(dw, w, r, ordinal);
-			w.WriteEndElement();
-			w.WriteEndElement();
-		}
-
-		protected virtual void Element(XmlWriter w)
-		{
-
-		}
-
-		internal abstract void WriteValue(XlsxDataWriter dw, XmlWriter w, DbDataReader dr, int idx);
+		public abstract void WriteField(Context c, int ordinal);
 	}
 
 	sealed class StringFieldWriter : FieldWriter
 	{
-
-
-		protected override void Element(XmlWriter w)
+		public override void WriteField(Context c, int ordinal)
 		{
+			var w = c.xw;
+			w.WriteStartElement("c", NS);
 			w.WriteStartAttribute("t");
 			w.WriteValue("s");
 			w.WriteEndAttribute();
-		}
 
-		internal override void WriteValue(XlsxDataWriter dw, XmlWriter w, DbDataReader dr, int idx)
-		{
-			var s = dr.GetString(idx);
-			var ssIdx = dw.sharedStrings.GetString(s);
+			w.WriteStartElement("v", NS);
+
+			var s = c.dr.GetString(ordinal);
+			var ssIdx = c.dw.sharedStrings.GetString(s);
 			w.WriteValue(ssIdx);
+
+			w.WriteEndElement();
+			w.WriteEndElement();
 		}
 	}
 
 	sealed class DateTimeFieldWriter : FieldWriter
 	{
-		
-		protected override void Element(XmlWriter w)
+		public override void WriteField(Context c, int ordinal)
 		{
+			var w = c.xw;
+			w.WriteStartElement("c", NS);
+
 			w.WriteStartAttribute("t");
 			w.WriteValue("d");
 			w.WriteEndAttribute();
-
 			w.WriteStartAttribute("s");
 
 			var fmtId = "2";
 			w.WriteValue(fmtId);
 			w.WriteEndAttribute();
-		}
 
-		internal override void WriteValue(XlsxDataWriter dw, XmlWriter w, DbDataReader dr, int idx)
-		{
-			var dt = dr.GetDateTime(idx);
+			w.WriteStartElement("v", NS);
+
+			var dt = c.dr.GetDateTime(ordinal);
 			if (IsoDate.TryFormatIso(dt, scratch.AsSpan(), out var sl))
 			{
-				w.WriteRaw(scratch, 0, sl);
+				c.xw.WriteRaw(scratch, 0, sl);
 			}
+
+			w.WriteEndElement();
+			w.WriteEndElement();
 		}
 	}
 
 	sealed class DecimalFieldWriter : FieldWriter
 	{
-		
-		internal override void WriteValue(XlsxDataWriter dw, XmlWriter w, DbDataReader dr, int idx)
+		public override void WriteField(Context c, int ordinal)
 		{
-			var d = dr.GetDecimal(idx);
+			var w = c.xw;
+			w.WriteStartElement("c", NS);
+
+			w.WriteStartElement("v", NS);
+
+			var d = c.dr.GetDecimal(ordinal);
 			if (d.TryFormat(scratch.AsSpan(), out var sl))
 			{
 				w.WriteRaw(scratch, 0, sl);
 			}
+
+			w.WriteEndElement();
+			w.WriteEndElement();
 		}
 	}
 
 	sealed class DoubleFieldWriter : FieldWriter
 	{
-
-		internal override void WriteValue(XlsxDataWriter dw, XmlWriter w, DbDataReader dr, int idx)
+		public override void WriteField(Context c, int ordinal)
 		{
-			var d = dr.GetDouble(idx);
+			var w = c.xw;
+			w.WriteStartElement("c", NS);
+
+			w.WriteStartElement("v", NS);
+
+			var d = c.dr.GetDouble(ordinal);
 			if (d.TryFormat(scratch.AsSpan(), out var sl))
 			{
 				w.WriteRaw(scratch, 0, sl);
 			}
+
+			w.WriteEndElement();
+			w.WriteEndElement();
 		}
 	}
 
 	sealed class Int32FieldWriter : FieldWriter
 	{
-
-		internal override void WriteValue(XlsxDataWriter dw, XmlWriter w, DbDataReader dr, int idx)
+		public override void WriteField(Context c, int ordinal)
 		{
-			var val = dr.GetInt32(idx);
+			var w = c.xw;
+			w.WriteStartElement("c", NS);
+
+			w.WriteStartElement("v", NS);
+
+			var val = c.dr.GetInt32(ordinal);
 			if (val.TryFormat(scratch.AsSpan(), out var sl))
 			{
 				w.WriteRaw(scratch, 0, sl);
 			}
+
+			w.WriteEndElement();
+			w.WriteEndElement();
 		}
 	}
-
 }
