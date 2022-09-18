@@ -43,6 +43,7 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 		xw.WriteStartElement("sheetData", NS);
 		int row = 0;
 
+		var context = new Context(this, xw, data);
 
 		FieldWriter[] fieldWriter = new FieldWriter[data.FieldCount];
 		for (int i = 0; i < fieldWriter.Length; i++)
@@ -87,44 +88,12 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 			xw.WriteEndElement();
 		}
 
-		char[] scratch = new char[128];
-		
-		// TODO: this won't work for jagged.
-		string[] colCode = new string[data.FieldCount];
-
 		while (data.Read())
 		{
-			row++;
-			//string? rowStr = null;
-
 			xw.WriteStartElement("row", NS);
-
-			//int last = -1;
-			for (int i = 0; i < data.FieldCount; i++)
+			for (int i = 0; i < fieldWriter.Length; i++)
 			{
-				//if (data.IsDBNull(i))
-				//{
-				//	continue;
-				//}
-
-				var t = data.GetFieldType(i);
-				var c = Type.GetTypeCode(t);
-
-				//if (i != last + 1)
-				//{
-				//	xw.WriteStartAttribute("r");
-				//	var cn = ExcelSchema.GetExcelColumnName(i);
-				//	if (rowStr == null)
-				//		rowStr = row.ToString();
-				//	xw.WriteValue(cn);
-				//	xw.WriteValue(rowStr);
-				//	xw.WriteEndAttribute();
-				//}
-				//last = i;
-
-
-				var fw = i < fieldWriter.Length ? fieldWriter[i] : throw new Exception();
-				fw.WriteField(this, xw, data, i);
+				fieldWriter[i].WriteField(context, i);
 			}
 			xw.WriteEndElement();
 		}
