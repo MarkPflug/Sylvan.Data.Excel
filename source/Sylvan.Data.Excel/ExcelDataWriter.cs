@@ -22,62 +22,56 @@ public abstract class ExcelDataWriter : IDisposable
 
 		public SharedStringTable()
 		{
-			this.dict = new Dictionary<SharedStringEntry, string>();
-			this.entries = new List<SharedStringEntry>();
+			const int InitialSize = 128;
+			this.dict = new Dictionary<SharedStringEntry, string>(InitialSize);
+			this.entries = new List<SharedStringEntry>(InitialSize);
 		}
 
 		struct SharedStringEntry : IEquatable<SharedStringEntry>
 		{
 			public string str;
-			public bool isFormatted;
 			public string idxStr;
 
-			public SharedStringEntry(string str, bool isFormatted = false)
+			public SharedStringEntry(string str)
 			{
 				this.str = str;
-				this.isFormatted = isFormatted;
 				this.idxStr = "";
 			}
 
 			public override int GetHashCode()
 			{
-#if NETSTANDARD2_1_OR_GREATER
-				return HashCode.Combine(str, isFormatted);
-#else
-				throw new NotImplementedException();
-#endif
+				return str.GetHashCode();
 			}
 
 			public override bool Equals(object obj)
 			{
-				return 
-					(obj is SharedStringEntry e) 
-					? this.Equals(e) 
+				return
+					(obj is SharedStringEntry e)
+					? this.Equals(e)
 					: false;
 			}
 
 			public bool Equals(SharedStringEntry other)
 			{
-				return 
-					this.isFormatted == other.isFormatted &&
-					this.str.Equals(other.str);
+				return this.str.Equals(other.str);
 			}
 		}
 
 		public string GetString(string str)
 		{
 			var entry = new SharedStringEntry(str);
-			string idx;
-			if (!dict.TryGetValue(entry, out idx))
+			string idxStr;
+			if (!dict.TryGetValue(entry, out idxStr))
 			{
-				idx = this.entries.Count.ToString();
+				idxStr = this.entries.Count.ToString();
 				this.entries.Add(entry);
-				this.dict.Add(entry, idx);
+				this.dict.Add(entry, idxStr);
 			}
-			return idx;
+			return idxStr;
 		}
 	}
 
+	bool ownsStream;
 	readonly Stream stream;
 
 	private protected SharedStringTable sharedStrings;
@@ -88,7 +82,9 @@ public abstract class ExcelDataWriter : IDisposable
 	public static ExcelDataWriter Create(string file)
 	{
 		var stream = File.Create(file);
-		return new XlsxDataWriter(stream);
+		var w = new XlsxDataWriter(stream);
+		w.ownsStream = true;
+		return w;
 	}
 
 	/// <summary>
@@ -102,7 +98,8 @@ public abstract class ExcelDataWriter : IDisposable
 	/// <inheritdoc/>
 	public virtual void Dispose()
 	{
-		this.stream.Dispose();
+		if (ownsStream)
+			this.stream.Dispose();
 	}
 
 	private protected ExcelDataWriter(Stream stream)
