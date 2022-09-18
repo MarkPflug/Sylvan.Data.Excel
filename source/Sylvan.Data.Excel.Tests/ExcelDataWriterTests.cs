@@ -26,6 +26,27 @@ public abstract class ExcelDataWriterTests
 	protected abstract string GetFile([CallerMemberName] string name = "");
 
 	public abstract ExcelWorkbookType WorkbookType { get; }
+	public object Enumable { get; private set; }
+
+	static void Unpack(string file, string folder)
+	{
+		// useful for debugging.
+		try
+		{
+			Directory.Delete("unpack", true);
+		}
+		catch { }
+		ZipFile.ExtractToDirectory(file, Path.GetDirectoryName(file) + folder);
+	}
+
+	static void Open(string file)
+	{
+		var psi = new ProcessStartInfo(file)
+		{
+			UseShellExecute = true,
+		};
+		Process.Start(psi);
+	}
 
 	[Fact]
 	public void Test1()
@@ -39,8 +60,6 @@ public abstract class ExcelDataWriterTests
 			.Select(i => new { Name = "n" + i, Id = i, Value = Math.PI * i })
 			.AsDataReader();
 		w.Write("data", dat);
-
-
 	}
 
 	[Fact]
@@ -78,22 +97,34 @@ left join core.Account oa
 			var data = cmd.ExecuteReader();
 			w.Write("data", data);
 		}
-
-		try
-		{
-
-			Directory.Delete("unpack", true);
-		}
-		catch { }
-		ZipFile.ExtractToDirectory(f, Path.GetDirectoryName(f) + "unpack");
-
-		var psi = new ProcessStartInfo(f)
-		{
-			UseShellExecute = true,
-		};
-		Process.Start(psi);
-
-
 	}
 
+
+	[Fact]
+	public void TestCommonTypes()
+	{
+		Random r = new Random();
+		var data =
+			Enumerable.Range(1, 100)
+			.Select(
+				i => new
+				{
+					Id = i,
+					Name = "Name" + i,
+					ValueInt = r.Next(),
+					ValueDouble = r.NextDouble() * 100d,
+					Amount = (decimal)r.NextDouble(),
+					DateTime = new DateTime(2020, 1, 1).AddHours(i),
+					//Duration = TimeSpan.FromMinutes(Math.PI * i)
+				}
+			);
+
+		var f = GetFile();
+		var reader = data.AsDataReader();
+		using (var w = ExcelDataWriter.Create(f))
+		{
+			w.Write("data", reader);
+		}
+		Open(f);
+	}
 }

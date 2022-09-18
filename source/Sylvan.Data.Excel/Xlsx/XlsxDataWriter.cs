@@ -8,7 +8,7 @@ using System.Xml;
 
 namespace Sylvan.Data.Excel.Xlsx;
 
-sealed class XlsxDataWriter : ExcelDataWriter
+sealed partial class XlsxDataWriter : ExcelDataWriter
 {
 	Package zipArchive;
 
@@ -43,13 +43,17 @@ sealed class XlsxDataWriter : ExcelDataWriter
 		xw.WriteStartElement("sheetData", NS);
 		int row = 0;
 
+
+		FieldWriter[] fieldWriter = new FieldWriter[data.FieldCount];
+		for (int i = 0; i < fieldWriter.Length; i++)
+		{
+			fieldWriter[i] = FieldWriter.Get(data.GetFieldType(i));
+		}
+
 		// headers
 		{
 			row++;
 			xw.WriteStartElement("row", NS);
-			//xw.WriteStartAttribute("r");
-			//xw.WriteValue(row);
-			//xw.WriteEndAttribute();
 			int last = -1;
 			for (int i = 0; i < data.FieldCount; i++)
 			{
@@ -83,152 +87,44 @@ sealed class XlsxDataWriter : ExcelDataWriter
 			xw.WriteEndElement();
 		}
 
-		//char[] rowSpan = new char[12];
-		//int cw = 0;
 		char[] scratch = new char[128];
-		int sl = 0;
-
-		string[] colCode = new string[data.FieldCount]; // TODO: this won't work for jagged.
+		
+		// TODO: this won't work for jagged.
+		string[] colCode = new string[data.FieldCount];
 
 		while (data.Read())
 		{
 			row++;
-			string? rowStr = null;
+			//string? rowStr = null;
 
 			xw.WriteStartElement("row", NS);
-			//xw.WriteStartAttribute("r");
-			//xw.WriteValue(rowStr);
-			//xw.WriteEndAttribute();
 
-			int last = -1;
+			//int last = -1;
 			for (int i = 0; i < data.FieldCount; i++)
 			{
-				if (data.IsDBNull(i))
-				{
-					continue;
-				}
+				//if (data.IsDBNull(i))
+				//{
+				//	continue;
+				//}
 
 				var t = data.GetFieldType(i);
 				var c = Type.GetTypeCode(t);
 
-				xw.WriteStartElement("c", NS);
+				//if (i != last + 1)
+				//{
+				//	xw.WriteStartAttribute("r");
+				//	var cn = ExcelSchema.GetExcelColumnName(i);
+				//	if (rowStr == null)
+				//		rowStr = row.ToString();
+				//	xw.WriteValue(cn);
+				//	xw.WriteValue(rowStr);
+				//	xw.WriteEndAttribute();
+				//}
+				//last = i;
 
-				if (i != last + 1)
-				{
-					xw.WriteStartAttribute("r");
-					var cn = ExcelSchema.GetExcelColumnName(i);
-					if (rowStr == null)
-						rowStr = row.ToString();
-					xw.WriteValue(cn);
-					xw.WriteValue(rowStr);
-					xw.WriteEndAttribute();
-				}
-				last = i;
-				
 
-				switch (c)
-				{
-					case TypeCode.String:
-						xw.WriteStartAttribute("t");
-						xw.WriteValue("s");
-						xw.WriteEndAttribute();
-						break;
-					case TypeCode.DateTime:
-						xw.WriteStartAttribute("t");
-						xw.WriteValue("d");
-						xw.WriteEndAttribute();
-
-						xw.WriteStartAttribute("s");
-
-						var dt = data.GetDateTime(i);
-
-						var fmtId = "2";
-
-						if (dt.TimeOfDay == TimeSpan.Zero)
-						{
-							fmtId = "3";
-						}
-						else
-						{
-							if (dt.Millisecond == 0)
-							{
-								fmtId = "1";
-							}
-						}
-						xw.WriteValue(fmtId);
-
-						xw.WriteEndAttribute();
-
-						break;
-				}
-
-				xw.WriteStartElement("v", NS);
-
-				double dval;
-				int i32val;
-				long i64val;
-				switch (c)
-				{
-					case TypeCode.Boolean:
-						var b = data.GetBoolean(i);
-						xw.WriteValue(b ? "TRUE" : "FALSE");
-						break;
-					case TypeCode.Int16:
-						i32val = data.GetInt16(i);
-						xw.WriteValue(i32val);
-						break;
-					case TypeCode.Int32:
-						i32val = data.GetInt32(i);
-						if (i32val.TryFormat(scratch.AsSpan(), out sl))
-						{
-							xw.WriteRaw(scratch, 0, sl);
-						}
-						//xw.WriteValue(i32val);
-						break;
-					case TypeCode.Int64:
-						i64val = data.GetInt64(i);
-						xw.WriteValue(i64val);
-						break;
-					case TypeCode.Single:
-						dval = data.GetFloat(i);
-						if (dval.TryFormat(scratch.AsSpan(), out sl))
-						{
-							xw.WriteRaw(scratch, 0, sl);
-						}
-						//xw.WriteValue(dval);
-						break;
-					case TypeCode.Double:
-						dval = data.GetDouble(i);
-						if (dval.TryFormat(scratch.AsSpan(), out sl))
-						{
-							xw.WriteRaw(scratch, 0, sl);
-						}
-						//xw.WriteValue(dval);
-						break;
-					case TypeCode.Decimal:
-						var d = data.GetDecimal(i);
-						if (d.TryFormat(scratch.AsSpan(), out sl))
-						{
-							xw.WriteRaw(scratch, 0, sl);
-						}
-						//xw.WriteValue(d);
-						break;
-					case TypeCode.String:
-						var s = data.GetString(i);
-						var ssIdx = this.sharedStrings.GetString(s);
-						xw.WriteValue(ssIdx);
-						break;
-					case TypeCode.DateTime:
-						var dt = data.GetDateTime(i);
-						if (IsoDate.TryFormatIso(dt, scratch.AsSpan(), out sl))
-						{
-							xw.WriteRaw(scratch, 0, sl);
-						}
-						//xw.WriteValue(dt.ToString("yyyy-MM-ddTHH:mm:ss"));
-						break;
-				}
-				xw.WriteEndElement();
-				xw.WriteEndElement();
+				var fw = i < fieldWriter.Length ? fieldWriter[i] : throw new Exception();
+				fw.WriteField(this, xw, data, i);
 			}
 			xw.WriteEndElement();
 		}
@@ -440,7 +336,8 @@ sealed class XlsxDataWriter : ExcelDataWriter
 
 	void Close()
 	{
-		WriteCoreProps();
+		// core.xml isn't needed.
+		//WriteCoreProps();
 		WriteAppProps();
 		WriteSharedStrings();
 		WriteStyles();
