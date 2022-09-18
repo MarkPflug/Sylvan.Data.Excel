@@ -45,10 +45,10 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 
 		var context = new Context(this, xw, data);
 
-		FieldWriter[] fieldWriter = new FieldWriter[data.FieldCount];
-		for (int i = 0; i < fieldWriter.Length; i++)
+		FieldWriter[] fieldWriters = new FieldWriter[data.FieldCount];
+		for (int i = 0; i < fieldWriters.Length; i++)
 		{
-			fieldWriter[i] = FieldWriter.Get(data.GetFieldType(i));
+			fieldWriters[i] = FieldWriter.Get(data.GetFieldType(i));
 		}
 
 		// headers
@@ -91,9 +91,9 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 		while (data.Read())
 		{
 			xw.WriteStartElement("row", NS);
-			for (int i = 0; i < fieldWriter.Length; i++)
+			for (int i = 0; i < fieldWriters.Length; i++)
 			{
-				fieldWriter[i].WriteField(context, i);
+				fieldWriters[i].WriteField(context, i);
 			}
 			xw.WriteEndElement();
 		}
