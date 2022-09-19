@@ -101,6 +101,28 @@ public abstract class ExcelDataWriterTests
 	}
 
 	[Fact]
+	public void WriteNullCharString()
+	{
+		var str = "a\0b";
+		var data =
+			Enumerable.Range(1, 10)
+			.Select(
+				i => new
+				{
+					Id = i, //int32
+					String = str
+				}
+			);
+
+		var f = GetFile();
+		var reader = data.AsDataReader();
+		var w = ExcelDataWriter.Create(f);
+		w.Write("data", reader);
+		// TODO: How expensive would it be to detect this in Write?
+		Assert.ThrowsAny<Exception>(() => w.Dispose());
+	}
+
+	[Fact]
 	public void WriteBoolean()
 	{
 		var data =
