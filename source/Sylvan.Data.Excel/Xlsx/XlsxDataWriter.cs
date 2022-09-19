@@ -18,10 +18,10 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 	List<string> formats = new List<string>();
 	CompressionOption compression = CompressionOption.Normal;
 
-	public XlsxDataWriter(Stream stream) : base(stream)
+	public XlsxDataWriter(Stream stream, ExcelDataWriterOptions options) : base(stream, options)
 	{
 		this.zipArchive = Package.Open(stream, FileMode.CreateNew);
-		
+
 		this.worksheets = new List<string>();
 		this.formats = new List<string>();
 		// used for datetime
@@ -30,7 +30,7 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 		this.formats.Add("yyyy\\-mm\\-dd");
 	}
 
-	public override void Write(string worksheetName, DbDataReader data)
+	public override WriteResult Write(string worksheetName, DbDataReader data)
 	{
 		if (this.worksheets.Contains(worksheetName))
 			throw new ArgumentException(nameof(worksheetName));
@@ -49,7 +49,7 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 		{
 			fieldWriters[i] = FieldWriter.Get(data.GetFieldType(i));
 		}
-
+		var row = 0;
 		// headers
 		{
 			xw.Write("<row>");
@@ -72,8 +72,9 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 			}
 
 			xw.Write("</row>");
+			row++;
 		}
-
+		bool complete = true;
 		while (data.Read())
 		{
 			xw.Write("<row>");
@@ -82,9 +83,18 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 				fieldWriters[i].WriteField(context, i);
 			}
 			xw.Write("</row>");
+			row++;
+			if (row >= 0x100000)
+			{
+				// avoid calling Read again so the reader will remain in a state
+				// where it can be written to a different worksheet.
+				complete = false;
+				break;
+			}
 		}
 
 		xw.Write("</sheetData></worksheet>");
+		return new WriteResult(row, complete);
 	}
 
 	const string NS = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
@@ -238,7 +248,7 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 
 
 
-		
+
 
 		appX.WriteStartElement("cellXfs", NS);
 		//appX.WriteStartAttribute("count");

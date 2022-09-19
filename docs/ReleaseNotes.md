@@ -1,5 +1,8 @@
 # Sylvan.Data.Excel Release Notes
 
+_0.4.0_
+  - Adds ExcelDataWriter which supports writing a `DbDataReader` to an .xlsx worksheet.
+
 _0.3.4_
   - Fix .xls reader to not require files use Row/DBCell records, which are not written by all sources.
 

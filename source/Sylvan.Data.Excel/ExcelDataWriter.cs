@@ -79,20 +79,33 @@ public abstract class ExcelDataWriter : IDisposable
 	/// <summary>
 	/// Creates a new ExcelDataWriter.
 	/// </summary>
-	public static ExcelDataWriter Create(string file)
+	public static ExcelDataWriter Create(string file, ExcelDataWriterOptions? options = null)
 	{
-		var stream = File.Create(file);
-		var w = new XlsxDataWriter(stream);
-		w.ownsStream = true;
-		return w;
+		options = options ?? ExcelDataWriterOptions.Default;
+		var type = ExcelDataReader.GetWorkbookType(file);
+		switch (type)
+		{
+			case ExcelWorkbookType.ExcelXml:
+				var stream = File.Create(file);
+				var w = new XlsxDataWriter(stream, options);
+				w.ownsStream = true;
+				return w;
+		}
+		throw new NotSupportedException();
 	}
 
 	/// <summary>
 	/// Creates a new ExcelDataWriter.
 	/// </summary>
-	public static ExcelDataWriter Create(Stream stream)
+	public static ExcelDataWriter Create(Stream stream, ExcelWorkbookType type, ExcelDataWriterOptions? options = null)
 	{
-		return new XlsxDataWriter(stream);
+		options = options ?? ExcelDataWriterOptions.Default;
+		switch (type)
+		{
+			case ExcelWorkbookType.ExcelXml:
+				return new XlsxDataWriter(stream, options);
+		}
+		throw new NotSupportedException();
 	}
 
 	/// <inheritdoc/>
@@ -102,7 +115,7 @@ public abstract class ExcelDataWriter : IDisposable
 			this.stream.Dispose();
 	}
 
-	private protected ExcelDataWriter(Stream stream)
+	private protected ExcelDataWriter(Stream stream, ExcelDataWriterOptions options)
 	{
 		this.stream = stream;
 		this.sharedStrings = new SharedStringTable();
@@ -111,5 +124,29 @@ public abstract class ExcelDataWriter : IDisposable
 	/// <summary>
 	/// Writes data to a new worksheet with the given name.
 	/// </summary>
-	public abstract void Write(string worksheetName, DbDataReader data);
+	/// <returns>The number of rows written.</returns>
+	public abstract WriteResult Write(string worksheetName, DbDataReader data);
+
+	/// <summary>
+	/// A value indicating the result of the write operation.
+	/// </summary>
+	public readonly struct WriteResult
+	{
+		readonly int value;
+
+		internal WriteResult(int val, bool complete)
+		{
+			this.value = complete ? val : -val;
+		}
+
+		/// <summary>
+		/// Gets the number of rows written.
+		/// </summary>
+		public int RowsWritten => value < 0 ? -value : value;
+
+		/// <summary>
+		/// Indicates if all rows from the 
+		/// </summary>
+		public bool IsComplete => value >= 0;
+	}
 }

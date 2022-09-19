@@ -32,6 +32,8 @@ partial class XlsxDataWriter
 
 			switch (code)
 			{
+				case TypeCode.Boolean:
+					return new BooleanFieldWriter();
 				case TypeCode.DateTime:
 					return new DateTimeFieldWriter();
 				case TypeCode.String:
@@ -56,6 +58,21 @@ partial class XlsxDataWriter
 		public abstract void WriteField(Context c, int ordinal);
 	}
 
+	sealed class ObjectFieldWriter : FieldWriter
+	{
+		public override void WriteField(Context c, int ordinal)
+		{
+			var val = c.dr.GetValue(ordinal);
+			var w = c.xw;
+			w.Write("<c t=\"s\"><v>");
+
+			var s = val?.ToString() ?? "";
+			var ssIdx = c.dw.sharedStrings.GetString(s);
+			w.Write(ssIdx);
+			w.Write("</v></c>");
+		}
+	}
+
 	sealed class StringFieldWriter : FieldWriter
 	{
 		public override void WriteField(Context c, int ordinal)
@@ -65,6 +82,18 @@ partial class XlsxDataWriter
 			var s = c.dr.GetString(ordinal);
 			var ssIdx = c.dw.sharedStrings.GetString(s);
 			w.Write(ssIdx);
+			w.Write("</v></c>");
+		}
+	}
+
+	sealed class BooleanFieldWriter : FieldWriter
+	{
+		public override void WriteField(Context c, int ordinal)
+		{
+			var w = c.xw;
+			w.Write("<c t=\"b\"><v>");
+			var val = c.dr.GetBoolean(ordinal);
+			w.Write(val ? '1' : '0');
 			w.Write("</v></c>");
 		}
 	}
