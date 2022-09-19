@@ -49,73 +49,45 @@ public abstract class ExcelDataWriterTests
 	}
 
 	[Fact]
-	public void Test1()
-	{
-		var f = GetFile();
-		using var w = ExcelDataWriter.Create(f);
-
-		var dat =
-			Enumerable
-			.Range(0, 100)
-			.Select(i => new { Name = "n" + i, Id = i, Value = Math.PI * i })
-			.AsDataReader();
-		w.Write("data", dat);
-	}
-
-	[Fact]
-	public void Test3()
-	{
-		const string query = @"
-
-select top 100
-e.id,
-e.Name, 
-CreatedDate,
-ClosedDate,
-s.name as state,
-o.name as Org,
-coalesce(ca.Name, ca.firstname + ' ' + ca.lastname) as creator,
-coalesce(ca.Name, ca.firstname + ' ' + ca.lastname) as owner
-
-from sc.issue e
-left join sc.issuestatus s
-	on e.statusid  = s.id
-left join core.Organization o
-	on e.OrganizationId = o.Id
-left join core.Account ca
-	on e.CreatorId = ca.id
-left join core.Account oa
-	on e.OwnerId = oa.id";
-
-		var f = GetFile();
-		using (var w = ExcelDataWriter.Create(f))
-		{
-			var conn = new SqlConnection("Data Source=.;Initial Catalog=sc2;Integrated Security=true;");
-			conn.Open();
-			var cmd = conn.CreateCommand();
-			cmd.CommandText = query;
-			var data = cmd.ExecuteReader();
-			w.Write("data", data);
-		}
-	}
-
-
-	[Fact]
 	public void TestCommonTypes()
 	{
+		// tests the most common types.
 		Random r = new Random();
 		var data =
 			Enumerable.Range(1, 100)
 			.Select(
 				i => new
 				{
-					Id = i,
-					Name = "Name" + i,
-					ValueInt = r.Next(),
-					ValueDouble = r.NextDouble() * 100d,
-					Amount = (decimal)r.NextDouble(),
-					DateTime = new DateTime(2020, 1, 1).AddHours(i),
-					//Duration = TimeSpan.FromMinutes(Math.PI * i)
+					Id = i, //int32
+					Name = "Name" + i, //string
+					ValueInt = r.Next(), // another, bigger int
+					ValueDouble = r.NextDouble() * 100d, // double
+					Amount = (decimal)r.NextDouble(), // decimal
+					DateTime = new DateTime(2020, 1, 1).AddHours(i), // datetime
+				}
+			);
+
+		var f = GetFile();
+		var reader = data.AsDataReader();
+		using (var w = ExcelDataWriter.Create(f))
+		{
+			w.Write("data", reader);
+		}
+	}
+
+
+	[Fact]
+	public void WriteBoolean()
+	{
+		// tests the most common types.
+		Random r = new Random();
+		var data =
+			Enumerable.Range(1, 100)
+			.Select(
+				i => new
+				{
+					Id = i, //int32
+					Boolean = (i & 1) != 0
 				}
 			);
 
@@ -150,7 +122,7 @@ left join core.Account oa
 		{
 			w.Write("data", reader);
 		}
-		Open(f);
 	}
+
 #endif
 }

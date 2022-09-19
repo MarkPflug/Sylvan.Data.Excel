@@ -1,5 +1,8 @@
 # Sylvan.Data.Excel Release Notes
 
+_0.4.0_
+  - Adds ExcelDataWriter which supports writing a `DbDataReader` to an .xlsx worksheet.
+
 _0.3.3_
   - Adds ExcelSchema support for renaming columns via BaseColumnName.
 

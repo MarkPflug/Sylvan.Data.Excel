@@ -1,9 +1,11 @@
 # Sylvan.Data.Excel
 
-A cross-platform .NET library for reading Excel data files in .xlsx, .xlsb and .xls formats.
-Provides readonly, row by row, forward-only access to the data.
-There is no support for creating or editing Excel files.
-Provides a familiar API via `DbDataReader`, which is ideal for accessing rectangular, tabular data sets. Exposes a single, unified API for accessing all supported file formats.
+A cross-platform .NET library for reading and writing Excel data files. The most commonly used formats: .xlsx, .xlsb and .xls, are supported for reading. Only .xlsx is supported for writing.
+
+ExcelDataReader provides readonly, row by row, forward-only access to the data. Provides a familiar API via `DbDataReader`, which is ideal for accessing rectangular, tabular data sets. It exposes a single, unified API for accessing all supported file formats.
+
+ExcelDataWriter supports writing data from a `DbDataReader` to an Excel worksheet.
+
 The library is a purely managed implementation with no external dependencies.
 
 This library is currently the [fastest and lowest allocating](https://github.com/MarkPflug/Benchmarks/blob/main/docs/ExcelBenchmarks.md) 
@@ -18,7 +20,7 @@ Be aware that I will be unlikely to investigate any issue unless an example file
 
 `Install-Package Sylvan.Data.Excel`
 
-## Basic Usage
+## ExcelDataReader
 
 ExcelDataReader derives from DbDataReader, so it exposes an API that should be familiar for anyone who has worked with ADO.NET before. The field accessors allow reading data in an efficient, strongly-typed manner: `GetString`, `GetInt32`, `GetDateTime`, `GetBoolean`, etc. 
 
@@ -26,8 +28,7 @@ The `GetExcelDataType` method allows inspecting the native Excel data type of a 
 
 ### Reading Raw Data
 
-The ExcelDataReader provides a forward only, row by row access to the data
-in a worksheet. It allows iterating over sheets using the `NextResult()` method, and iterating over rows using the `Read()` method. Fields are accessed using standard accessors, most commonly `GetString()`. `GetString()` is designed to not throw an exception, except in the case that a cell contains a formula error.
+The ExcelDataReader provides a forward only, row by row access to the data in a worksheet. It allows iterating over sheets using the `NextResult()` method, and iterating over rows using the `Read()` method. Fields are accessed using standard accessors, most commonly `GetString()`. `GetString()` is designed to not throw an exception, except in the case that a cell contains a formula error.
 
 ```C#
 using Sylvan.Data.Excel;
@@ -81,7 +82,7 @@ class MyRecord
 }
 ```
 
-### Exporting Excel data to CSV(s) 
+### Converting Excel data to CSV(s) 
 
 The Sylvan.Data.Csv library can be used to convert Excel worksheet data to CSV.
 
@@ -97,4 +98,18 @@ do
 	using CsvDataWriter cdw = CsvDataWriter.Create("data-" + sheetName + ".csv")
 	cdw.Write(edr);
 } while(edr.NextResult());
+```
+
+## ExcelDataWriter
+
+The `ExcelDataWriter` type is used to create Excel workbooks and write `DbDataReader` data as worksheets.
+
+```C#
+// *critical* to dispose (using) ExcelDataWriter.
+using var edw = ExcelDataWriter.Create("data.xmls");
+DbDataReader dr;
+dr = GetQueryResults("UserReport");
+edw.Write("UserReport", dr);
+dr = GetQueryResults("SecurityAudit");
+edw.Write("SecurityAudit", dr);
 ```
