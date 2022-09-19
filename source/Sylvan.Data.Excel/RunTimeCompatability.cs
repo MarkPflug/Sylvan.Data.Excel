@@ -1,4 +1,4 @@
-﻿#if !NETSTANDARD2_1_OR_GREATER
+﻿#if !SPAN
 
 using System;
 

@@ -43,7 +43,7 @@ public abstract class ExcelDataWriter : IDisposable
 				return str.GetHashCode();
 			}
 
-			public override bool Equals(object obj)
+			public override bool Equals(object? obj)
 			{
 				return
 					(obj is SharedStringEntry e)
@@ -60,7 +60,7 @@ public abstract class ExcelDataWriter : IDisposable
 		public string GetString(string str)
 		{
 			var entry = new SharedStringEntry(str);
-			string idxStr;
+			string? idxStr;
 			if (!dict.TryGetValue(entry, out idxStr))
 			{
 				idxStr = this.entries.Count.ToString();

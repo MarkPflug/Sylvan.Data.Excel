@@ -1,14 +1,16 @@
 ﻿using System;
 using System.Data.Common;
-using System.Xml;
+using System.IO;
 
 namespace Sylvan.Data.Excel.Xlsx;
 
 partial class XlsxDataWriter
 {
+	static DateTime Epoch = new DateTime(1900, 1, 1, 0, 0, 0, DateTimeKind.Unspecified);
+
 	sealed class Context
 	{
-		public Context(XlsxDataWriter dw, XmlWriter xw, DbDataReader dr)
+		public Context(XlsxDataWriter dw, TextWriter xw, DbDataReader dr)
 		{
 			this.dw = dw;
 			this.xw = xw;
@@ -16,7 +18,7 @@ partial class XlsxDataWriter
 		}
 
 		internal XlsxDataWriter dw;
-		internal XmlWriter xw;
+		internal TextWriter xw;
 		internal DbDataReader dr;
 
 	}
@@ -41,6 +43,12 @@ partial class XlsxDataWriter
 				case TypeCode.Decimal:
 					return new DecimalFieldWriter();
 				default:
+#if DATE_ONLY
+					if (type == typeof(DateOnly))
+					{
+						return new DateOnlyFieldWriter();
+					}
+#endif
 					throw new NotSupportedException();
 			}
 		}
@@ -53,19 +61,11 @@ partial class XlsxDataWriter
 		public override void WriteField(Context c, int ordinal)
 		{
 			var w = c.xw;
-			w.WriteStartElement("c", NS);
-			w.WriteStartAttribute("t");
-			w.WriteValue("s");
-			w.WriteEndAttribute();
-
-			w.WriteStartElement("v", NS);
-
+			w.Write("<c t=\"s\"><v>");
 			var s = c.dr.GetString(ordinal);
 			var ssIdx = c.dw.sharedStrings.GetString(s);
-			w.WriteValue(ssIdx);
-
-			w.WriteEndElement();
-			w.WriteEndElement();
+			w.Write(ssIdx);
+			w.Write("</v></c>");
 		}
 	}
 
@@ -74,47 +74,68 @@ partial class XlsxDataWriter
 		public override void WriteField(Context c, int ordinal)
 		{
 			var w = c.xw;
-			w.WriteStartElement("c", NS);
-
-			w.WriteStartAttribute("t");
-			w.WriteValue("d");
-			w.WriteEndAttribute();
-			w.WriteStartAttribute("s");
-
-			var fmtId = "2";
-			w.WriteValue(fmtId);
-			w.WriteEndAttribute();
-
-			w.WriteStartElement("v", NS);
+			w.Write("<c s=\"1\"><v>");
 
 			var dt = c.dr.GetDateTime(ordinal);
-			if (IsoDate.TryFormatIso(dt, scratch.AsSpan(), out var sl))
+			var val = (dt - Epoch).TotalDays + 2;
+#if SPAN
+			if (val.TryFormat(scratch.AsSpan(), out var sl))
 			{
-				c.xw.WriteRaw(scratch, 0, sl);
+				w.Write(scratch, 0, sl);
 			}
+#else
+			w.Write(val);
+#endif
 
-			w.WriteEndElement();
-			w.WriteEndElement();
+			w.Write("</v></c>");
 		}
 	}
+
+#if DATE_ONLY
+
+	sealed class DateOnlyFieldWriter : FieldWriter
+	{
+
+		static readonly TimeOnly Midnight = new TimeOnly(0);
+
+
+		public override void WriteField(Context c, int ordinal)
+		{
+			var w = c.xw;
+			w.Write("<c s=\"2\"><v>");
+
+			var dt = c.dr.GetFieldValue<DateOnly>(ordinal);
+			var val = (dt.ToDateTime(Midnight) - Epoch).TotalDays + 2;
+
+			if (val.TryFormat(scratch.AsSpan(), out var sl))
+			{
+				w.Write(scratch, 0, sl);
+			}
+
+			w.Write("</v></c>");
+		}
+	}
+
+#endif
 
 	sealed class DecimalFieldWriter : FieldWriter
 	{
 		public override void WriteField(Context c, int ordinal)
 		{
 			var w = c.xw;
-			w.WriteStartElement("c", NS);
+			w.Write("<c><v>");
 
-			w.WriteStartElement("v", NS);
-
-			var d = c.dr.GetDecimal(ordinal);
-			if (d.TryFormat(scratch.AsSpan(), out var sl))
+			var val = c.dr.GetDecimal(ordinal);
+#if SPAN
+			if (val.TryFormat(scratch.AsSpan(), out var sl))
 			{
-				w.WriteRaw(scratch, 0, sl);
+				w.Write(scratch, 0, sl);
 			}
+#else
+			w.Write(val);
+#endif
 
-			w.WriteEndElement();
-			w.WriteEndElement();
+			w.Write("</v></c>");
 		}
 	}
 
@@ -123,18 +144,19 @@ partial class XlsxDataWriter
 		public override void WriteField(Context c, int ordinal)
 		{
 			var w = c.xw;
-			w.WriteStartElement("c", NS);
+			w.Write("<c><v>");
 
-			w.WriteStartElement("v", NS);
-
-			var d = c.dr.GetDouble(ordinal);
-			if (d.TryFormat(scratch.AsSpan(), out var sl))
+			var val = c.dr.GetDouble(ordinal);
+#if SPAN
+			if (val.TryFormat(scratch.AsSpan(), out var sl))
 			{
-				w.WriteRaw(scratch, 0, sl);
+				w.Write(scratch, 0, sl);
 			}
+#else
+			w.Write(val);
+#endif
 
-			w.WriteEndElement();
-			w.WriteEndElement();
+			w.Write("</v></c>");
 		}
 	}
 
@@ -143,18 +165,19 @@ partial class XlsxDataWriter
 		public override void WriteField(Context c, int ordinal)
 		{
 			var w = c.xw;
-			w.WriteStartElement("c", NS);
-
-			w.WriteStartElement("v", NS);
+			w.Write("<c><v>");
 
 			var val = c.dr.GetInt32(ordinal);
+#if SPAN
 			if (val.TryFormat(scratch.AsSpan(), out var sl))
 			{
-				w.WriteRaw(scratch, 0, sl);
+				w.Write(scratch, 0, sl);
 			}
+#else
+			w.Write(val);
+#endif
 
-			w.WriteEndElement();
-			w.WriteEndElement();
+			w.Write("</v></c>");
 		}
 	}
 }
