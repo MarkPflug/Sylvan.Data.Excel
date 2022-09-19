@@ -24,8 +24,9 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 		
 		this.worksheets = new List<string>();
 		this.formats = new List<string>();
-		this.formats.Add("yyyy\\-mm\\-dd\\ hh:mm:ss");
+		// used for datetime
 		this.formats.Add("yyyy\\-mm\\-dd\\ hh:mm:ss.000");
+		// used for dateonly
 		this.formats.Add("yyyy\\-mm\\-dd");
 	}
 
@@ -38,10 +39,8 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 		var partUri = new Uri("/xl/worksheets/sheet" + idx + ".xml", UriKind.Relative);
 		var entry = zipArchive.CreatePart(partUri, "application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml", compression);
 		using var es = entry.GetStream();
-		using var xw = XmlWriter.Create(es, new XmlWriterSettings { CheckCharacters = false });
-		xw.WriteStartElement("worksheet", NS);
-		xw.WriteStartElement("sheetData", NS);
-		int row = 0;
+		using var xw = new StreamWriter(es);
+		xw.Write($"<worksheet xmlns=\"{NS}\"><sheetData>");
 
 		var context = new Context(this, xw, data);
 
@@ -53,53 +52,39 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 
 		// headers
 		{
-			row++;
-			xw.WriteStartElement("row", NS);
-			int last = -1;
+			xw.Write("<row>");
 			for (int i = 0; i < data.FieldCount; i++)
 			{
 				var colName = data.GetName(i);
-				if (string.IsNullOrEmpty(colName)) { continue; }
-
-				xw.WriteStartElement("c", NS);
-
-				if (i != last + 1)
+				if (string.IsNullOrEmpty(colName))
 				{
-					xw.WriteStartAttribute("r");
-					var cn = ExcelSchema.GetExcelColumnName(i);
-					xw.WriteValue(cn + "" + row);
-					xw.WriteEndAttribute();
+					xw.Write("<c/>");
 				}
-				last = i;
+				else
+				{
+					xw.Write("<c t=\"s\"><v>");
 
-				xw.WriteStartAttribute("t");
-				xw.WriteValue("s");
-				xw.WriteEndAttribute();
+					var ssIdx = this.sharedStrings.GetString(colName);
+					xw.Write(ssIdx);
 
-				xw.WriteStartElement("v", NS);
-
-				var ssIdx = this.sharedStrings.GetString(colName);
-				xw.WriteValue(ssIdx);
-
-				xw.WriteEndElement();
-				xw.WriteEndElement();
+					xw.Write("</v></c>");
+				}
 			}
 
-			xw.WriteEndElement();
+			xw.Write("</row>");
 		}
 
 		while (data.Read())
 		{
-			xw.WriteStartElement("row", NS);
+			xw.Write("<row>");
 			for (int i = 0; i < fieldWriters.Length; i++)
 			{
 				fieldWriters[i].WriteField(context, i);
 			}
-			xw.WriteEndElement();
+			xw.Write("</row>");
 		}
 
-		xw.WriteEndElement();
-		xw.WriteEndElement();
+		xw.Write("</sheetData></worksheet>");
 	}
 
 	const string NS = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
@@ -180,7 +165,7 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 		appX.WriteValue(asmName.Name);
 		appX.WriteEndElement();
 		appX.WriteStartElement("AppVersion", PropNS);
-		var v = asmName.Version;
+		var v = asmName.Version!;
 		var ver = v.Major + "." + v.Minor + "." + v.Build;
 		appX.WriteValue(ver);
 		appX.WriteEndElement();

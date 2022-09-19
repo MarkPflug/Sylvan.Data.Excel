@@ -42,7 +42,7 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 		var sheetsPart = package.GetEntry("xl/workbook.bin");
 		var sheetsRelsPart = package.GetEntry("xl/_rels/workbook.bin.rels");
 
-		if (sheetsPart == null)
+		if (sheetsPart == null || sheetsRelsPart == null)
 			throw new InvalidDataException();
 
 		Dictionary<string, string> sheetRelMap = new Dictionary<string, string>();
@@ -53,19 +53,22 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 			var nsm = new XmlNamespaceManager(doc.NameTable);
 			nsm.AddNamespace("r", RelationsNS);
 			var nodes = doc.SelectNodes("/r:Relationships/r:Relationship", nsm);
-			foreach (XmlElement node in nodes)
+			if (nodes != null)
 			{
-				var id = node.GetAttribute("Id");
-				var target = node.GetAttribute("Target");
-				if (target.StartsWith("/"))
+				foreach (XmlElement node in nodes)
 				{
-				}
-				else
-				{
-					target = "xl/" + target;
-				}
+					var id = node.GetAttribute("Id");
+					var target = node.GetAttribute("Target");
+					if (target.StartsWith("/"))
+					{
+					}
+					else
+					{
+						target = "xl/" + target;
+					}
 
-				sheetRelMap.Add(id, target);
+					sheetRelMap.Add(id, target);
+				}
 			}
 		}
 

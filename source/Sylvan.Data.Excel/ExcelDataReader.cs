@@ -48,7 +48,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 		AssertRange(ordinal);
 		if (ordinal < fieldCount)
 		{
-			return this.columnSchema[ordinal].DataType;
+			return this.columnSchema[ordinal].DataType ?? typeof(object);
 		}
 		return typeof(object);
 	}

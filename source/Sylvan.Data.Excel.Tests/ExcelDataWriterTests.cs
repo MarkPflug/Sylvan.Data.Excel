@@ -127,4 +127,30 @@ left join core.Account oa
 		}
 		Open(f);
 	}
+
+#if NET6_0_OR_GREATER
+
+	[Fact]
+	public void TestDateOnly()
+	{
+		Random r = new Random();
+		var data =
+			Enumerable.Range(1, 100)
+			.Select(
+				i => new
+				{
+					Id = i,
+					DateOnly = new DateOnly(2020, 1, 1).AddDays(i),
+				}
+			);
+
+		var f = GetFile();
+		var reader = data.AsDataReader();
+		using (var w = ExcelDataWriter.Create(f))
+		{
+			w.Write("data", reader);
+		}
+		Open(f);
+	}
+#endif
 }
