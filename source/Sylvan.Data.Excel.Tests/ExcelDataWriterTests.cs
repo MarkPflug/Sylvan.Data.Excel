@@ -75,12 +75,34 @@ public abstract class ExcelDataWriterTests
 		}
 	}
 
+	[Fact]
+	public void WriteBigString()
+	{
+		// this is the largest string that can be written.
+		// larger, and Excel will complain, and truncate it.
+		var bigStr = new string('a', short.MaxValue);
+		var data =
+			Enumerable.Range(1, 10)
+			.Select(
+				i => new
+				{
+					Id = i, //int32
+					BigString = bigStr
+				}
+			);
+
+		var f = GetFile();
+		var reader = data.AsDataReader();
+		using (var w = ExcelDataWriter.Create(f))
+		{
+			w.Write("data", reader);
+		}
+		Open(f);
+	}
 
 	[Fact]
 	public void WriteBoolean()
 	{
-		// tests the most common types.
-		Random r = new Random();
 		var data =
 			Enumerable.Range(1, 100)
 			.Select(
@@ -105,7 +127,6 @@ public abstract class ExcelDataWriterTests
 	[Fact]
 	public void TestDateOnly()
 	{
-		Random r = new Random();
 		var data =
 			Enumerable.Range(1, 100)
 			.Select(

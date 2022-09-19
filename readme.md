@@ -102,7 +102,7 @@ do
 
 ## ExcelDataWriter
 
-The `ExcelDataWriter` type is used to create Excel workbooks and write `DbDataReader` data as worksheets.
+The `ExcelDataWriter` type is used to create Excel workbooks and write `DbDataReader` data as worksheets. The goal of this type was to create a minimal, Excel-compatible file as efficiently as possible.
 
 ```C#
 // *critical* to dispose (using) ExcelDataWriter.
