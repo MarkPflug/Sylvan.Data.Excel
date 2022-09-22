@@ -59,4 +59,9 @@ public sealed class ExcelDataReaderOptions
 	/// This is only used when accessing and converting values stored as a string.
 	/// </summary>
 	public CultureInfo Culture { get; set; }
+
+	/// <summary>
+	/// Indicates that the data stream should be disposed when the reader is disposed.
+	/// </summary>
+	public bool OwnsStream { get; set; }
 }

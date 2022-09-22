@@ -78,9 +78,18 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 		while (data.Read())
 		{
 			xw.Write("<row>");
-			for (int i = 0; i < fieldWriters.Length; i++)
+			var c = data.FieldCount;
+			for (int i = 0; i < c; i++)
 			{
-				fieldWriters[i].WriteField(context, i);
+				var fw = i < fieldWriters.Length ? fieldWriters[i] : ObjectFieldWriter.Instance;
+				if (data.IsDBNull(i))
+				{
+					xw.Write("<c/>");
+				}
+				else
+				{
+					fw.WriteField(context, i);
+				}
 			}
 			xw.Write("</row>");
 			row++;
@@ -106,7 +115,7 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 	{
 		var e = this.zipArchive.CreatePart(new Uri("/xl/sharedStrings.xml", UriKind.Relative), "application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml", compression);
 		using var s = e.GetStream();
-		using var w = XmlWriter.Create(s);
+		using var w = XmlWriter.Create(s, new XmlWriterSettings { CheckCharacters= false});
 		w.WriteStartElement("sst", NS);
 		w.WriteStartAttribute("uniqueCount");
 		var c = this.sharedStrings.UniqueCount;
@@ -116,7 +125,16 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 		{
 			w.WriteStartElement("si");
 			w.WriteStartElement("t");
-			w.WriteValue(this.sharedStrings[i]);
+			var str = this.sharedStrings[i];
+			// TODO: need a strategy for correcting values
+			// that can't be written to excel.
+			//if(str.Length > short.MaxValue)
+			//{
+			//	str = str.Substring(0, short.MaxValue);
+			//}
+			//// remove all control characters.
+			//str = Regex.Replace(str, "\\p{C}", "");
+			w.WriteValue(str);
 			w.WriteEndElement();
 			w.WriteEndElement();
 		}
@@ -127,7 +145,7 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 	{
 		var ns = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
 		var wbUri = new Uri("/xl/workbook.xml", UriKind.Relative);
-		var e = this.zipArchive.CreatePart(wbUri, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml");
+		var e = this.zipArchive.CreatePart(wbUri, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml", compression);
 		e.CreateRelationship(new Uri("/xl/sharedStrings.xml", UriKind.Relative), TargetMode.Internal, "http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings");
 		e.CreateRelationship(new Uri("/xl/styles.xml", UriKind.Relative), TargetMode.Internal, "http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles");
 		this.zipArchive.CreateRelationship(wbUri, TargetMode.Internal, "http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument");
@@ -165,7 +183,7 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 	void WriteAppProps()
 	{
 		var appUri = new Uri("/docProps/app.xml", UriKind.Relative);
-		var appEntry = zipArchive.CreatePart(appUri, "application/vnd.openxmlformats-officedocument.extended-properties+xml");
+		var appEntry = zipArchive.CreatePart(appUri, "application/vnd.openxmlformats-officedocument.extended-properties+xml", compression);
 		zipArchive.CreateRelationship(appUri, TargetMode.Internal, "http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties");
 		using var appStream = appEntry.GetStream();
 		using var appX = XmlWriter.Create(appStream);
@@ -185,7 +203,7 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 	void WriteCoreProps()
 	{
 		var appUri = new Uri("/docProps/core.xml", UriKind.Relative);
-		var appEntry = zipArchive.CreatePart(appUri, "application/vnd.openxmlformats-package.core-properties+xml");
+		var appEntry = zipArchive.CreatePart(appUri, "application/vnd.openxmlformats-package.core-properties+xml", compression);
 		zipArchive.CreateRelationship(appUri, TargetMode.Internal, "http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties");
 		using var appStream = appEntry.GetStream();
 		using var appX = XmlWriter.Create(appStream);
@@ -200,7 +218,7 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 	void WriteStyles()
 	{
 		var styleUri = new Uri("/xl/styles.xml", UriKind.Relative);
-		var appEntry = zipArchive.CreatePart(styleUri, "application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml");
+		var appEntry = zipArchive.CreatePart(styleUri, "application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml", compression);
 		using var appStream = appEntry.GetStream();
 		using var appX = XmlWriter.Create(appStream);
 		appX.WriteStartElement("styleSheet", NS);
