@@ -72,11 +72,11 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 		using (Stream sheetRelStream = sheetsRelsPart.Open())
 		{
 			var doc = new XmlDocument();
+			doc.Load(sheetRelStream);
 			if (doc.DocumentElement == null)
 			{
 				throw new InvalidDataException();
 			}
-			doc.Load(sheetRelStream);
 			var nsm = new XmlNamespaceManager(doc.NameTable);
 			nsm.AddNamespace("r", doc.DocumentElement.NamespaceURI);
 			var nodes = doc.SelectNodes("/r:Relationships/r:Relationship", nsm);

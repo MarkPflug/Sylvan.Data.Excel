@@ -40,6 +40,8 @@ partial class XlsxDataWriter
 					return new StringFieldWriter();
 				case TypeCode.Int32:
 					return new Int32FieldWriter();
+				case TypeCode.Int64:
+					return new Int64FieldWriter();
 				case TypeCode.Double:
 					return new DoubleFieldWriter();
 				case TypeCode.Decimal:
@@ -51,7 +53,7 @@ partial class XlsxDataWriter
 						return new DateOnlyFieldWriter();
 					}
 #endif
-					throw new NotSupportedException();
+					return new ObjectFieldWriter();
 			}
 		}
 
@@ -60,6 +62,8 @@ partial class XlsxDataWriter
 
 	sealed class ObjectFieldWriter : FieldWriter
 	{
+		public static readonly ObjectFieldWriter Instance = new ObjectFieldWriter();
+
 		public override void WriteField(Context c, int ordinal)
 		{
 			var val = c.dr.GetValue(ordinal);
@@ -197,6 +201,27 @@ partial class XlsxDataWriter
 			w.Write("<c><v>");
 
 			var val = c.dr.GetInt32(ordinal);
+#if SPAN
+			if (val.TryFormat(scratch.AsSpan(), out var sl))
+			{
+				w.Write(scratch, 0, sl);
+			}
+#else
+			w.Write(val);
+#endif
+
+			w.Write("</v></c>");
+		}
+	}
+
+	sealed class Int64FieldWriter : FieldWriter
+	{
+		public override void WriteField(Context c, int ordinal)
+		{
+			var w = c.xw;
+			w.Write("<c><v>");
+
+			var val = c.dr.GetInt64(ordinal);
 #if SPAN
 			if (val.TryFormat(scratch.AsSpan(), out var sl))
 			{

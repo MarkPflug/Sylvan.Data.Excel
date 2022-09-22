@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Sylvan.Data.Csv;
+using System;
 using System.Data.SqlClient;
 using System.Diagnostics;
 using System.IO;
@@ -140,6 +141,23 @@ public abstract class ExcelDataWriterTests
 		using (var w = ExcelDataWriter.Create(f))
 		{
 			w.Write("data", reader);
+		}
+		Open(f);
+	}
+
+	[Fact]
+	public void JaggedData()
+	{
+		// tests writing jagged data to excel.
+		var data = "a,b,c\n1,2,3\n1,2,3,4\n,1,2,3,4,5\n";
+		var r = new StringReader(data);
+		var csv = CsvDataReader.Create(r);
+		
+		var dr = csv.AsVariableField(c => c.RowFieldCount);
+		var f = GetFile();
+		using (var edw = ExcelDataWriter.Create(f))
+		{
+			edw.Write("data", dr);
 		}
 		Open(f);
 	}
