@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Data.Common;
 using System.IO;
-using System.IO.Packaging;
+using System.IO.Compression;
 using System.Reflection;
 using System.Xml;
 
@@ -10,17 +10,27 @@ namespace Sylvan.Data.Excel.Xlsx;
 
 sealed partial class XlsxDataWriter : ExcelDataWriter
 {
-	Package zipArchive;
+	static readonly XmlWriterSettings XmlSettings =
+		new XmlWriterSettings
+		{
+			CheckCharacters = false,
+			//IndentChars = " ",
+			//Indent = true,
+			//NewLineChars = "\n",
+			OmitXmlDeclaration = true,
+		};
+
+	ZipArchive zipArchive;
 
 	List<string> worksheets;
 
 	int fmtOffset = 165;
 	List<string> formats = new List<string>();
-	CompressionOption compression = CompressionOption.Normal;
+	CompressionLevel compression = CompressionLevel.Optimal;
 
 	public XlsxDataWriter(Stream stream, ExcelDataWriterOptions options) : base(stream, options)
 	{
-		this.zipArchive = Package.Open(stream, FileMode.CreateNew);
+		this.zipArchive = new ZipArchive(stream, ZipArchiveMode.Create);
 
 		this.worksheets = new List<string>();
 		this.formats = new List<string>();
@@ -36,9 +46,9 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 			throw new ArgumentException(nameof(worksheetName));
 		this.worksheets.Add(worksheetName);
 		var idx = this.worksheets.Count;
-		var partUri = new Uri("/xl/worksheets/sheet" + idx + ".xml", UriKind.Relative);
-		var entry = zipArchive.CreatePart(partUri, "application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml", compression);
-		using var es = entry.GetStream();
+		var entryName = "xl/worksheets/sheet" + idx + ".xml";
+		var entry = zipArchive.CreateEntry(entryName, compression);// "application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml", compression);
+		using var es = entry.Open();
 		using var xw = new StreamWriter(es);
 		xw.Write($"<worksheet xmlns=\"{NS}\"><sheetData>");
 
@@ -107,24 +117,32 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 	}
 
 	const string NS = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
-	const string RelNS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
+	const string PkgRelNS = "http://schemas.openxmlformats.org/package/2006/relationships";
+	const string ODRelNS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
 	const string PropNS = "http://schemas.openxmlformats.org/officeDocument/2006/extended-properties";
 	const string CoreNS = "http://schemas.openxmlformats.org/package/2006/metadata/core-properties";
+	const string ContentTypeNS = "http://schemas.openxmlformats.org/package/2006/content-types";
+
+
+	const string WorkbookPath = "xl/workbook.xml";
+	const string AppPath = "docProps/app.xml";
+
 
 	void WriteSharedStrings()
 	{
-		var e = this.zipArchive.CreatePart(new Uri("/xl/sharedStrings.xml", UriKind.Relative), "application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml", compression);
-		using var s = e.GetStream();
-		using var w = XmlWriter.Create(s, new XmlWriterSettings { CheckCharacters= false});
-		w.WriteStartElement("sst", NS);
-		w.WriteStartAttribute("uniqueCount");
+		var e = this.zipArchive.CreateEntry("xl/sharedStrings.xml", compression);
+		//"application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml", compression);
+		using var s = e.Open();
+		using var xw = XmlWriter.Create(s, XmlSettings);
+		xw.WriteStartElement("sst", NS);
+		xw.WriteStartAttribute("uniqueCount");
 		var c = this.sharedStrings.UniqueCount;
-		w.WriteValue(c);
-		w.WriteEndAttribute();
+		xw.WriteValue(c);
+		xw.WriteEndAttribute();
 		for (int i = 0; i < c; i++)
 		{
-			w.WriteStartElement("si");
-			w.WriteStartElement("t");
+			xw.WriteStartElement("si");
+			xw.WriteStartElement("t");
 			var str = this.sharedStrings[i];
 			// TODO: need a strategy for correcting values
 			// that can't be written to excel.
@@ -134,186 +152,287 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 			//}
 			//// remove all control characters.
 			//str = Regex.Replace(str, "\\p{C}", "");
-			w.WriteValue(str);
-			w.WriteEndElement();
-			w.WriteEndElement();
+			xw.WriteValue(str);
+			xw.WriteEndElement();
+			xw.WriteEndElement();
 		}
-		w.WriteEndElement();
+		xw.WriteEndElement();
 	}
 
 	void WriteWorkbook()
 	{
 		var ns = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
-		var wbUri = new Uri("/xl/workbook.xml", UriKind.Relative);
-		var e = this.zipArchive.CreatePart(wbUri, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml", compression);
-		e.CreateRelationship(new Uri("/xl/sharedStrings.xml", UriKind.Relative), TargetMode.Internal, "http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings");
-		e.CreateRelationship(new Uri("/xl/styles.xml", UriKind.Relative), TargetMode.Internal, "http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles");
-		this.zipArchive.CreateRelationship(wbUri, TargetMode.Internal, "http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument");
+		var wbName = "xl/workbook.xml";
+		var e = this.zipArchive.CreateEntry(wbName, compression);//, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml", compression);
+																 //e.CreateRelationship(new Uri("/xl/sharedStrings.xml", UriKind.Relative), TargetMode.Internal, "http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings");
+																 //e.CreateRelationship(new Uri("/xl/styles.xml", UriKind.Relative), TargetMode.Internal, "http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles");
+																 //this.zipArchive.CreateRelationship(wbUri, TargetMode.Internal, "http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument");
 
-		using var s = e.GetStream();
-		using var w = XmlWriter.Create(s);
+		using var s = e.Open();
+		using var xw = XmlWriter.Create(s, XmlSettings);
 
-		w.WriteStartElement("workbook", ns);
+		xw.WriteStartElement("workbook", ns);
 
-		w.WriteStartElement("sheets", ns);
+		xw.WriteStartElement("sheets", ns);
 		for (int i = 0; i < this.worksheets.Count; i++)
 		{
 			var num = i + 1;
-			w.WriteStartElement("sheet", ns);
+			xw.WriteStartElement("sheet", ns);
 
-			w.WriteStartAttribute("name");
-			w.WriteValue(this.worksheets[i]);
-			w.WriteEndAttribute();
+			xw.WriteStartAttribute("name");
+			xw.WriteValue(this.worksheets[i]);
+			xw.WriteEndAttribute();
 
-			w.WriteStartAttribute("sheetId");
-			w.WriteValue(num);
-			w.WriteEndAttribute();
-			var rel = e.CreateRelationship(new Uri("/xl/worksheets/sheet" + num + ".xml", UriKind.Relative), TargetMode.Internal, "http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet");
+			xw.WriteStartAttribute("sheetId");
+			xw.WriteValue(num);
+			xw.WriteEndAttribute();
+			//var rel = e.CreateRelationship("/xl/worksheets/sheet" + num + ".xml", compression), UriKind.Relative), TargetMode.Internal, "http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet");
 
-			w.WriteStartAttribute("id", RelNS);
-			w.WriteValue(rel.Id);
-			w.WriteEndAttribute();
+			xw.WriteStartAttribute("id", ODRelNS);
+			xw.WriteValue("s" + num);
+			xw.WriteEndAttribute();
 
-			w.WriteEndElement();
+			xw.WriteEndElement();
 		}
-		w.WriteEndElement();
-		w.WriteEndElement();
+		xw.WriteEndElement();
+		xw.WriteEndElement();
 	}
 
 	void WriteAppProps()
 	{
-		var appUri = new Uri("/docProps/app.xml", UriKind.Relative);
-		var appEntry = zipArchive.CreatePart(appUri, "application/vnd.openxmlformats-officedocument.extended-properties+xml", compression);
-		zipArchive.CreateRelationship(appUri, TargetMode.Internal, "http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties");
-		using var appStream = appEntry.GetStream();
-		using var appX = XmlWriter.Create(appStream);
-		appX.WriteStartElement("Properties", PropNS);
+		var appEntry = zipArchive.CreateEntry("docProps/app.xml", compression);
+		//, "application/vnd.openxmlformats-officedocument.extended-properties+xml", compression);
+		//zipArchive.CreateRelationship(appUri, TargetMode.Internal, "http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties");
+		using var appStream = appEntry.Open();
+		using var xw = XmlWriter.Create(appStream, XmlSettings);
+		xw.WriteStartElement("Properties", PropNS);
 		var asmName = Assembly.GetExecutingAssembly().GetName();
-		appX.WriteStartElement("Application", PropNS);
-		appX.WriteValue(asmName.Name);
-		appX.WriteEndElement();
-		appX.WriteStartElement("AppVersion", PropNS);
+		xw.WriteStartElement("Application", PropNS);
+		xw.WriteValue(asmName.Name);
+		xw.WriteEndElement();
+		xw.WriteStartElement("AppVersion", PropNS);
 		var v = asmName.Version!;
 		var ver = v.Major + "." + v.Minor + "." + v.Build;
-		appX.WriteValue(ver);
-		appX.WriteEndElement();
-		appX.WriteEndElement();
+		xw.WriteValue(ver);
+		xw.WriteEndElement();
+		xw.WriteEndElement();
 	}
 
 	void WriteCoreProps()
 	{
-		var appUri = new Uri("/docProps/core.xml", UriKind.Relative);
-		var appEntry = zipArchive.CreatePart(appUri, "application/vnd.openxmlformats-package.core-properties+xml", compression);
-		zipArchive.CreateRelationship(appUri, TargetMode.Internal, "http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties");
-		using var appStream = appEntry.GetStream();
-		using var appX = XmlWriter.Create(appStream);
-		appX.WriteStartElement("coreProperties", CoreNS);
+		var appEntry = zipArchive.CreateEntry("docProps/core.xml", compression);
+		//, "application/vnd.openxmlformats-package.core-properties+xml", compression);
+		//zipArchive.CreateRelationship(appUri, TargetMode.Internal, "http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties");
+		using var appStream = appEntry.Open();
+		using var xw = XmlWriter.Create(appStream, XmlSettings);
+		xw.WriteStartElement("coreProperties", CoreNS);
 
-		appX.WriteStartElement("lastModifiedBy", CoreNS);
-		appX.WriteValue(Environment.UserName);
-		appX.WriteEndElement();
-		appX.WriteEndElement();
+		xw.WriteStartElement("lastModifiedBy", CoreNS);
+		xw.WriteValue(Environment.UserName);
+		xw.WriteEndElement();
+		xw.WriteEndElement();
+	}
+
+
+	void WritePkgMeta()
+	{
+		// pkg rels
+		{
+			var entry = zipArchive.CreateEntry("_rels/.rels", compression);
+			//, "application/vnd.openxmlformats-package.core-properties+xml", compression);
+			//zipArchive.CreateRelationship(appUri, TargetMode.Internal, "http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties");
+			using var appStream = entry.Open();
+			using var xw = XmlWriter.Create(appStream, XmlSettings);
+			xw.WriteStartElement("Relationships", PkgRelNS);
+
+			xw.WriteStartElement("Relationship", PkgRelNS);
+			xw.WriteAttributeString("Id", "wb");
+			xw.WriteAttributeString("Type", "http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties");
+			xw.WriteAttributeString("Target", AppPath);
+
+			xw.WriteEndElement();
+
+			xw.WriteStartElement("Relationship", PkgRelNS);
+			xw.WriteAttributeString("Id", "app");
+			xw.WriteAttributeString("Type", "http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument");
+			xw.WriteAttributeString("Target", WorkbookPath);
+
+			xw.WriteEndElement();
+
+			xw.WriteEndElement();
+		}
+
+		// workbook rels
+		{
+			var entry = zipArchive.CreateEntry("xl/_rels/workbook.xml.rels", compression);
+			//, "application/vnd.openxmlformats-package.core-properties+xml", compression);
+			//zipArchive.CreateRelationship(appUri, TargetMode.Internal, "http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties");
+			using var appStream = entry.Open();
+			using var xw = XmlWriter.Create(appStream, XmlSettings);
+			xw.WriteStartElement("Relationships", PkgRelNS);
+
+			xw.WriteStartElement("Relationship", PkgRelNS);
+			xw.WriteAttributeString("Id", "s");
+			xw.WriteAttributeString("Type", "http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles");
+			xw.WriteAttributeString("Target", "styles.xml");
+			xw.WriteEndElement();
+
+			xw.WriteStartElement("Relationship", PkgRelNS);
+			xw.WriteAttributeString("Id", "ss");
+			xw.WriteAttributeString("Type", "http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings");
+			xw.WriteAttributeString("Target", "sharedStrings.xml");
+			xw.WriteEndElement();
+
+			for (int i = 0; i < worksheets.Count; i++)
+			{
+				var num = (i + 1).ToString();
+				xw.WriteStartElement("Relationship", PkgRelNS);
+				xw.WriteAttributeString("Id", "s" + num);
+				xw.WriteAttributeString("Type", "http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet");
+				xw.WriteAttributeString("Target", "worksheets/sheet" + num + ".xml");
+				xw.WriteEndElement();
+			}
+
+			xw.WriteEndElement();
+		}
+
+
+		// content types
+		{
+			var entry = zipArchive.CreateEntry("[Content_Types].xml", compression);
+			//, "application/vnd.openxmlformats-package.core-properties+xml", compression);
+			//zipArchive.CreateRelationship(appUri, TargetMode.Internal, "http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties");
+			using var appStream = entry.Open();
+			using var xw = XmlWriter.Create(appStream, XmlSettings);
+			xw.WriteStartElement("Types", ContentTypeNS);
+
+			xw.WriteStartElement("Default", ContentTypeNS);
+			xw.WriteAttributeString("Extension", "xml");
+			xw.WriteAttributeString("ContentType", "application/xml");
+			xw.WriteEndElement();
+
+			xw.WriteStartElement("Default", ContentTypeNS);
+			xw.WriteAttributeString("Extension", "rels");
+			xw.WriteAttributeString("ContentType", "application/vnd.openxmlformats-package.relationships+xml");
+			xw.WriteEndElement();
+
+			static void Override(XmlWriter xw, string path, string type)
+			{
+				xw.WriteStartElement("Override", ContentTypeNS);
+				xw.WriteAttributeString("PartName", path);
+				xw.WriteAttributeString("ContentType", type);
+				xw.WriteEndElement();
+			}
+			Override(xw, "/xl/workbook.xml", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml");
+			Override(xw, "/xl/styles.xml", "application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml");
+			Override(xw, "/xl/sharedStrings.xml", "application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml");
+			Override(xw, "/docProps/app.xml", "application/vnd.openxmlformats-officedocument.extended-properties+xml");
+
+			for (int i = 0; i < worksheets.Count; i++)
+			{
+				var num = (i + 1).ToString();
+				Override(xw, "/xl/worksheets/sheet" + num + ".xml", "application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml");
+			}
+
+			xw.WriteEndElement();
+		}
 	}
 
 	void WriteStyles()
 	{
-		var styleUri = new Uri("/xl/styles.xml", UriKind.Relative);
-		var appEntry = zipArchive.CreatePart(styleUri, "application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml", compression);
-		using var appStream = appEntry.GetStream();
-		using var appX = XmlWriter.Create(appStream);
-		appX.WriteStartElement("styleSheet", NS);
+		var appEntry = zipArchive.CreateEntry("xl/styles.xml", compression);
+		//, "application /vnd.openxmlformats-officedocument.spreadsheetml.styles+xml", compression);
+		using var appStream = appEntry.Open();
+		using var wx = XmlWriter.Create(appStream, XmlSettings);
+		wx.WriteStartElement("styleSheet", NS);
 
-		appX.WriteStartElement("numFmts", NS);
+		wx.WriteStartElement("numFmts", NS);
 		for (int i = 0; i < formats.Count; i++)
 		{
-			appX.WriteStartElement("numFmt", NS);
+			wx.WriteStartElement("numFmt", NS);
 
-			appX.WriteStartAttribute("numFmtId");
-			appX.WriteValue(fmtOffset + i);
-			appX.WriteEndAttribute();
+			wx.WriteStartAttribute("numFmtId");
+			wx.WriteValue(fmtOffset + i);
+			wx.WriteEndAttribute();
 
-			appX.WriteStartAttribute("formatCode");
-			appX.WriteValue(formats[i]);
-			appX.WriteEndAttribute();
-			appX.WriteEndElement();
+			wx.WriteStartAttribute("formatCode");
+			wx.WriteValue(formats[i]);
+			wx.WriteEndAttribute();
+			wx.WriteEndElement();
 		}
 
-		appX.WriteEndElement();
+		wx.WriteEndElement();
 
 
-		appX.WriteStartElement("fonts", NS);
-		appX.WriteStartElement("font", NS);
-		appX.WriteStartElement("name", NS);
-		appX.WriteAttributeString("val", "Calibri");
-		appX.WriteEndElement();
-		appX.WriteEndElement();
-		appX.WriteEndElement();
+		wx.WriteStartElement("fonts", NS);
+		wx.WriteStartElement("font", NS);
+		wx.WriteStartElement("name", NS);
+		wx.WriteAttributeString("val", "Calibri");
+		wx.WriteEndElement();
+		wx.WriteEndElement();
+		wx.WriteEndElement();
 
-		appX.WriteStartElement("fills");
-		appX.WriteStartElement("fill");
-		appX.WriteEndElement();
-		appX.WriteEndElement();
+		wx.WriteStartElement("fills");
+		wx.WriteStartElement("fill");
+		wx.WriteEndElement();
+		wx.WriteEndElement();
 
-		appX.WriteStartElement("borders");
-		appX.WriteStartElement("border");
-		appX.WriteEndElement();
-		appX.WriteEndElement();
+		wx.WriteStartElement("borders");
+		wx.WriteStartElement("border");
+		wx.WriteEndElement();
+		wx.WriteEndElement();
 
-		appX.WriteStartElement("cellStyleXfs");
-		appX.WriteStartElement("xf");
-		appX.WriteEndElement();
-		appX.WriteEndElement();
+		wx.WriteStartElement("cellStyleXfs");
+		wx.WriteStartElement("xf");
+		wx.WriteEndElement();
+		wx.WriteEndElement();
 
-
-
-
-
-		appX.WriteStartElement("cellXfs", NS);
+		wx.WriteStartElement("cellXfs", NS);
 		//appX.WriteStartAttribute("count");
 		//appX.WriteValue(formats.Count + 1);
 		//appX.WriteEndAttribute();
 
 		{
-			appX.WriteStartElement("xf", NS);
+			wx.WriteStartElement("xf", NS);
 
-			appX.WriteStartAttribute("numFmtId");
-			appX.WriteValue(0);
-			appX.WriteEndAttribute();
+			wx.WriteStartAttribute("numFmtId");
+			wx.WriteValue(0);
+			wx.WriteEndAttribute();
 
-			appX.WriteStartAttribute("xfId");
-			appX.WriteValue(0);
-			appX.WriteEndAttribute();
+			wx.WriteStartAttribute("xfId");
+			wx.WriteValue(0);
+			wx.WriteEndAttribute();
 
-			appX.WriteEndElement();
+			wx.WriteEndElement();
 		}
 
 		for (int i = 0; i < formats.Count; i++)
 		{
-			appX.WriteStartElement("xf", NS);
+			wx.WriteStartElement("xf", NS);
 
-			appX.WriteStartAttribute("numFmtId");
-			appX.WriteValue(fmtOffset + i);
-			appX.WriteEndAttribute();
+			wx.WriteStartAttribute("numFmtId");
+			wx.WriteValue(fmtOffset + i);
+			wx.WriteEndAttribute();
 
-			appX.WriteStartAttribute("xfId");
-			appX.WriteValue(0);
-			appX.WriteEndAttribute();
+			wx.WriteStartAttribute("xfId");
+			wx.WriteValue(0);
+			wx.WriteEndAttribute();
 
-			appX.WriteEndElement();
+			wx.WriteEndElement();
 		}
 
-		appX.WriteEndElement();
+		wx.WriteEndElement();
 
 
-		appX.WriteStartElement("cellStyles");
-		appX.WriteStartElement("cellStyle");
-		appX.WriteAttributeString("name", "Normal");
-		appX.WriteAttributeString("xfId", "0");
-		appX.WriteEndElement();
-		appX.WriteEndElement();
+		wx.WriteStartElement("cellStyles");
+		wx.WriteStartElement("cellStyle");
+		wx.WriteAttributeString("name", "Normal");
+		wx.WriteAttributeString("xfId", "0");
+		wx.WriteEndElement();
+		wx.WriteEndElement();
 
 
-		appX.WriteEndElement();
+		wx.WriteEndElement();
 	}
 
 	void Close()
@@ -324,12 +443,13 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 		WriteSharedStrings();
 		WriteStyles();
 		WriteWorkbook();
+		WritePkgMeta();
 	}
 
 	public override void Dispose()
 	{
 		this.Close();
-		this.zipArchive.Close();
+		this.zipArchive.Dispose();
 		base.Dispose();
 	}
 }
