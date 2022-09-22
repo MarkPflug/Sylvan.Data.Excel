@@ -34,7 +34,7 @@ public abstract class ExcelDataWriterTests
 		// useful for debugging.
 		try
 		{
-			Directory.Delete("unpack", true);
+			Directory.Delete(folder, true);
 		}
 		catch { }
 		ZipFile.ExtractToDirectory(file, Path.GetDirectoryName(file) + folder);
@@ -98,6 +98,7 @@ public abstract class ExcelDataWriterTests
 		{
 			w.Write("data", reader);
 		}
+		Unpack(f, "dump");
 		Open(f);
 	}
 
