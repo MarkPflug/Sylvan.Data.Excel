@@ -74,6 +74,8 @@ public abstract class ExcelDataWriterTests
 		{
 			w.Write("data", reader);
 		}
+		Unpack(f, "dump");
+		Open(f);
 	}
 
 	[Fact]
@@ -184,6 +186,7 @@ public abstract class ExcelDataWriterTests
 		{
 			w.Write("data", reader);
 		}
+		Open(f);
 	}
 
 #endif
