@@ -6,7 +6,7 @@ There is no support for creating or editing Excel files.
 Provides a familiar API via `DbDataReader`, which is ideal for accessing rectangular, tabular data sets. Exposes a single, unified API for accessing all supported file formats.
 The library is a purely managed implementation with no external dependencies.
 
-This library is currently the [fastest and lowest allocating](https://github.com/MarkPflug/Benchmarks/blob/main/docs/ExcelBenchmarks.md) 
+This library is currently the [fastest and lowest allocating](https://github.com/MarkPflug/Benchmarks/blob/main/docs/ExcelReaderBenchmarks.md) 
 library for reading Excel data files in the .NET ecosystem, for all supported formats.
 
 If you encounter any issues while using this library, please report an issue in the github repository.
