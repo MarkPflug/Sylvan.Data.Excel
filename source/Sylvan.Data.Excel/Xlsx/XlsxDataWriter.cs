@@ -4,6 +4,7 @@ using System.Data.Common;
 using System.IO;
 using System.IO.Compression;
 using System.Reflection;
+using System.Text;
 using System.Xml;
 
 namespace Sylvan.Data.Excel.Xlsx;
@@ -43,21 +44,35 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 		if (this.worksheets.Contains(worksheetName))
 			throw new ArgumentException(nameof(worksheetName));
 
-		this.worksheets.Add(worksheetName);
-		var idx = this.worksheets.Count;
-		var entryName = "xl/worksheets/sheet" + idx + ".xml";
-		var entry = zipArchive.CreateEntry(entryName, Compression);// "application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml", compression);
-		using var es = entry.Open();
-		using var xw = new StreamWriter(es);
-		xw.Write($"<worksheet xmlns=\"{NS}\"><sheetData>");
-
-		var context = new Context(this, xw, data);
-
-		FieldWriter[] fieldWriters = new FieldWriter[data.FieldCount];
+		var fieldWriters = new FieldWriter[data.FieldCount];
 		for (int i = 0; i < fieldWriters.Length; i++)
 		{
 			fieldWriters[i] = FieldWriter.Get(data.GetFieldType(i));
 		}
+
+		this.worksheets.Add(worksheetName);
+		var idx = this.worksheets.Count;
+		var entryName = "xl/worksheets/sheet" + idx + ".xml";
+		var entry = zipArchive.CreateEntry(entryName, Compression);
+		using var es = entry.Open();
+		using var xw = new StreamWriter(es, Encoding.UTF8, 0x4000);
+		xw.Write($"<worksheet xmlns=\"{NS}\">");
+		// freeze the header row.
+		xw.Write("<sheetViews><sheetView workbookViewId=\"0\"><pane ySplit=\"1\" topLeftCell=\"A2\" state=\"frozen\"/></sheetView></sheetViews>");
+		xw.Write("<cols>");
+		for (int i = 0; i < fieldWriters.Length; i++)
+		{
+			var num = (i + 1).ToString();
+			var width = fieldWriters[i].GetWidth(data, i);
+			xw.Write($"<col min=\"{num}\" max=\"{num}\" width=\"{width}\"/>");
+		}
+
+		xw.Write("</cols>");
+		xw.Write("<sheetData>");
+
+		var context = new Context(this, xw, data);
+
+
 		var row = 0;
 		// headers
 		{
@@ -111,7 +126,12 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 			}
 		}
 
-		xw.Write("</sheetData></worksheet>");
+		xw.Write("</sheetData>");
+
+		var end = ExcelSchema.GetExcelColumnName(fieldWriters.Length - 1);
+		// apply filter to header row
+		xw.Write($"<autoFilter ref=\"A1:{end}{row}\"/>");
+		xw.Write("</worksheet>");
 		return new WriteResult(row, complete);
 	}
 
@@ -130,7 +150,6 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 	void WriteSharedStrings()
 	{
 		var e = this.zipArchive.CreateEntry("xl/sharedStrings.xml", Compression);
-		//"application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml", compression);
 		using var s = e.Open();
 		using var xw = XmlWriter.Create(s, XmlSettings);
 		xw.WriteStartElement("sst", NS);
@@ -162,10 +181,7 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 	{
 		var ns = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
 		var wbName = "xl/workbook.xml";
-		var e = this.zipArchive.CreateEntry(wbName, Compression);//, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml", compression);
-																 //e.CreateRelationship(new Uri("/xl/sharedStrings.xml", UriKind.Relative), TargetMode.Internal, "http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings");
-																 //e.CreateRelationship(new Uri("/xl/styles.xml", UriKind.Relative), TargetMode.Internal, "http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles");
-																 //this.zipArchive.CreateRelationship(wbUri, TargetMode.Internal, "http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument");
+		var e = this.zipArchive.CreateEntry(wbName, Compression);
 
 		using var s = e.Open();
 		using var xw = XmlWriter.Create(s, XmlSettings);
@@ -185,7 +201,6 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 			xw.WriteStartAttribute("sheetId");
 			xw.WriteValue(num);
 			xw.WriteEndAttribute();
-			//var rel = e.CreateRelationship("/xl/worksheets/sheet" + num + ".xml", compression), UriKind.Relative), TargetMode.Internal, "http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet");
 
 			xw.WriteStartAttribute("id", ODRelNS);
 			xw.WriteValue("s" + num);
@@ -200,8 +215,6 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 	void WriteAppProps()
 	{
 		var appEntry = zipArchive.CreateEntry("docProps/app.xml", Compression);
-		//, "application/vnd.openxmlformats-officedocument.extended-properties+xml", compression);
-		//zipArchive.CreateRelationship(appUri, TargetMode.Internal, "http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties");
 		using var appStream = appEntry.Open();
 		using var xw = XmlWriter.Create(appStream, XmlSettings);
 		xw.WriteStartElement("Properties", PropNS);
@@ -220,8 +233,6 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 	void WriteCoreProps()
 	{
 		var appEntry = zipArchive.CreateEntry("docProps/core.xml", Compression);
-		//, "application/vnd.openxmlformats-package.core-properties+xml", compression);
-		//zipArchive.CreateRelationship(appUri, TargetMode.Internal, "http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties");
 		using var appStream = appEntry.Open();
 		using var xw = XmlWriter.Create(appStream, XmlSettings);
 		xw.WriteStartElement("coreProperties", CoreNS);
@@ -238,8 +249,6 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 		// pkg rels
 		{
 			var entry = zipArchive.CreateEntry("_rels/.rels", Compression);
-			//, "application/vnd.openxmlformats-package.core-properties+xml", compression);
-			//zipArchive.CreateRelationship(appUri, TargetMode.Internal, "http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties");
 			using var appStream = entry.Open();
 			using var xw = XmlWriter.Create(appStream, XmlSettings);
 			xw.WriteStartElement("Relationships", PkgRelNS);
@@ -264,8 +273,6 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 		// workbook rels
 		{
 			var entry = zipArchive.CreateEntry("xl/_rels/workbook.xml.rels", Compression);
-			//, "application/vnd.openxmlformats-package.core-properties+xml", compression);
-			//zipArchive.CreateRelationship(appUri, TargetMode.Internal, "http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties");
 			using var appStream = entry.Open();
 			using var xw = XmlWriter.Create(appStream, XmlSettings);
 			xw.WriteStartElement("Relationships", PkgRelNS);
@@ -299,8 +306,6 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 		// content types
 		{
 			var entry = zipArchive.CreateEntry("[Content_Types].xml", Compression);
-			//, "application/vnd.openxmlformats-package.core-properties+xml", compression);
-			//zipArchive.CreateRelationship(appUri, TargetMode.Internal, "http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties");
 			using var appStream = entry.Open();
 			using var xw = XmlWriter.Create(appStream, XmlSettings);
 			xw.WriteStartElement("Types", ContentTypeNS);
@@ -340,7 +345,6 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 	void WriteStyles()
 	{
 		var appEntry = zipArchive.CreateEntry("xl/styles.xml", Compression);
-		//, "application /vnd.openxmlformats-officedocument.spreadsheetml.styles+xml", compression);
 		using var appStream = appEntry.Open();
 		using var wx = XmlWriter.Create(appStream, XmlSettings);
 		wx.WriteStartElement("styleSheet", NS);

@@ -9,8 +9,13 @@
 		<font>
 			<name val="Calibri"/>
 		</font>
-		<font>
+		<font><!-- header, bold -->
 			<b/>
+			<name val="Calibri"/>
+		</font>
+		<font><!-- hyperlink-->
+			<u/>
+			<color rgb="0563C1"/>
 			<name val="Calibri"/>
 		</font>
 	</fonts>
@@ -28,6 +33,7 @@
 		<xf numFmtId="164" fontId="1" xfId="0" applyFont="1"/>
 		<xf numFmtId="164" xfId="0"/>
 		<xf numFmtId="165" xfId="0"/>
+		<xf numFmtId="0" fontId="2" xfId="0"/>
 	</cellXfs>
 	<cellStyles>
 		<cellStyle name="Normal" xfId="0"/>

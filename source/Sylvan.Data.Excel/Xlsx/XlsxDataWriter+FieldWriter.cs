@@ -20,8 +20,8 @@ partial class XlsxDataWriter
 		internal XlsxDataWriter dw;
 		internal TextWriter xw;
 		internal DbDataReader dr;
-
 	}
+
 	abstract class FieldWriter
 	{
 		protected char[] scratch = new char[100];
@@ -58,6 +58,11 @@ partial class XlsxDataWriter
 		}
 
 		public abstract void WriteField(Context c, int ordinal);
+
+		public virtual double GetWidth(DbDataReader data, int ordinal)
+		{
+			return 12;
+		}
 	}
 
 	sealed class ObjectFieldWriter : FieldWriter
@@ -122,6 +127,11 @@ partial class XlsxDataWriter
 
 			w.Write("</v></c>");
 		}
+
+		public override double GetWidth(DbDataReader data, int ordinal)
+		{
+			return 22;
+		}
 	}
 
 #if DATE_ONLY
@@ -146,6 +156,11 @@ partial class XlsxDataWriter
 			}
 
 			w.Write("</v></c>");
+		}
+
+		public override double GetWidth(DbDataReader data, int ordinal)
+		{
+			return 11;
 		}
 	}
 
