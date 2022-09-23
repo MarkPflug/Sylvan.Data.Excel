@@ -13,20 +13,18 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 	static readonly XmlWriterSettings XmlSettings =
 		new XmlWriterSettings
 		{
-			CheckCharacters = false,
 			//IndentChars = " ",
 			//Indent = true,
 			//NewLineChars = "\n",
 			OmitXmlDeclaration = true,
 		};
 
+	const int FormatOffset = 165;
+
 	ZipArchive zipArchive;
-
 	List<string> worksheets;
-
-	int fmtOffset = 165;
 	List<string> formats = new List<string>();
-	CompressionLevel compression = CompressionLevel.Optimal;
+	const CompressionLevel Compression = CompressionLevel.Optimal;
 
 	public XlsxDataWriter(Stream stream, ExcelDataWriterOptions options) : base(stream, options)
 	{
@@ -44,10 +42,11 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 	{
 		if (this.worksheets.Contains(worksheetName))
 			throw new ArgumentException(nameof(worksheetName));
+
 		this.worksheets.Add(worksheetName);
 		var idx = this.worksheets.Count;
 		var entryName = "xl/worksheets/sheet" + idx + ".xml";
-		var entry = zipArchive.CreateEntry(entryName, compression);// "application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml", compression);
+		var entry = zipArchive.CreateEntry(entryName, Compression);// "application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml", compression);
 		using var es = entry.Open();
 		using var xw = new StreamWriter(es);
 		xw.Write($"<worksheet xmlns=\"{NS}\"><sheetData>");
@@ -130,7 +129,7 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 
 	void WriteSharedStrings()
 	{
-		var e = this.zipArchive.CreateEntry("xl/sharedStrings.xml", compression);
+		var e = this.zipArchive.CreateEntry("xl/sharedStrings.xml", Compression);
 		//"application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml", compression);
 		using var s = e.Open();
 		using var xw = XmlWriter.Create(s, XmlSettings);
@@ -163,7 +162,7 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 	{
 		var ns = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
 		var wbName = "xl/workbook.xml";
-		var e = this.zipArchive.CreateEntry(wbName, compression);//, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml", compression);
+		var e = this.zipArchive.CreateEntry(wbName, Compression);//, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml", compression);
 																 //e.CreateRelationship(new Uri("/xl/sharedStrings.xml", UriKind.Relative), TargetMode.Internal, "http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings");
 																 //e.CreateRelationship(new Uri("/xl/styles.xml", UriKind.Relative), TargetMode.Internal, "http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles");
 																 //this.zipArchive.CreateRelationship(wbUri, TargetMode.Internal, "http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument");
@@ -200,7 +199,7 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 
 	void WriteAppProps()
 	{
-		var appEntry = zipArchive.CreateEntry("docProps/app.xml", compression);
+		var appEntry = zipArchive.CreateEntry("docProps/app.xml", Compression);
 		//, "application/vnd.openxmlformats-officedocument.extended-properties+xml", compression);
 		//zipArchive.CreateRelationship(appUri, TargetMode.Internal, "http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties");
 		using var appStream = appEntry.Open();
@@ -220,7 +219,7 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 
 	void WriteCoreProps()
 	{
-		var appEntry = zipArchive.CreateEntry("docProps/core.xml", compression);
+		var appEntry = zipArchive.CreateEntry("docProps/core.xml", Compression);
 		//, "application/vnd.openxmlformats-package.core-properties+xml", compression);
 		//zipArchive.CreateRelationship(appUri, TargetMode.Internal, "http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties");
 		using var appStream = appEntry.Open();
@@ -238,7 +237,7 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 	{
 		// pkg rels
 		{
-			var entry = zipArchive.CreateEntry("_rels/.rels", compression);
+			var entry = zipArchive.CreateEntry("_rels/.rels", Compression);
 			//, "application/vnd.openxmlformats-package.core-properties+xml", compression);
 			//zipArchive.CreateRelationship(appUri, TargetMode.Internal, "http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties");
 			using var appStream = entry.Open();
@@ -264,7 +263,7 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 
 		// workbook rels
 		{
-			var entry = zipArchive.CreateEntry("xl/_rels/workbook.xml.rels", compression);
+			var entry = zipArchive.CreateEntry("xl/_rels/workbook.xml.rels", Compression);
 			//, "application/vnd.openxmlformats-package.core-properties+xml", compression);
 			//zipArchive.CreateRelationship(appUri, TargetMode.Internal, "http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties");
 			using var appStream = entry.Open();
@@ -299,7 +298,7 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 
 		// content types
 		{
-			var entry = zipArchive.CreateEntry("[Content_Types].xml", compression);
+			var entry = zipArchive.CreateEntry("[Content_Types].xml", Compression);
 			//, "application/vnd.openxmlformats-package.core-properties+xml", compression);
 			//zipArchive.CreateRelationship(appUri, TargetMode.Internal, "http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties");
 			using var appStream = entry.Open();
@@ -340,7 +339,7 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 
 	void WriteStyles()
 	{
-		var appEntry = zipArchive.CreateEntry("xl/styles.xml", compression);
+		var appEntry = zipArchive.CreateEntry("xl/styles.xml", Compression);
 		//, "application /vnd.openxmlformats-officedocument.spreadsheetml.styles+xml", compression);
 		using var appStream = appEntry.Open();
 		using var wx = XmlWriter.Create(appStream, XmlSettings);
@@ -352,7 +351,7 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 			wx.WriteStartElement("numFmt", NS);
 
 			wx.WriteStartAttribute("numFmtId");
-			wx.WriteValue(fmtOffset + i);
+			wx.WriteValue(FormatOffset + i);
 			wx.WriteEndAttribute();
 
 			wx.WriteStartAttribute("formatCode");
@@ -411,7 +410,7 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 			wx.WriteStartElement("xf", NS);
 
 			wx.WriteStartAttribute("numFmtId");
-			wx.WriteValue(fmtOffset + i);
+			wx.WriteValue(FormatOffset + i);
 			wx.WriteEndAttribute();
 
 			wx.WriteStartAttribute("xfId");
