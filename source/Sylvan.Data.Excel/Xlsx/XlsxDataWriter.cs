@@ -37,6 +37,8 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 		this.formats.Add("yyyy\\-mm\\-dd\\ hh:mm:ss.000");
 		// used for dateonly
 		this.formats.Add("yyyy\\-mm\\-dd");
+		// used for timeonly
+		this.formats.Add("hh:mm:ss");
 	}
 
 	public override WriteResult Write(string worksheetName, DbDataReader data)
