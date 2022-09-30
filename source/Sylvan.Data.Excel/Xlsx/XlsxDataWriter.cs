@@ -18,14 +18,18 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 			//Indent = true,
 			//NewLineChars = "\n",
 			OmitXmlDeclaration = true,
+			// We are handling this ourselves in the shared string handling.
+			CheckCharacters = false,
 		};
 
 	const int FormatOffset = 165;
+	const int StringLimit = short.MaxValue;
 
 	ZipArchive zipArchive;
 	List<string> worksheets;
 	List<string> formats = new List<string>();
 	const CompressionLevel Compression = CompressionLevel.Optimal;
+	bool truncateStrings;
 
 	public XlsxDataWriter(Stream stream, ExcelDataWriterOptions options) : base(stream, options)
 	{
@@ -39,6 +43,7 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 		this.formats.Add("yyyy\\-mm\\-dd");
 		// used for timeonly
 		this.formats.Add("hh:mm:ss");
+		this.truncateStrings = options.TruncateStrings;
 	}
 
 	public override WriteResult Write(string worksheetName, DbDataReader data)
@@ -146,8 +151,7 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 
 
 	const string WorkbookPath = "xl/workbook.xml";
-	const string AppPath = "docProps/app.xml";
-
+	const string AppPath = "docProps/app.xml";	
 
 	void WriteSharedStrings()
 	{
@@ -164,15 +168,10 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 			xw.WriteStartElement("si");
 			xw.WriteStartElement("t");
 			var str = this.sharedStrings[i];
-			// TODO: need a strategy for correcting values
-			// that can't be written to excel.
-			//if(str.Length > short.MaxValue)
-			//{
-			//	str = str.Substring(0, short.MaxValue);
-			//}
-			//// remove all control characters.
-			//str = Regex.Replace(str, "\\p{C}", "");
-			xw.WriteValue(str);
+
+			var encodedStr = OpenXmlCodec.EncodeString(str);
+			
+			xw.WriteValue(encodedStr);
 			xw.WriteEndElement();
 			xw.WriteEndElement();
 		}

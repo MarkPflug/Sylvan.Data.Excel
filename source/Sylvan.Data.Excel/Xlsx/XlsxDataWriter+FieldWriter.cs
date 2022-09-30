@@ -124,6 +124,12 @@ partial class XlsxDataWriter
 			var w = c.xw;
 			w.Write("<c t=\"s\"><v>");
 			var s = c.dr.GetString(ordinal);
+			// truncate before adding to the sharestrings table.
+			if (c.dw.truncateStrings && s.Length > StringLimit)
+			{
+				s = s.Substring(0, StringLimit);
+			}
+
 			var ssIdx = c.dw.sharedStrings.GetString(s);
 			w.Write(ssIdx);
 			w.Write("</v></c>");
@@ -443,7 +449,7 @@ partial class XlsxDataWriter
 #endif
 
 			w.Write("</v></c>");
-		}		
+		}
 	}
 
 	sealed class BinaryHexFieldWriter : FieldWriter

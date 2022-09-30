@@ -860,8 +860,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 						reader.Read();
 						if (reader.NodeType == XmlNodeType.Text || reader.NodeType == XmlNodeType.SignificantWhitespace)
 						{
-
-							s = reader.Value;
+							s = OpenXmlCodec.DecodeString(reader.Value);
 						}
 						else if (reader.NodeType == XmlNodeType.EndElement && reader.LocalName == "t")
 						{
@@ -874,6 +873,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 					}
 					if (c == 0)
 					{
+
 						str = s;
 					}
 					else
