@@ -78,6 +78,38 @@ public abstract class ExcelDataWriterTests
 	}
 
 	[Fact]
+	public void MultiSheet()
+	{
+		Random r = new Random();
+		var data =
+			Enumerable.Range(1, 100)
+			.Select(
+				i => new
+				{
+					Id = i, //int32
+					Name = "Name" + i, //string
+					ValueInt = r.Next(), // another, bigger int
+					ValueDouble = r.NextDouble() * 100d, // double
+					Amount = (decimal)r.NextDouble(), // decimal
+					DateTime = new DateTime(2020, 1, 1).AddHours(i), // datetime
+				}
+			);
+
+		var f = GetFile();
+
+		using (var w = ExcelDataWriter.Create(f))
+		{
+
+			var reader = data.AsDataReader();
+			w.Write("a", reader);
+
+			reader = data.AsDataReader();
+			w.Write("b", reader);
+		}
+		Unpack(f);
+	}
+
+	[Fact]
 	public void BigString()
 	{
 		// this is the largest string that can be written.

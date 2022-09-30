@@ -188,6 +188,7 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 		using var xw = XmlWriter.Create(s, XmlSettings);
 
 		xw.WriteStartElement("workbook", ns);
+		xw.WriteAttributeString("xmlns", "r", null, ODRelNS);
 
 		xw.WriteStartElement("sheets", ns);
 		for (int i = 0; i < this.worksheets.Count; i++)
