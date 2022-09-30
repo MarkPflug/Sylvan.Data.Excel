@@ -11,4 +11,10 @@ public sealed class ExcelDataWriterOptions
 	// formats? Date? boolean?
 	// shared string behavior?
 	// binary as hex/basxe64
+
+	/// <summary>
+	/// Indicates if string values should be truncated to the limit of Excel, which allows a maximum of 32k characters.
+	/// </summary>
+	public bool TruncateStrings { get; set; }
+
 }

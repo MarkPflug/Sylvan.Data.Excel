@@ -2,6 +2,7 @@
 
 _0.4.0_
   - Adds ExcelDataWriter which supports writing a `DbDataReader` to an .xlsx worksheet.
+  - Fixes the encoding of certain characters.
 
 _0.3.3_
   - Adds ExcelSchema support for renaming columns via BaseColumnName.

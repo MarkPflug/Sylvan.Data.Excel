@@ -74,7 +74,7 @@ public abstract class ExcelDataWriterTests
 		{
 			w.Write("data", reader);
 		}
-		Open(f);
+		//Open(f);
 	}
 
 	[Fact]
@@ -99,7 +99,7 @@ public abstract class ExcelDataWriterTests
 		{
 			w.Write("data", reader);
 		}
-		Open(f);
+		//Open(f);
 	}
 
 	[Fact]
@@ -118,10 +118,11 @@ public abstract class ExcelDataWriterTests
 
 		var f = GetFile();
 		var reader = data.AsDataReader();
-		var w = ExcelDataWriter.Create(f);
-		w.Write("data", reader);
-		// TODO: How expensive would it be to detect this in Write?
-		Assert.ThrowsAny<Exception>(() => w.Dispose());
+		using (var w = ExcelDataWriter.Create(f))
+		{
+			w.Write("data", reader);
+		}
+		//Open(f);
 	}
 
 	[Fact]
@@ -143,7 +144,7 @@ public abstract class ExcelDataWriterTests
 		{
 			w.Write("data", reader);
 		}
-		Open(f);
+		//Open(f);
 	}
 
 	[Fact]
@@ -160,7 +161,7 @@ public abstract class ExcelDataWriterTests
 		{
 			edw.Write("data", dr);
 		}
-		Open(f);
+		//Open(f);
 	}
 
 	[Fact]
@@ -184,7 +185,7 @@ public abstract class ExcelDataWriterTests
 		{
 			edw.Write("data", dr);
 		}
-		Open(f);
+		//Open(f);
 	}
 
 	[Fact]
@@ -208,7 +209,7 @@ public abstract class ExcelDataWriterTests
 		{
 			edw.Write("data", dr);
 		}
-		Open(f);
+		//Open(f);
 		Assert.True(false, "ObjectDataReader doesn't properly handle char[]. This ends up writing \"System.Char[]\", need to fix.");
 	}
 
@@ -233,7 +234,7 @@ public abstract class ExcelDataWriterTests
 		{
 			edw.Write("data", dr);
 		}
-		Open(f);
+		//Open(f);
 	}
 
 	[Fact]
@@ -257,7 +258,7 @@ public abstract class ExcelDataWriterTests
 		{
 			edw.Write("data", dr);
 		}
-		Open(f);
+		//Open(f);
 	}
 
 	[Fact]
@@ -285,7 +286,7 @@ public abstract class ExcelDataWriterTests
 		{
 			edw.Write("data", dr);
 		}
-		Open(f);
+		//Open(f);
 	}
 
 	[Fact]
@@ -310,7 +311,7 @@ public abstract class ExcelDataWriterTests
 		{
 			edw.Write("data", dr);
 		}
-		Open(f);
+		//Open(f);
 	}
 
 #if NET6_0_OR_GREATER
@@ -334,7 +335,7 @@ public abstract class ExcelDataWriterTests
 		{
 			w.Write("data", reader);
 		}
-		Open(f);
+		//Open(f);
 	}
 
 	[Fact]
@@ -356,7 +357,7 @@ public abstract class ExcelDataWriterTests
 		{
 			w.Write("data", reader);
 		}
-		Open(f);
+		//Open(f);
 	}
 
 #endif
