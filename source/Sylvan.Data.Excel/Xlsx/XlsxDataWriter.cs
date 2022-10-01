@@ -24,6 +24,7 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 
 	const int FormatOffset = 165;
 	const int StringLimit = short.MaxValue;
+	const int MaxWorksheetNameLength = 31;
 
 	ZipArchive zipArchive;
 	List<string> worksheets;
@@ -46,10 +47,24 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 		this.truncateStrings = options.TruncateStrings;
 	}
 
-	public override WriteResult Write(string worksheetName, DbDataReader data)
+	public override WriteResult Write(DbDataReader data, string? worksheetName)
 	{
-		if (this.worksheets.Contains(worksheetName))
+		if (worksheetName != null && worksheetName.Length > MaxWorksheetNameLength)
 			throw new ArgumentException(nameof(worksheetName));
+		
+		if (worksheetName != null && this.worksheets.Contains(worksheetName))
+			throw new ArgumentException(nameof(worksheetName));
+
+		if (worksheetName == null)
+		{
+			var sheetIdx = worksheets.Count;
+
+			do
+			{
+				sheetIdx++;
+				worksheetName = "Sheet " + sheetIdx;
+			} while (worksheets.Contains(worksheetName));
+		}
 
 		var fieldWriters = new FieldWriter[data.FieldCount];
 		for (int i = 0; i < fieldWriters.Length; i++)
@@ -151,7 +166,7 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 
 
 	const string WorkbookPath = "xl/workbook.xml";
-	const string AppPath = "docProps/app.xml";	
+	const string AppPath = "docProps/app.xml";
 
 	void WriteSharedStrings()
 	{
@@ -170,7 +185,7 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 			var str = this.sharedStrings[i];
 
 			var encodedStr = OpenXmlCodec.EncodeString(str);
-			
+
 			xw.WriteValue(encodedStr);
 			xw.WriteEndElement();
 			xw.WriteEndElement();
@@ -304,7 +319,6 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 			xw.WriteEndElement();
 		}
 
-
 		// content types
 		{
 			var entry = zipArchive.CreateEntry("[Content_Types].xml", Compression);
@@ -367,7 +381,6 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 		}
 
 		wx.WriteEndElement();
-
 
 		wx.WriteStartElement("fonts", NS);
 		wx.WriteStartElement("font", NS);

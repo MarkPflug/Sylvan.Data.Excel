@@ -125,7 +125,7 @@ public abstract class ExcelDataWriter : IDisposable
 	/// Writes data to a new worksheet with the given name.
 	/// </summary>
 	/// <returns>The number of rows written.</returns>
-	public abstract WriteResult Write(string worksheetName, DbDataReader data);
+	public abstract WriteResult Write(DbDataReader data, string? worksheetName = null);
 
 	/// <summary>
 	/// A value indicating the result of the write operation.
