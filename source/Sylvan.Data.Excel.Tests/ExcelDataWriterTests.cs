@@ -72,9 +72,22 @@ public abstract class ExcelDataWriterTests
 		var reader = data.AsDataReader();
 		using (var w = ExcelDataWriter.Create(f))
 		{
-			w.Write("data", reader);
+			w.Write(reader);
 		}
 		//Open(f);
+	}
+
+	[Fact]
+	public void WorkSheetNameSize()
+	{
+		var data = Enumerable.Range(1, 100).Select(i => new { Id = i, Name = "Name" + i });
+
+		var f = GetFile();
+
+		using (var w = ExcelDataWriter.Create(f))
+		{
+			Assert.Throws<ArgumentException>(() => w.Write(data.AsDataReader(), new string('a', 32)));
+		}
 	}
 
 	[Fact]
@@ -101,10 +114,10 @@ public abstract class ExcelDataWriterTests
 		{
 
 			var reader = data.AsDataReader();
-			w.Write("a", reader);
+			w.Write(reader);
 
 			reader = data.AsDataReader();
-			w.Write("b", reader);
+			w.Write(reader);
 		}
 		Unpack(f);
 	}
@@ -129,7 +142,7 @@ public abstract class ExcelDataWriterTests
 		var reader = data.AsDataReader();
 		using (var w = ExcelDataWriter.Create(f))
 		{
-			w.Write("data", reader);
+			w.Write(reader);
 		}
 		//Open(f);
 	}
@@ -152,7 +165,7 @@ public abstract class ExcelDataWriterTests
 		var reader = data.AsDataReader();
 		using (var w = ExcelDataWriter.Create(f))
 		{
-			w.Write("data", reader);
+			w.Write(reader);
 		}
 		//Open(f);
 	}
@@ -174,7 +187,7 @@ public abstract class ExcelDataWriterTests
 		var reader = data.AsDataReader();
 		using (var w = ExcelDataWriter.Create(f))
 		{
-			w.Write("data", reader);
+			w.Write(reader);
 		}
 		//Open(f);
 	}
@@ -191,7 +204,7 @@ public abstract class ExcelDataWriterTests
 		var f = GetFile();
 		using (var edw = ExcelDataWriter.Create(f))
 		{
-			edw.Write("data", dr);
+			edw.Write(dr);
 		}
 		//Open(f);
 	}
@@ -215,7 +228,7 @@ public abstract class ExcelDataWriterTests
 		var f = GetFile();
 		using (var edw = ExcelDataWriter.Create(f))
 		{
-			edw.Write("data", dr);
+			edw.Write(dr);
 		}
 		//Open(f);
 	}
@@ -239,7 +252,7 @@ public abstract class ExcelDataWriterTests
 		var f = GetFile();
 		using (var edw = ExcelDataWriter.Create(f))
 		{
-			edw.Write("data", dr);
+			edw.Write(dr);
 		}
 		//Open(f);
 		Assert.True(false, "ObjectDataReader doesn't properly handle char[]. This ends up writing \"System.Char[]\", need to fix.");
@@ -264,7 +277,7 @@ public abstract class ExcelDataWriterTests
 		var f = GetFile();
 		using (var edw = ExcelDataWriter.Create(f))
 		{
-			edw.Write("data", dr);
+			edw.Write(dr);
 		}
 		//Open(f);
 	}
@@ -288,7 +301,7 @@ public abstract class ExcelDataWriterTests
 		var f = GetFile();
 		using (var edw = ExcelDataWriter.Create(f))
 		{
-			edw.Write("data", dr);
+			edw.Write(dr);
 		}
 		//Open(f);
 	}
@@ -316,7 +329,7 @@ public abstract class ExcelDataWriterTests
 		var f = GetFile();
 		using (var edw = ExcelDataWriter.Create(f))
 		{
-			edw.Write("data", dr);
+			edw.Write(dr);
 		}
 		//Open(f);
 	}
@@ -341,7 +354,7 @@ public abstract class ExcelDataWriterTests
 		var f = GetFile();
 		using (var edw = ExcelDataWriter.Create(f))
 		{
-			edw.Write("data", dr);
+			edw.Write(dr);
 		}
 		//Open(f);
 	}
@@ -365,7 +378,7 @@ public abstract class ExcelDataWriterTests
 		var reader = data.AsDataReader();
 		using (var w = ExcelDataWriter.Create(f))
 		{
-			w.Write("data", reader);
+			w.Write(reader);
 		}
 		//Open(f);
 	}
@@ -387,7 +400,7 @@ public abstract class ExcelDataWriterTests
 		var reader = data.AsDataReader();
 		using (var w = ExcelDataWriter.Create(f))
 		{
-			w.Write("data", reader);
+			w.Write(reader);
 		}
 		//Open(f);
 	}
