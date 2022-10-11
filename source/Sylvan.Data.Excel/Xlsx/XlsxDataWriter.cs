@@ -34,7 +34,7 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 
 	public XlsxDataWriter(Stream stream, ExcelDataWriterOptions options) : base(stream, options)
 	{
-		this.zipArchive = new ZipArchive(stream, ZipArchiveMode.Create);
+		this.zipArchive = new ZipArchive(stream, ZipArchiveMode.Create, true);
 
 		this.worksheets = new List<string>();
 		this.formats = new List<string>();
@@ -51,7 +51,7 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 	{
 		if (worksheetName != null && worksheetName.Length > MaxWorksheetNameLength)
 			throw new ArgumentException(nameof(worksheetName));
-		
+
 		if (worksheetName != null && this.worksheets.Contains(worksheetName))
 			throw new ArgumentException(nameof(worksheetName));
 
@@ -259,7 +259,6 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 		xw.WriteEndElement();
 		xw.WriteEndElement();
 	}
-
 
 	void WritePkgMeta()
 	{
