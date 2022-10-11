@@ -2,15 +2,20 @@
 
 namespace Sylvan.Data.Excel;
 
+// provides functions for en/decoding _xHHHH_ encoded characters
+// This encoding is mentioned in ECMA-376 22.4.2.2 (bstr Basic String)
+// TODO: this code could probably benefit from some optimization.
 static class OpenXmlCodec
-{
-	static readonly Regex EncodeCharRegex = new Regex(@"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]", RegexOptions.Compiled);
+{	
+	// replace most control characters as well as underscore characters.
+	// the underscore replacement is to "escape" underscores that might otherwise be
+	// seen as an encoded sequence.
+	// This ends up encoding more than is technically required, as underscores only need to be encoded
+	// if they would otherwise be detected as an escape sequence.
+	static readonly Regex EncodeCharRegex = new Regex(@"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f_]", RegexOptions.Compiled);
 
 	static readonly Regex DecodeCharRegex = new Regex(@"_x[0-9a-fA-F]{4}_", RegexOptions.Compiled);
 
-	// TODO: need to encode certain underscore characters too.
-	// when the input matches the DecodeCharRegex, the leading underscore needs to be
-	// replaced.
 	public static string EncodeString(string str)
 	{
 		return EncodeCharRegex.Replace(str, EncodeChar);

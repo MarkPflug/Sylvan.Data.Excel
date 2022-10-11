@@ -56,7 +56,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 
 		this.rowName = this.cellName = this.valueName = this.refName = this.styleName = this.typeName = this.inlineStringName = string.Empty;
 
-		package = new ZipArchive(iStream, ZipArchiveMode.Read);
+		package = new ZipArchive(iStream, ZipArchiveMode.Read, true);
 
 		var ssPart = GetEntry(package, "xl/sharedStrings.xml");
 		var stylePart = GetEntry(package, "xl/styles.xml");
