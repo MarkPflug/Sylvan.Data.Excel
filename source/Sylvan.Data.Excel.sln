@@ -22,9 +22,10 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Build", "Build", "{77F0BAEB
 		..\Directory.Build.props = ..\Directory.Build.props
 		..\Directory.Build.targets = ..\Directory.Build.targets
 		..\.github\workflows\dotnet.yml = ..\.github\workflows\dotnet.yml
+		..\readme.md = ..\readme.md
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MinimalXlsx", "MinimalXlsx\MinimalXlsx.csproj", "{10607897-287F-4B66-A31B-C65FD08D1D9C}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MinimalXlsx", "MinimalXlsx\MinimalXlsx.csproj", "{10607897-287F-4B66-A31B-C65FD08D1D9C}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

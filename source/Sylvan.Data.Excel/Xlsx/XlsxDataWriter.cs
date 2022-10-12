@@ -5,6 +5,8 @@ using System.IO;
 using System.IO.Compression;
 using System.Reflection;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Xml;
 
 namespace Sylvan.Data.Excel.Xlsx;
@@ -48,6 +50,16 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 	}
 
 	public override WriteResult Write(DbDataReader data, string? worksheetName)
+	{
+		return WriteInternal(data, worksheetName, false, default).GetAwaiter().GetResult();
+	}
+
+	public override async Task<WriteResult> WriteAsync(DbDataReader data, string? worksheetName, CancellationToken cancel)
+	{
+		return await WriteInternal(data, worksheetName, true, default);
+	}
+
+	async Task<WriteResult> WriteInternal(DbDataReader data, string? worksheetName, bool async, CancellationToken cancel)
 	{
 		if (worksheetName != null && worksheetName.Length > MaxWorksheetNameLength)
 			throw new ArgumentException(nameof(worksheetName));
@@ -94,7 +106,6 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 
 		var context = new Context(this, xw, data);
 
-
 		var row = 0;
 		// headers
 		{
@@ -121,8 +132,23 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 			row++;
 		}
 		bool complete = true;
-		while (data.Read())
+		while (true)
 		{
+			if (async)
+			{
+				if(!await data.ReadAsync(cancel))
+				{
+					break;
+				}
+			}
+			else
+			{
+				if (!data.Read())
+				{
+					break;
+				}
+			}
+
 			xw.Write("<row>");
 			var c = data.FieldCount;
 			for (int i = 0; i < c; i++)

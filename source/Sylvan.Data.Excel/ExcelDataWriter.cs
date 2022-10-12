@@ -3,6 +3,8 @@ using System;
 using System.Collections.Generic;
 using System.Data.Common;
 using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Sylvan.Data.Excel;
 
@@ -126,6 +128,12 @@ public abstract class ExcelDataWriter : IDisposable
 	/// </summary>
 	/// <returns>The number of rows written.</returns>
 	public abstract WriteResult Write(DbDataReader data, string? worksheetName = null);
+
+	/// <summary>
+	/// Writes data to a new worksheet with the given name.
+	/// </summary>
+	/// <returns>The number of rows written.</returns>
+	public abstract Task<WriteResult> WriteAsync(DbDataReader data, string? worksheetName = null, CancellationToken cancel = default);
 
 	/// <summary>
 	/// A value indicating the result of the write operation.
