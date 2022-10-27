@@ -254,8 +254,20 @@ public abstract class ExcelDataWriterTests
 		{
 			edw.Write(dr);
 		}
-		//Open(f);
-		Assert.True(false, "ObjectDataReader doesn't properly handle char[]. This ends up writing \"System.Char[]\", need to fix.");
+
+		// read back the created file and assert everything is as we expected
+		using (var edr = ExcelDataReader.Create(f))
+		{
+			Assert.Equal("Name", edr.GetName(0));
+			Assert.Equal("Data", edr.GetName(1));
+			Assert.True(edr.Read());
+			Assert.Equal("A", edr.GetString(0));
+			Assert.Equal("Alphabet", edr.GetString(1));
+			Assert.True(edr.Read());
+			Assert.Equal("B", edr.GetString(0));
+			Assert.Equal(new string('Z', short.MaxValue), edr.GetString(1));
+			Assert.False(edr.Read());
+		}
 	}
 
 	[Fact]
