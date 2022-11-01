@@ -27,7 +27,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 	StringBuilder? stringBuilder;
 
 	bool hasRows;
-	bool skipEmptyRows = true; // TODO: make this an option?
+	//bool skipEmptyRows = true; // TODO: make this an option?
 
 	string refName;
 	string typeName;
@@ -41,6 +41,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 
 	int rowIndex;
 	int parsedRowIndex = -1;
+	int curFieldCount = -1;
 
 	public override ExcelWorkbookType WorkbookType => ExcelWorkbookType.ExcelXml;
 
@@ -267,6 +268,12 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 		}
 		ParseRowValues();
 
+		if (this.parsedRowIndex > 0)
+		{
+			this.curFieldCount = rowFieldCount;
+			this.rowFieldCount = 0;
+		}
+
 		if (LoadSchema())
 		{
 			this.state = State.Initialized;
@@ -356,16 +363,22 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 
 	public override bool Read()
 	{
-	start:
 		rowIndex++;
 		if (state == State.Open)
 		{
 			if (rowIndex <= parsedRowIndex)
+			{
+				if (curFieldCount >= 0)
+				{
+					this.rowFieldCount = curFieldCount;
+					this.curFieldCount = -1;
+				}
 				return true;
+			}
 			while (NextRow())
 			{
 				var c = ParseRowValues();
-				if (c == 0 && skipEmptyRows)
+				if (c == 0)
 				{
 					continue;
 				}
@@ -380,8 +393,11 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 			if (hasRows)
 			{
 				this.state = State.Open;
-				if (this.RowFieldCount == 0 && skipEmptyRows)
-					goto start;
+				if (curFieldCount >= 0)
+				{
+					this.rowFieldCount = curFieldCount;
+					this.curFieldCount = -1;
+				}
 				return true;
 			}
 		}

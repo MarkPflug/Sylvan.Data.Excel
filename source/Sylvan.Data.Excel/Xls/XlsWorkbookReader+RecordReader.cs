@@ -90,6 +90,11 @@ sealed partial class XlsWorkbookReader
 			return b;
 		}
 
+		public ushort PeekRow()
+		{
+			return BitConverter.ToUInt16(buffer, bufferPos);
+		}
+
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public short ReadInt16()
 		{

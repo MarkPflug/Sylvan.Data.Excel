@@ -19,10 +19,11 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 	RecordReader? reader;
 
 	bool hasRows = false;
-	bool skipEmptyRows = true; // TODO: make this an option?
+	//bool skipEmptyRows = true; // TODO: make this an option?
 
 	int rowIndex;
-	int parsedRowIndex;
+	int parsedRowIndex = -1;
+	int curFieldCount = -1;
 
 	public override ExcelWorkbookType WorkbookType => ExcelWorkbookType.ExcelXml;
 
@@ -187,7 +188,9 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 
 		while (true)
 		{
-			reader.NextRecord();
+			if (!reader.NextRecord())
+				throw new InvalidDataException();
+
 			if (reader.RecordType == RecordType.Dimension)
 			{
 				var rowLast = reader.GetInt32(4);
@@ -211,15 +214,21 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 			return false;
 		}
 
+		if (parsedRowIndex > 0)
+		{
+			this.curFieldCount = this.rowFieldCount;
+			this.rowFieldCount = 0;
+		}
+
 		if (LoadSchema())
 		{
-			this.rowIndex = -1;
 			this.state = State.Initialized;
+			this.rowIndex = -1;
 		}
 		else
 		{
-			this.rowIndex = 0;
 			this.state = State.Open;
+			this.rowIndex = 0;
 		}
 
 		return true;
@@ -255,15 +264,8 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 				}
 
 				var flags = reader.GetByte(0);
-				//if (flags == 0)
-				//{
 				var str = reader.GetString(1);
 				ss[i] = str;
-				//}
-				//else
-				//{
-				//	throw new NotImplementedException();
-				//}
 			}
 			return ss;
 		}
@@ -277,6 +279,11 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 		{
 			if (rowIndex <= parsedRowIndex)
 			{
+				if (curFieldCount >= 0)
+				{
+					this.rowFieldCount = curFieldCount;
+					this.curFieldCount = -1;
+				}
 				return true;
 			}
 
@@ -285,7 +292,7 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 				var c = ParseRowValues();
 				if (c < 0)
 					return false;
-				if (c == 0 && skipEmptyRows)
+				if (c == 0)
 				{
 					continue;
 				}
@@ -295,11 +302,18 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 		else
 		if (state == State.Initialized)
 		{
+			//this.rowFieldCount = this.curFieldCount;
+			//this.curFieldCount = 0;
 			// after initizialization, the first record would already be in the buffer
 			// if hasRows is true.
 			if (hasRows)
 			{
 				this.state = State.Open;
+				if (curFieldCount >= 0)
+				{
+					this.rowFieldCount = curFieldCount;
+					this.curFieldCount = -1;
+				}
 				return true;
 			}
 		}

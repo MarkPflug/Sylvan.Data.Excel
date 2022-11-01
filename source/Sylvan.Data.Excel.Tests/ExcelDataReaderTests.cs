@@ -949,6 +949,15 @@ public class XlsxTests
 		Assert.Equal("a", reader.GetName(0));
 		Assert.Equal("b", reader.GetName(1));
 		Assert.Equal("c", reader.GetName(2));
+		Assert.True(reader.Read());
+		Assert.Equal(1, reader.GetInt32(0));
+		Assert.True(reader.IsDBNull(1));
+		Assert.Equal(string.Empty, reader.GetString(1));
+		Assert.True(reader.Read());
+		Assert.Equal(1, reader.GetInt32(0));
+		Assert.Equal(2, reader.GetInt32(1));
+		Assert.Equal(3, reader.GetInt32(2));
+		Assert.False(reader.Read());
 	}
 
 	[Fact]
@@ -962,6 +971,30 @@ public class XlsxTests
 		Assert.Equal(1, edr.GetOrdinal("Account Name"));
 		Assert.Equal(2, edr.GetOrdinal("Account Creation Date"));
 		Assert.Equal(5, edr.GetOrdinal("Is Flagged for Deletion"));
+	}
+
+	[Fact]
+	public void BlankFirstRow()
+	{
+		var file = GetFile();
+		var edr = ExcelDataReader.Create(file);
+		Assert.Equal(0, edr.FieldCount);
+		Assert.Equal(0, edr.RowFieldCount);
+		Assert.True(edr.Read());
+		Assert.Equal(0, edr.FieldCount);
+		Assert.Equal(4, edr.RowFieldCount);
+		Assert.Equal("", edr.GetString(0));
+		Assert.Equal("a", edr.GetString(1));
+		Assert.Equal("b", edr.GetString(2));
+		Assert.Equal("c", edr.GetString(3));
+		Assert.True(edr.Read());
+		Assert.Equal(0, edr.FieldCount);
+		Assert.Equal(4, edr.RowFieldCount);
+		Assert.Equal("", edr.GetString(0));
+		Assert.Equal("1", edr.GetString(1));
+		Assert.Equal("2", edr.GetString(2));
+		Assert.Equal("3", edr.GetString(3));
+		Assert.False(edr.Read());
 	}
 }
 

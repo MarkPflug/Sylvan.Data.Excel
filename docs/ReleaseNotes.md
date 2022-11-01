@@ -1,5 +1,8 @@
 # Sylvan.Data.Excel Release Notes
 
+_0.3.4_
+  - Fix .xls reader to not require files use Row/DBCell records, which are not written by all sources.
+
 _0.3.3_
   - Adds ExcelSchema support for renaming columns via BaseColumnName.
 

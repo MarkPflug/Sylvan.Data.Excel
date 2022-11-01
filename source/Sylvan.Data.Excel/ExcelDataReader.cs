@@ -128,7 +128,6 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 	/// </summary>
 	public int RowFieldCount => this.rowFieldCount;
 
-
 	/// <summary>
 	/// Gets the maximum number of fields supported by the
 	/// file.
