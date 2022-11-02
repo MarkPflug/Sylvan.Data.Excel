@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
-		<TargetFrameworks>net48;net6.0</TargetFrameworks>
+		<TargetFrameworks>net6.0</TargetFrameworks>
 		<RootNamespace>Sylvan.Data.Excel</RootNamespace>
 		<IsPackable>false</IsPackable>
 		<DisableImplicitNamespaceImports>true</DisableImplicitNamespaceImports>
@@ -12,8 +12,9 @@
 			<PrivateAssets>all</PrivateAssets>
 			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 		</PackageReference>
-		<PackageReference Include="Sylvan.Data" Version="0.2.2" />
-		<PackageReference Include="Sylvan.Data.Csv" Version="1.1.16" />
+		<PackageReference Include="Sylvan.Data" Version="0.2.5" />
+		<PackageReference Include="Sylvan.Data.Csv" Version="1.2.2" />
+		<PackageReference Include="System.Data.SqlClient" Version="4.8.3" />
 		<ProjectReference Include="..\Sylvan.Data.Excel\Sylvan.Data.Excel.csproj" />
 		<Reference Include="System.IO.Compression" Condition="$(TargetFramework) == 'net48'" />
 	</ItemGroup>

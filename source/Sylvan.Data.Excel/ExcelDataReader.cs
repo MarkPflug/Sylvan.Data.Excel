@@ -48,7 +48,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 		AssertRange(ordinal);
 		if (ordinal < fieldCount)
 		{
-			return this.columnSchema[ordinal].DataType;
+			return this.columnSchema[ordinal].DataType ?? typeof(object);
 		}
 		return typeof(object);
 	}
@@ -68,7 +68,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 		this.state = State.Initializing;
 		this.values = Array.Empty<FieldInfo>();
 		this.sst = Array.Empty<string>();
-		// TODO:
+
 		this.xfMap = Array.Empty<int>();
 		this.sheetNames = Array.Empty<SheetInfo>();
 
@@ -79,6 +79,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 		this.falseString = options.FalseString;
 		this.culture = options.Culture;
 		this.dateTimeFormat = options.DateTimeFormat;
+		this.ownsStream = options.OwnsStream;
 	}
 
 	/// <summary>

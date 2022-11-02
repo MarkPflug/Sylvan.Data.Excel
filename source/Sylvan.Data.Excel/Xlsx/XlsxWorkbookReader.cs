@@ -8,7 +8,7 @@ using System.Linq;
 using System.Text;
 using System.Xml;
 
-#if !NETSTANDARD2_1_OR_GREATER
+#if !SPAN
 using ReadonlyCharSpan = System.String;
 #else
 using ReadonlyCharSpan = System.ReadOnlySpan<char>;
@@ -57,7 +57,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 
 		this.rowName = this.cellName = this.valueName = this.refName = this.styleName = this.typeName = this.inlineStringName = string.Empty;
 
-		package = new ZipArchive(iStream, ZipArchiveMode.Read);
+		package = new ZipArchive(iStream, ZipArchiveMode.Read, true);
 
 		var ssPart = GetEntry(package, "xl/sharedStrings.xml");
 		var stylePart = GetEntry(package, "xl/styles.xml");
@@ -74,23 +74,30 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 		{
 			var doc = new XmlDocument();
 			doc.Load(sheetRelStream);
+			if (doc.DocumentElement == null)
+			{
+				throw new InvalidDataException();
+			}
 			var nsm = new XmlNamespaceManager(doc.NameTable);
 			nsm.AddNamespace("r", doc.DocumentElement.NamespaceURI);
 			var nodes = doc.SelectNodes("/r:Relationships/r:Relationship", nsm);
-			foreach (XmlElement node in nodes)
+			if (nodes != null)
 			{
-				var id = node.GetAttribute("Id");
-				var target = node.GetAttribute("Target");
-				if (target.StartsWith("/"))
+				foreach (XmlElement node in nodes)
 				{
+					var id = node.GetAttribute("Id");
+					var target = node.GetAttribute("Target");
+					if (target.StartsWith("/"))
+					{
 
-				}
-				else
-				{
-					target = "xl/" + target;
-				}
+					}
+					else
+					{
+						target = "xl/" + target;
+					}
 
-				sheetRelMap.Add(id, target);
+					sheetRelMap.Add(id, target);
+				}
 			}
 		}
 
@@ -99,21 +106,30 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 			// quick and dirty, good enough, this doc should be small.
 			var doc = new XmlDocument();
 			doc.Load(sheetsStream);
+
+			if (doc.DocumentElement == null)
+			{
+				throw new InvalidDataException();
+			}
+
 			var nsm = new XmlNamespaceManager(doc.NameTable);
 			var ns = doc.DocumentElement.NamespaceURI;
 			nsm.AddNamespace("x", ns);
 			var nodes = doc.SelectNodes("/x:workbook/x:sheets/x:sheet", nsm);
-			List<SheetInfo> sheets = new List<SheetInfo>();
-			foreach (XmlElement sheetElem in nodes)
+			var sheets = new List<SheetInfo>();
+			if (nodes != null)
 			{
-				var id = int.Parse(sheetElem.GetAttribute("sheetId"));
-				var name = sheetElem.GetAttribute("name");
-				var state = sheetElem.GetAttribute("state");
-				var refId = sheetElem.Attributes.OfType<XmlAttribute>().Single(a => a.LocalName == "id").Value;
+				foreach (XmlElement sheetElem in nodes)
+				{
+					var id = int.Parse(sheetElem.GetAttribute("sheetId"));
+					var name = sheetElem.GetAttribute("name");
+					var state = sheetElem.GetAttribute("state");
+					var refId = sheetElem.Attributes.OfType<XmlAttribute>().Single(a => a.LocalName == "id").Value;
 
-				var hidden = StringComparer.OrdinalIgnoreCase.Equals(state, "hidden");
-				var si = new SheetInfo(name, sheetRelMap[refId], hidden);
-				sheets.Add(si);
+					var hidden = StringComparer.OrdinalIgnoreCase.Equals(state, "hidden");
+					var si = new SheetInfo(name, sheetRelMap[refId], hidden);
+					sheets.Add(si);
+				}
 			}
 			this.sheetNames = sheets.ToArray();
 		}
@@ -129,33 +145,43 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 			{
 				var doc = new XmlDocument();
 				doc.Load(styleStream);
+				if (doc.DocumentElement == null)
+				{
+					throw new InvalidDataException();
+				}
 				var nsm = new XmlNamespaceManager(doc.NameTable);
 				var ns = doc.DocumentElement.NamespaceURI;
 				nsm.AddNamespace("x", ns);
 				var nodes = doc.SelectNodes("/x:styleSheet/x:numFmts/x:numFmt", nsm);
 				this.formats = ExcelFormat.CreateFormatCollection();
-				foreach (XmlElement fmt in nodes)
+				if (nodes != null)
 				{
-					var id = int.Parse(fmt.GetAttribute("numFmtId"));
-					var str = fmt.GetAttribute("formatCode");
-					var ef = new ExcelFormat(str);
-					if (formats.ContainsKey(id))
+					foreach (XmlElement fmt in nodes)
 					{
+						var id = int.Parse(fmt.GetAttribute("numFmtId"));
+						var str = fmt.GetAttribute("formatCode");
+						var ef = new ExcelFormat(str);
+						if (formats.ContainsKey(id))
+						{
 
-					}
-					else
-					{
-						formats[id] = ef;
+						}
+						else
+						{
+							formats[id] = ef;
+						}
 					}
 				}
-
-				XmlElement xfsElem = (XmlElement)doc.SelectSingleNode("/x:styleSheet/x:cellXfs", nsm);
+				XmlElement? xfsElem = (XmlElement?)doc.SelectSingleNode("/x:styleSheet/x:cellXfs", nsm);
 				if (xfsElem != null)
 				{
 					this.xfMap = new int[xfsElem.ChildNodes.Count];
 					for (int idx = 0; idx < xfMap.Length; idx++)
 					{
-						var xf = (XmlElement)xfsElem.ChildNodes[idx];
+						var xf = (XmlElement?)xfsElem.ChildNodes[idx];
+						if (xf == null)
+						{
+							throw new InvalidDataException();
+						}
 						var fmtIdStr = xf.GetAttribute("numFmtId");
 						xfMap[idx] = int.Parse(fmtIdStr);
 					}
@@ -237,9 +263,12 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 				if (reader.LocalName == "dimension")
 				{
 					var dim = reader.GetAttribute("ref");
-					var idx = dim.IndexOf(':');
-					var p = CellPosition.Parse(dim.Substring(idx + 1));
-					this.rowCount = p.Row + 1;
+					if (dim != null)
+					{
+						var idx = dim.IndexOf(':');
+						var p = CellPosition.Parse(dim.Substring(idx + 1));
+						this.rowCount = p.Row + 1;
+					}
 				}
 				if (reader.LocalName == "sheetData")
 				{
@@ -296,7 +325,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 			if (reader!.MoveToAttribute(refName))
 			{
 				int row;
-#if SPAN_PARSE
+#if SPAN
 				var len = reader.ReadValueChunk(valueBuffer, 0, valueBuffer.Length);
 				if (len < valueBuffer.Length && int.TryParse(valueBuffer.AsSpan(0, len), NumberStyles.Integer, ci, out row))
 				{
@@ -534,7 +563,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 				{
 					case CellType.Numeric:
 						fi.type = ExcelDataType.Numeric;
-#if SPAN_PARSE
+#if SPAN
 						len = reader.ReadValueChunk(valueBuffer, 0, valueBuffer.Length);
 						if (len < valueBuffer.Length && double.TryParse(valueBuffer.AsSpan(0, len), NumberStyles.Float, ci, out fi.numValue))
 						{
@@ -831,8 +860,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 						reader.Read();
 						if (reader.NodeType == XmlNodeType.Text || reader.NodeType == XmlNodeType.SignificantWhitespace)
 						{
-
-							s = reader.Value;
+							s = OpenXmlCodec.DecodeString(reader.Value);
 						}
 						else if (reader.NodeType == XmlNodeType.EndElement && reader.LocalName == "t")
 						{
@@ -845,6 +873,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 					}
 					if (c == 0)
 					{
+
 						str = s;
 					}
 					else

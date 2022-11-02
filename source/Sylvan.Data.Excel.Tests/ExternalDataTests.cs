@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Text.RegularExpressions;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -34,6 +35,14 @@ public class ExternalDataTests
 				yield return new object[] { file };
 			}
 		}
+	}
+
+	[Fact]
+	public void XmlCharRegex()
+	{
+		var str = "ab\bcd";
+		var rep = Regex.Replace(str, @"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]", "");
+		Assert.Equal("abcd", rep);
 	}
 
 	[Theory]

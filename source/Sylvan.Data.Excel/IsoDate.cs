@@ -5,7 +5,7 @@ using System;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 
-#if !NETSTANDARD2_1_OR_GREATER
+#if !SPAN
 using System.Text;
 using ReadonlyCharSpan = Sylvan.CharSpan;
 #else
@@ -571,7 +571,7 @@ static partial class IsoDate
 
 	public static string ToStringIso(DateTime value)
 	{
-#if !NETSTANDARD2_1_OR_GREATER
+#if !SPAN
 		CharSpan buffer = RunTimeCompatability.AllocateCharSpan(MaxDateLength);
 #else
 		CharSpan buffer = stackalloc char[MaxDateLength];
@@ -595,7 +595,7 @@ static partial class IsoDate
 
 	public static string ToDateStringIso(DateTime value)
 	{
-#if !NETSTANDARD2_1_OR_GREATER
+#if !SPAN
 		CharSpan buffer = RunTimeCompatability.AllocateCharSpan(10);
 #else
 		CharSpan buffer = stackalloc char[10];
@@ -645,7 +645,7 @@ static partial class IsoDate
 
 	public static string ToStringIso(DateTimeOffset value)
 	{
-#if !NETSTANDARD2_1_OR_GREATER
+#if !SPAN
 		CharSpan buffer = RunTimeCompatability.AllocateCharSpan(MaxDateLength);
 #else
 		CharSpan buffer = stackalloc char[MaxDateLength];
