@@ -1,10 +1,10 @@
 # Sylvan.Data.Excel
 
-A cross-platform .NET library for reading and writing Excel data files. The most commonly used formats: .xlsx, .xlsb and .xls, are supported for reading. Only .xlsx is supported for writing.
+A cross-platform .NET library for reading and writing Excel data files. The most commonly used formats: .xlsx, .xlsb and .xls, are supported for reading, while only .xlsx is supported for writing.
 
-ExcelDataReader provides readonly, row by row, forward-only access to the data. Provides a familiar API via `DbDataReader`, which is ideal for accessing rectangular, tabular data sets. It exposes a single, unified API for accessing all supported file formats.
+ExcelDataReader provides readonly, row by row, forward-only access to the data. It provides a familiar API via `DbDataReader`, which is ideal for accessing rectangular, tabular data sets. It exposes a single, unified API for accessing all supported file formats.
 
-ExcelDataWriter supports writing data from a `DbDataReader` to an Excel worksheet.
+ExcelDataWriter supports writing data from a `DbDataReader` to an Excel worksheet in .xlsx format. ExcelDataWriter can only write a new Excel, it cannot be used to edit or append to existing files.
 
 The library is a purely managed implementation with no external dependencies.
 
@@ -102,14 +102,14 @@ do
 
 ## ExcelDataWriter
 
-The `ExcelDataWriter` type is used to create Excel workbooks and write `DbDataReader` data as worksheets. The goal of this type was to create a minimal, Excel-compatible file as efficiently as possible.
+The `ExcelDataWriter` type is used to create Excel workbooks and write `DbDataReader` data as worksheets.
 
 ```C#
 // *critical* to dispose (using) ExcelDataWriter.
 using var edw = ExcelDataWriter.Create("data.xmls");
 DbDataReader dr;
 dr = GetQueryResults("UserReport");
-edw.Write("UserReport", dr);
+edw.Write(dr, "UserReport");
 dr = GetQueryResults("SecurityAudit");
-edw.Write("SecurityAudit", dr);
+edw.Write(dr, "SecurityAudit");
 ```
