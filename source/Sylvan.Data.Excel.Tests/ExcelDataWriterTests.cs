@@ -1,6 +1,7 @@
 ﻿using Sylvan.Data.Csv;
 using System;
-using System.Data.SqlClient;
+using System.Collections;
+using System.Data.Common;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
@@ -236,19 +237,7 @@ public abstract class ExcelDataWriterTests
 	[Fact]
 	public void CharArray()
 	{
-		var data = new[]
-		{
-			new {
-				Name = "A",
-				Data = "Alphabet".ToCharArray(),
-			},
-			new {
-				Name = "B",
-				Data = new string('Z',short.MaxValue).ToCharArray(),
-			}
-		};
-
-		var dr = data.AsDataReader();
+		var dr = new CharTestDataReader();
 		var f = GetFile();
 		using (var edw = ExcelDataWriter.Create(f))
 		{
@@ -261,11 +250,11 @@ public abstract class ExcelDataWriterTests
 			Assert.Equal("Name", edr.GetName(0));
 			Assert.Equal("Data", edr.GetName(1));
 			Assert.True(edr.Read());
-			Assert.Equal("A", edr.GetString(0));
-			Assert.Equal("Alphabet", edr.GetString(1));
+			Assert.Equal("a", edr.GetString(0));
+			Assert.Equal("alphabet", edr.GetString(1));
 			Assert.True(edr.Read());
-			Assert.Equal("B", edr.GetString(0));
-			Assert.Equal(new string('Z', short.MaxValue), edr.GetString(1));
+			Assert.Equal("b", edr.GetString(0));
+			Assert.Equal(new string('z', short.MaxValue), edr.GetString(1));
 			Assert.False(edr.Read());
 		}
 	}
@@ -418,4 +407,175 @@ public abstract class ExcelDataWriterTests
 	}
 
 #endif
+}
+
+// TODO: this is used to test writing char[] values.
+// need to fix System.Data.ObjectDataReader to replace this.
+class CharTestDataReader : DbDataReader
+{
+	const int RowCount = 2;
+	const int ColCount = 2;
+
+	int row = -1;
+
+	string[] names;
+	string[] col0;
+	char[][] col1;
+
+	public CharTestDataReader()
+	{
+		this.names = new[] { "Name", "Data" }; 
+		this.col0 =
+			new[] {
+				"a",
+				"b"
+			};
+		this.col1 =
+			new[] {
+				"alphabet".ToCharArray(),
+				new string('z', short.MaxValue).ToCharArray()
+			};
+	}
+
+	public override int FieldCount => ColCount;
+
+	public override Type GetFieldType(int ordinal)
+	{
+		switch (ordinal)
+		{
+			case 0: return typeof(string);
+			case 1: return typeof(char[]);
+		}
+		throw new ArgumentOutOfRangeException();
+	}
+
+	public override int GetInt32(int ordinal) => row + ordinal;
+
+	public override bool IsDBNull(int ordinal) => false;
+
+	public override string GetName(int ordinal) => names[ordinal];
+
+	public override string GetString(int ordinal)
+	{
+		return col0[row];
+	}
+
+	public override long GetChars(int ordinal, long dataOffset, char[] buffer, int bufferOffset, int length)
+	{
+		var dat = col1[row];
+		var count = Math.Min(length, dat.Length - (int) dataOffset);
+		
+		dat.AsSpan((int)dataOffset, count).CopyTo(buffer.AsSpan(bufferOffset));
+		return count;
+	}
+
+	public override bool Read()
+	{
+		row++;
+		return row < RowCount;
+	}
+
+	public override object GetValue(int ordinal)
+	{
+		return
+			ordinal % 2 == 0
+			? (object)GetString(ordinal)
+			: (object)GetInt32(ordinal);
+	}
+
+	#region NotImplemented
+
+	public override object this[int ordinal] => throw new NotImplementedException();
+
+	public override object this[string name] => throw new NotImplementedException();
+
+	public override int Depth => throw new NotImplementedException();
+
+	public override bool HasRows => throw new NotImplementedException();
+
+	public override bool IsClosed => throw new NotImplementedException();
+
+	public override int RecordsAffected => throw new NotImplementedException();
+
+	public override bool GetBoolean(int ordinal)
+	{
+		throw new NotImplementedException();
+	}
+
+	public override byte GetByte(int ordinal)
+	{
+		throw new NotImplementedException();
+	}
+
+	public override long GetBytes(int ordinal, long dataOffset, byte[] buffer, int bufferOffset, int length)
+	{
+		throw new NotImplementedException();
+	}
+
+	public override char GetChar(int ordinal)
+	{
+		throw new NotImplementedException();
+	}
+
+	public override string GetDataTypeName(int ordinal)
+	{
+		throw new NotImplementedException();
+	}
+
+	public override DateTime GetDateTime(int ordinal)
+	{
+		throw new NotImplementedException();
+	}
+
+	public override decimal GetDecimal(int ordinal)
+	{
+		throw new NotImplementedException();
+	}
+
+	public override double GetDouble(int ordinal)
+	{
+		throw new NotImplementedException();
+	}
+
+	public override IEnumerator GetEnumerator()
+	{
+		throw new NotImplementedException();
+	}
+
+	public override float GetFloat(int ordinal)
+	{
+		throw new NotImplementedException();
+	}
+
+	public override Guid GetGuid(int ordinal)
+	{
+		throw new NotImplementedException();
+	}
+
+	public override short GetInt16(int ordinal)
+	{
+		throw new NotImplementedException();
+	}
+
+	public override long GetInt64(int ordinal)
+	{
+		throw new NotImplementedException();
+	}
+
+	public override int GetOrdinal(string name)
+	{
+		throw new NotImplementedException();
+	}
+
+	public override int GetValues(object[] values)
+	{
+		throw new NotImplementedException();
+	}
+
+	public override bool NextResult()
+	{
+		return false;
+	}
+
+	#endregion
 }
