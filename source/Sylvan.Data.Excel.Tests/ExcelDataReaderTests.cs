@@ -664,7 +664,7 @@ public class XlsxTests
 	{
 		var file = GetFile("Jagged");
 		var opts = new ExcelDataReaderOptions { Schema = ExcelSchema.NoHeaders };
-		var edr = ExcelDataReader.Create(file, opts);
+		using var edr = ExcelDataReader.Create(file, opts);
 		while (edr.Read())
 		{
 			int i;
@@ -924,7 +924,7 @@ public class XlsxTests
 	[Fact]
 	public void GetFieldValue()
 	{
-		var reader = ExcelDataReader.Create(GetFile("Schema"));
+		using var reader = ExcelDataReader.Create(GetFile("Schema"));
 		Assert.True(reader.Read());
 		Assert.Equal(1, reader.GetFieldValue<int>(0));
 		Assert.Equal("James", reader.GetFieldValue<string>(1));
@@ -938,7 +938,7 @@ public class XlsxTests
 	[Fact]
 	public void Init()
 	{
-		var reader = ExcelDataReader.Create(GetFile());
+		using var reader = ExcelDataReader.Create(GetFile());
 		Assert.Equal(3, reader.FieldCount);
 		Assert.Equal("a", reader.GetName(0));
 		Assert.Equal("b", reader.GetName(1));
@@ -977,7 +977,7 @@ public class XlsxTests
 	public void BlankFirstRow()
 	{
 		var file = GetFile();
-		var edr = ExcelDataReader.Create(file);
+		using var edr = ExcelDataReader.Create(file);
 		Assert.Equal(0, edr.FieldCount);
 		Assert.Equal(0, edr.RowFieldCount);
 		Assert.True(edr.Read());
@@ -995,6 +995,37 @@ public class XlsxTests
 		Assert.Equal("2", edr.GetString(2));
 		Assert.Equal("3", edr.GetString(3));
 		Assert.False(edr.Read());
+	}
+
+	[Theory]
+	[InlineData("big")]
+	[InlineData("blankfirstrow")]
+	public void RowNumber(string filename)
+	{
+		var file = GetFile(filename);
+		using var edr = ExcelDataReader.Create(file);
+		int idx = 0;
+		while (edr.Read())
+		{
+			Assert.Equal(2 + idx, edr.RowNumber);
+			idx++;
+		}
+	}
+
+	[Theory]
+	[InlineData("big")]
+	[InlineData("blankfirstrow")]
+	public void RowNumberNoHeader(string filename)
+	{
+		var file = GetFile(filename);
+		var opts = new ExcelDataReaderOptions { Schema = ExcelSchema.NoHeaders };
+		using var edr = ExcelDataReader.Create(file, opts);
+		int idx = 0;
+		while (edr.Read())
+		{
+			Assert.Equal(1 + idx, edr.RowNumber);
+			idx++;
+		}
 	}
 }
 
