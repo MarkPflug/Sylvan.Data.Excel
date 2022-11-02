@@ -998,8 +998,8 @@ public class XlsxTests
 	}
 
 	[Theory]
-	[InlineData("big")]
-	[InlineData("blankfirstrow")]
+	[InlineData("Big")]
+	[InlineData("BlankFirstRow")]
 	public void RowNumber(string filename)
 	{
 		var file = GetFile(filename);
@@ -1013,8 +1013,8 @@ public class XlsxTests
 	}
 
 	[Theory]
-	[InlineData("big")]
-	[InlineData("blankfirstrow")]
+	[InlineData("Big")]
+	[InlineData("BlankFirstRow")]
 	public void RowNumberNoHeader(string filename)
 	{
 		var file = GetFile(filename);
