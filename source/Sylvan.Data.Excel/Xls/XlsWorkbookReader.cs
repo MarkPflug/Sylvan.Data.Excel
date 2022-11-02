@@ -226,11 +226,15 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 		if (!result)
 		{
 			await ReadAsync(cancel).ConfigureAwait(false);
+			this.rowNumber = 1;
+		}
+		else
+		{
+			this.rowNumber = 0;
 		}
 		this.curFieldCount = this.rowFieldCount;
 		this.rowFieldCount = this.FieldCount;
 		this.state = State.Initialized;
-		this.rowNumber = 1;
 		return result;
 	}
 
