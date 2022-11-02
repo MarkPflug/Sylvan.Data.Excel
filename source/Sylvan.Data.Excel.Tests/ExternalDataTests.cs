@@ -42,7 +42,7 @@ public class ExternalDataTests
 	{
 		var str = "ab\bcd";
 		var rep = Regex.Replace(str, @"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]", "");
-		Assert.Same(str, rep);
+		Assert.Equal("abcd", rep);
 	}
 
 	[Theory]
