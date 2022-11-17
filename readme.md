@@ -106,7 +106,7 @@ The `ExcelDataWriter` type is used to create Excel workbooks and write `DbDataRe
 
 ```C#
 // *critical* to dispose (using) ExcelDataWriter.
-using var edw = ExcelDataWriter.Create("data.xmls");
+using var edw = ExcelDataWriter.Create("data.xlsx");
 DbDataReader dr;
 dr = GetQueryResults("UserReport");
 edw.Write(dr, "UserReport");
