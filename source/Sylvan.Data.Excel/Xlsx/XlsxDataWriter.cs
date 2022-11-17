@@ -267,7 +267,8 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 		xw.WriteEndElement();
 		xw.WriteStartElement("AppVersion", PropNS);
 		var v = asmName.Version!;
-		var ver = v.Major + "." + v.Minor + "." + v.Build;
+		// AppVersion must be of the format XX.YYYY
+		var ver = $"{v.Major:00}.{v.Minor:00}{v.Build:00}";
 		xw.WriteValue(ver);
 		xw.WriteEndElement();
 		xw.WriteEndElement();

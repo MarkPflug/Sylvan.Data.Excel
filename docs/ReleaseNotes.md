@@ -1,5 +1,8 @@
 # Sylvan.Data.Excel Release Notes
 
+_0.4.1_
+  - Fix version metadata format written by ExcelDataWriter which was causing warnings on some machines.
+
 _0.4.0_
   - Adds ExcelDataWriter which supports writing a `DbDataReader` to an .xlsx worksheet.
   - Fixes the encoding of certain characters.
