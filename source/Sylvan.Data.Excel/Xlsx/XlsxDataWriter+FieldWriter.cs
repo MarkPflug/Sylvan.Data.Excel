@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Data.Common;
+using System.Globalization;
 using System.IO;
 
 namespace Sylvan.Data.Excel.Xlsx;
@@ -159,14 +160,13 @@ partial class XlsxDataWriter
 			var val = (dt - Epoch).TotalDays + 2;
 #if SPAN
 			var scratch = c.GetScratch();
-			if (val.TryFormat(scratch.AsSpan(), out var sl))
+			if (val.TryFormat(scratch.AsSpan(), out var sl, default, CultureInfo.InvariantCulture))
 			{
 				w.Write(scratch, 0, sl);
 			}
 #else
-			w.Write(val);
+			w.Write(val.ToString(CultureInfo.InvariantCulture));
 #endif
-
 			w.Write("</v></c>");
 		}
 
@@ -191,7 +191,7 @@ partial class XlsxDataWriter
 			var val = (dt.ToDateTime(Midnight) - Epoch).TotalDays + 2;
 
 			var scratch = c.GetScratch();
-			if (val.TryFormat(scratch.AsSpan(), out var sl))
+			if (val.TryFormat(scratch.AsSpan(), out var sl, default, CultureInfo.InvariantCulture))
 			{
 				w.Write(scratch, 0, sl);
 			}
@@ -216,7 +216,7 @@ partial class XlsxDataWriter
 			var val = t.ToTimeSpan().TotalDays;
 
 			var scratch = c.GetScratch();
-			if (val.TryFormat(scratch.AsSpan(), out var sl))
+			if (val.TryFormat(scratch.AsSpan(), out var sl, default, CultureInfo.InvariantCulture))
 			{
 				w.Write(scratch, 0, sl);
 			}
@@ -242,12 +242,12 @@ partial class XlsxDataWriter
 			var val = c.dr.GetDecimal(ordinal);
 #if SPAN
 			var scratch = c.GetScratch();
-			if (val.TryFormat(scratch.AsSpan(), out var sl))
+			if (val.TryFormat(scratch.AsSpan(), out var sl, default, CultureInfo.InvariantCulture))
 			{
 				w.Write(scratch, 0, sl);
 			}
 #else
-			w.Write(val);
+			w.Write(val.ToString(CultureInfo.InvariantCulture));
 #endif
 
 			w.Write("</v></c>");
@@ -264,12 +264,12 @@ partial class XlsxDataWriter
 			var val = c.dr.GetFloat(ordinal);
 #if SPAN
 			var scratch = c.GetScratch();
-			if (val.TryFormat(scratch.AsSpan(), out var sl))
+			if (val.TryFormat(scratch.AsSpan(), out var sl, default, CultureInfo.InvariantCulture))
 			{
 				w.Write(scratch, 0, sl);
 			}
 #else
-			w.Write(val);
+			w.Write(val.ToString(CultureInfo.InvariantCulture));
 #endif
 
 			w.Write("</v></c>");
@@ -286,12 +286,12 @@ partial class XlsxDataWriter
 			var val = c.dr.GetDouble(ordinal);
 #if SPAN
 			var scratch = c.GetScratch();
-			if (val.TryFormat(scratch.AsSpan(), out var sl))
+			if (val.TryFormat(scratch.AsSpan(), out var sl, default, CultureInfo.InvariantCulture))
 			{
 				w.Write(scratch, 0, sl);
 			}
 #else
-			w.Write(val);
+			w.Write(val.ToString(CultureInfo.InvariantCulture));
 #endif
 
 			w.Write("</v></c>");
@@ -321,12 +321,12 @@ partial class XlsxDataWriter
 			var val = c.dr.GetByte(ordinal);
 #if SPAN
 			var scratch = c.GetScratch();
-			if (val.TryFormat(scratch.AsSpan(), out var sl))
+			if (val.TryFormat(scratch.AsSpan(), out var sl, default, CultureInfo.InvariantCulture))
 			{
 				w.Write(scratch, 0, sl);
 			}
 #else
-			w.Write(val);
+			w.Write(val.ToString(CultureInfo.InvariantCulture));
 #endif
 
 			w.Write("</v></c>");
@@ -343,12 +343,12 @@ partial class XlsxDataWriter
 			var val = c.dr.GetInt16(ordinal);
 #if SPAN
 			var scratch = c.GetScratch();
-			if (val.TryFormat(scratch.AsSpan(), out var sl))
+			if (val.TryFormat(scratch.AsSpan(), out var sl, default, CultureInfo.InvariantCulture))
 			{
 				w.Write(scratch, 0, sl);
 			}
 #else
-			w.Write(val);
+			w.Write(val.ToString(CultureInfo.InvariantCulture));
 #endif
 
 			w.Write("</v></c>");
@@ -365,12 +365,12 @@ partial class XlsxDataWriter
 			var val = c.dr.GetInt32(ordinal);
 #if SPAN
 			var scratch = c.GetScratch();
-			if (val.TryFormat(scratch.AsSpan(), out var sl))
+			if (val.TryFormat(scratch.AsSpan(), out var sl, default, CultureInfo.InvariantCulture))
 			{
 				w.Write(scratch, 0, sl);
 			}
 #else
-			w.Write(val);
+			w.Write(val.ToString(CultureInfo.InvariantCulture));
 #endif
 
 			w.Write("</v></c>");
@@ -387,12 +387,12 @@ partial class XlsxDataWriter
 			var val = c.dr.GetInt64(ordinal);
 #if SPAN
 			var scratch = c.GetScratch();
-			if (val.TryFormat(scratch.AsSpan(), out var sl))
+			if (val.TryFormat(scratch.AsSpan(), out var sl, default, CultureInfo.InvariantCulture))
 			{
 				w.Write(scratch, 0, sl);
 			}
 #else
-			w.Write(val);
+			w.Write(val.ToString(CultureInfo.InvariantCulture));
 #endif
 
 			w.Write("</v></c>");
@@ -440,12 +440,12 @@ partial class XlsxDataWriter
 			var val = c.dr.GetFieldValue<TimeSpan>(ordinal).TotalSeconds;
 #if SPAN
 			var scratch = c.GetScratch();
-			if (val.TryFormat(scratch.AsSpan(), out var sl))
+			if (val.TryFormat(scratch.AsSpan(), out var sl, default, CultureInfo.InvariantCulture))
 			{
 				w.Write(scratch, 0, sl);
 			}
 #else
-			w.Write(val);
+			w.Write(val.ToString(CultureInfo.InvariantCulture));
 #endif
 
 			w.Write("</v></c>");

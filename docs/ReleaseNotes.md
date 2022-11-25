@@ -1,5 +1,8 @@
 # Sylvan.Data.Excel Release Notes
 
+_0.4.2_
+  - Fix ExcelDataWriter formatting to use InvariantCulture to provide consistent behavior in all cultures.
+
 _0.4.1_
   - Fix version metadata format written by ExcelDataWriter which was causing warnings on some machines.
 
