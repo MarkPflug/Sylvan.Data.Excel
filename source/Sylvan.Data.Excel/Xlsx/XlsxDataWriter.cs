@@ -136,7 +136,7 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 		{
 			if (async)
 			{
-				if(!await data.ReadAsync(cancel))
+				if (!await data.ReadAsync(cancel))
 				{
 					break;
 				}
@@ -211,12 +211,30 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 			var str = this.sharedStrings[i];
 
 			var encodedStr = OpenXmlCodec.EncodeString(str);
-
+			if (HasWhiteSpace(encodedStr))
+			{
+				xw.WriteAttributeString("xml", "space", null, "preserve");
+			}
 			xw.WriteValue(encodedStr);
 			xw.WriteEndElement();
 			xw.WriteEndElement();
 		}
 		xw.WriteEndElement();
+	}
+
+	static bool HasWhiteSpace(string str)
+	{
+		char c;
+		if (str.Length > 0)
+		{
+			c = str[0];
+			if (char.IsWhiteSpace(c))
+				return true;
+			c = str[str.Length - 1];
+			if (char.IsWhiteSpace(c))
+				return true;
+		}
+		return false;
 	}
 
 	void WriteWorkbook()

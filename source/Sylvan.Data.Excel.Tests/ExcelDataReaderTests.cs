@@ -1027,6 +1027,20 @@ public class XlsxTests
 			idx++;
 		}
 	}
+
+	[Fact]
+	public void Whitespace()
+	{
+		var file = GetFile("WS");
+		var opts = new ExcelDataReaderOptions { Schema = ExcelSchema.NoHeaders };
+		using var edr = ExcelDataReader.Create(file, opts);
+
+		Assert.True(edr.Read());
+		Assert.Equal("a ", edr.GetString(0));
+		Assert.Equal(" b", edr.GetString(1));
+		Assert.Equal(" c ", edr.GetString(2));
+
+	}
 }
 
 public sealed class XlsTests : XlsxTests

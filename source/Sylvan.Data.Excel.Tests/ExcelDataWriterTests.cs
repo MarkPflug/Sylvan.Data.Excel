@@ -211,6 +211,31 @@ public abstract class ExcelDataWriterTests
 	}
 
 	[Fact]
+	public void WhiteSpace()
+	{
+		var data = " a , b,c \n 1 , 2,3 \n";
+		var r = new StringReader(data);
+		var csv = CsvDataReader.Create(r);
+
+		var f = GetFile();
+		using (var edw = ExcelDataWriter.Create(f))
+		{
+			edw.Write(csv);
+		}
+
+		using var edr = ExcelDataReader.Create(f);
+		Assert.Equal(" a ", edr.GetName(0));
+		Assert.Equal(" b", edr.GetName(1));
+		Assert.Equal("c ", edr.GetName(2));
+		Assert.True(edr.Read());
+		Assert.Equal(" 1 ", edr.GetString(0));
+		Assert.Equal(" 2", edr.GetString(1));
+		Assert.Equal("3 ", edr.GetString(2));
+		Assert.False(edr.Read());
+
+	}
+
+	[Fact]
 	public void Binary()
 	{
 		var data = new[]

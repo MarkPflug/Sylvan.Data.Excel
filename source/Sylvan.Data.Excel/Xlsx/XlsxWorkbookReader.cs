@@ -613,7 +613,12 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 					case CellType.String:
 						if (reader.NodeType == XmlNodeType.Text)
 						{
-							fi.strValue = reader.ReadContentAsString();
+							var s = reader.ReadContentAsString();
+							if (reader.XmlSpace != XmlSpace.Preserve)
+							{
+								s = s.Trim();
+							}
+							fi.strValue = s;
 							fi.type = ExcelDataType.String;
 						}
 						else
@@ -851,6 +856,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 				if (reader.NodeType == XmlNodeType.Element && reader.LocalName == "t")
 				{
 					string? s = string.Empty;
+					var wsPreserve = reader.XmlSpace == XmlSpace.Preserve;
 					if (reader.IsEmptyElement)
 					{
 						s = string.Empty;
@@ -858,9 +864,14 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 					else
 					{
 						reader.Read();
-						if (reader.NodeType == XmlNodeType.Text || reader.NodeType == XmlNodeType.SignificantWhitespace)
+						if (reader.NodeType == XmlNodeType.Text || reader.NodeType == XmlNodeType.SignificantWhitespace || reader.NodeType == XmlNodeType.Whitespace)
 						{
-							s = OpenXmlCodec.DecodeString(reader.Value);
+							var val = reader.Value;
+							if (!wsPreserve)
+							{
+								val = val.Trim();
+							}
+							s = OpenXmlCodec.DecodeString(val);
 						}
 						else if (reader.NodeType == XmlNodeType.EndElement && reader.LocalName == "t")
 						{
@@ -873,7 +884,6 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 					}
 					if (c == 0)
 					{
-
 						str = s;
 					}
 					else

@@ -199,6 +199,19 @@ public class CustomTests
 		Assert.Equal(new DateTime(2022, 6, 9), edr.GetDateTime(1));
 		Assert.Equal(ExcelDataType.String, edr.GetExcelDataType(1));
 		Assert.Equal(value, edr.GetValue(1));
+	}
 
+	[Fact]
+	public void WhitespaceSharedStrings()
+	{
+		var r = XlsxBuilder.Create(TestData.WSSheet, TestData.WSSharedString, null, o => o.Schema = ExcelSchema.NoHeaders);
+
+		Assert.True(r.Read());
+		Assert.Equal(" a ", r.GetString(0));
+		Assert.Equal("b", r.GetString(1));
+		Assert.Equal(" a ", r.GetString(2));
+		Assert.Equal("b", r.GetString(3));
+		Assert.Equal(" a ", r.GetString(4));
+		Assert.Equal("b", r.GetString(5));
 	}
 }

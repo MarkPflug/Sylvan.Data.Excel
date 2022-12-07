@@ -1,0 +1,30 @@
+﻿<worksheet>
+	<sheetData>
+		<row r="1">
+			<c r="A1" t="s">
+				<v>0</v>
+			</c>
+			<c r="B1" t="s">
+				<v>1</v>
+			</c>
+			
+			<c r="C1" t="str">
+				<v xml:space="preserve"> a </v>
+			</c>
+			<c r="D1" t="str">
+				<v> b </v>
+			</c>
+
+			<c r="E1" t="inlineStr">
+				<is>
+					<t xml:space="preserve"> a </t>
+				</is>
+			</c>
+			<c r="F1" t="inlineStr">
+				<is>
+					<t> b </t>
+				</is>
+			</c>
+		</row>
+	</sheetData>
+</worksheet>

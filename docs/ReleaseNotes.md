@@ -1,5 +1,11 @@
 # Sylvan.Data.Excel Release Notes
 
+_0.4.3_
+  - Fix .xlsx string handling for rare whitespace in shared string table.
+  - Fix .xlsx whitespace handling to correctly preserve whitespace when reading and writing.
+  - Xlsx writer now throws an exception when a string exceeds the maximum length allowed by Excel (32k).
+      Use `ExcelDataWriterOptions.TruncateStrings = true` to truncate such strings when writing.
+
 _0.4.2_
   - Fix ExcelDataWriter formatting to use InvariantCulture to provide consistent behavior in all cultures.
 

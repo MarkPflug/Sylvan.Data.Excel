@@ -120,15 +120,24 @@ partial class XlsxDataWriter
 
 	sealed class StringFieldWriter : FieldWriter
 	{
+		const string StringTooLongMessage = "String exceeds the maximum allowed length.";
+
 		public override void WriteField(Context c, int ordinal)
 		{
 			var w = c.xw;
 			w.Write("<c t=\"s\"><v>");
 			var s = c.dr.GetString(ordinal);
 			// truncate before adding to the sharestrings table.
-			if (c.dw.truncateStrings && s.Length > StringLimit)
+			if (s.Length > StringLimit)
 			{
-				s = s.Substring(0, StringLimit);
+				if (c.dw.truncateStrings)
+				{
+					s = s.Substring(0, StringLimit);
+				}
+				else
+				{
+					throw new FormatException(StringTooLongMessage);
+				}
 			}
 
 			var ssIdx = c.dw.sharedStrings.GetString(s);
