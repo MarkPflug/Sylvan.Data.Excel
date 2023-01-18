@@ -214,4 +214,14 @@ public class CustomTests
 		Assert.Equal(" a ", r.GetString(4));
 		Assert.Equal("b", r.GetString(5));
 	}
+
+	[Fact]
+	public void Issue100()
+	{
+		var r = ExcelDataReader.Create("/users/mark/desktop/test2/parts.xlsx");
+		Assert.True(r.Read());
+
+		var str = r.GetString(0);
+
+	}
 }

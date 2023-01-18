@@ -6,7 +6,7 @@ namespace Sylvan.Data.Excel;
 // This encoding is mentioned in ECMA-376 22.4.2.2 (bstr Basic String)
 // TODO: this code could probably benefit from some optimization.
 static class OpenXmlCodec
-{	
+{
 	// replace most control characters as well as underscore characters.
 	// the underscore replacement is to "escape" underscores that might otherwise be
 	// seen as an encoded sequence.
@@ -32,7 +32,7 @@ static class OpenXmlCodec
 	static string EncodeReplace(Match m)
 	{
 		int c = m.Value[0];
-		var str =  $"_x{c:x4}_";
+		var str = $"_x{c:x4}_";
 		return str;
 	}
 
@@ -42,9 +42,9 @@ static class OpenXmlCodec
 			c >= '0' && c <= '9'
 			? c - '0'
 			: c >= 'a' && c <= 'f'
-			? c - 'a'
+			? 10 + c - 'a'
 			: c >= 'A' && c <= 'F'
-			? c - 'A'
+			? 10 + c - 'A'
 			: throw new System.Exception();
 	}
 
@@ -52,12 +52,12 @@ static class OpenXmlCodec
 	{
 		var str = m.Value;
 		char c =
-			(char) (
+			(char)(
 			(GetHexValue(str[2]) << 12) |
 			(GetHexValue(str[3]) << 8) |
 			(GetHexValue(str[4]) << 4) |
 			(GetHexValue(str[5]) << 0)
 			);
-		return "" + c;
+		return c.ToString();
 	}
 }

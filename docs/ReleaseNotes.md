@@ -1,5 +1,9 @@
 # Sylvan.Data.Excel Release Notes
 
+_0.4.4_
+  - Fix a bug in handling OpenXml character escaping that could cause certain strings in.xlsx files
+   to be read incorrectly.
+
 _0.4.3_
   - Fix .xlsx string handling for rare whitespace in shared string table.
   - Fix .xlsx whitespace handling to correctly preserve whitespace when reading and writing.
