@@ -21,11 +21,340 @@ partial class XlsxDataWriter
 		internal XlsxDataWriter dw;
 		internal TextWriter xw;
 		internal DbDataReader dr;
-		internal char[]? scratch;
+		internal char[]? charBuffer;
+		internal byte[]? byteBuffer;
 
-		public char[] GetScratch()
+		public char[] GetCharBuffer()
 		{
-			return scratch ?? (scratch = new char[64]);
+			return charBuffer ?? (charBuffer = new char[64]);
+		}
+
+		public byte[] GetByteBuffer()
+		{
+			return byteBuffer ?? (byteBuffer = new byte[48]);
+		}
+	}
+
+	static class XlsxValueWriter
+	{
+		static readonly char[] HexMap = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
+
+		const string StringTooLongMessage = "String exceeds the maximum allowed length.";
+		static readonly TimeOnly Midnight = new TimeOnly(0);
+
+		public static void WriteString(Context c, string value)
+		{
+			var w = c.xw;
+			w.Write("<c t=\"s\"><v>");
+			// truncate before adding to the sharestrings table.
+			if (value.Length > StringLimit)
+			{
+				if (c.dw.truncateStrings)
+				{
+					value = value.Substring(0, StringLimit);
+				}
+				else
+				{
+					throw new FormatException(StringTooLongMessage);
+				}
+			}
+
+			var ssIdx = c.dw.sharedStrings.GetString(value);
+			w.Write(ssIdx);
+			w.Write("</v></c>");
+		}
+
+		public static void WriteChar(Context c, char value)
+		{
+			var w = c.xw;
+			w.Write("<c t=\"str\"><v>");
+			w.Write(value);
+			w.Write("</v></c>");
+		}
+
+		public static void WriteByte(Context c, byte value)
+		{
+			var w = c.xw;
+			w.Write("<c><v>");
+
+#if SPAN
+			var scratch = c.GetCharBuffer();
+			if (value.TryFormat(scratch.AsSpan(), out var sl, default, CultureInfo.InvariantCulture))
+			{
+				w.Write(scratch, 0, sl);
+			}
+#else
+			w.Write(value.ToString(CultureInfo.InvariantCulture));
+#endif
+
+			w.Write("</v></c>");
+		}
+
+		public static void WriteInt16(Context c, short value)
+		{
+			var w = c.xw;
+			w.Write("<c><v>");
+
+#if SPAN
+			var scratch = c.GetCharBuffer();
+			if (value.TryFormat(scratch.AsSpan(), out var sl, default, CultureInfo.InvariantCulture))
+			{
+				w.Write(scratch, 0, sl);
+			}
+#else
+			w.Write(value.ToString(CultureInfo.InvariantCulture));
+#endif
+
+			w.Write("</v></c>");
+		}
+
+		public static void WriteInt32(Context c, int value)
+		{
+			var w = c.xw;
+			w.Write("<c><v>");
+
+#if SPAN
+			var scratch = c.GetCharBuffer();
+			if (value.TryFormat(scratch.AsSpan(), out var sl, default, CultureInfo.InvariantCulture))
+			{
+				w.Write(scratch, 0, sl);
+			}
+#else
+			w.Write(value.ToString(CultureInfo.InvariantCulture));
+#endif
+
+			w.Write("</v></c>");
+		}
+
+		public static void WriteInt64(Context c, long value)
+		{
+			var w = c.xw;
+			w.Write("<c><v>");
+
+#if SPAN
+			var scratch = c.GetCharBuffer();
+			if (value.TryFormat(scratch.AsSpan(), out var sl, default, CultureInfo.InvariantCulture))
+			{
+				w.Write(scratch, 0, sl);
+			}
+#else
+			w.Write(value.ToString(CultureInfo.InvariantCulture));
+#endif
+
+			w.Write("</v></c>");
+		}
+
+		public static void WriteSingle(Context c, float value)
+		{
+			var w = c.xw;
+			w.Write("<c><v>");
+
+#if SPAN
+			var scratch = c.GetCharBuffer();
+			if (value.TryFormat(scratch.AsSpan(), out var sl, default, CultureInfo.InvariantCulture))
+			{
+				w.Write(scratch, 0, sl);
+			}
+#else
+			w.Write(value.ToString(CultureInfo.InvariantCulture));
+#endif
+
+			w.Write("</v></c>");
+		}
+
+		public static void WriteDouble(Context c, double value)
+		{
+			var w = c.xw;
+			w.Write("<c><v>");
+
+#if SPAN
+			var scratch = c.GetCharBuffer();
+			if (value.TryFormat(scratch.AsSpan(), out var sl, default, CultureInfo.InvariantCulture))
+			{
+				w.Write(scratch, 0, sl);
+			}
+#else
+			w.Write(value.ToString(CultureInfo.InvariantCulture));
+#endif
+
+			w.Write("</v></c>");
+		}
+
+		public static void WriteDecimal(Context c, decimal value)
+		{
+			var w = c.xw;
+			w.Write("<c><v>");
+
+#if SPAN
+			var scratch = c.GetCharBuffer();
+			if (value.TryFormat(scratch.AsSpan(), out var sl, default, CultureInfo.InvariantCulture))
+			{
+				w.Write(scratch, 0, sl);
+			}
+#else
+			w.Write(value.ToString(CultureInfo.InvariantCulture));
+#endif
+			w.Write("</v></c>");
+		}
+
+		public static void WriteGuid(Context c, Guid value)
+		{
+			var w = c.xw;
+			// TODO: currently writing these as inline string.
+			// might make sense to put in shared string table instead.
+			w.Write("<c t=\"str\"><v>");
+
+#if SPAN
+			var scratch = c.GetCharBuffer();
+			if (value.TryFormat(scratch.AsSpan(), out var sl))
+			{
+				w.Write(scratch, 0, sl);
+			}
+#else
+			w.Write(value);
+#endif
+
+			w.Write("</v></c>");
+		}
+
+		public static void WriteBoolean(Context c, bool value)
+		{
+			var w = c.xw;
+			w.Write("<c t=\"b\"><v>");
+			w.Write(value ? '1' : '0');
+			w.Write("</v></c>");
+		}
+
+		public static void WriteDateTime(Context c, DateTime value)
+		{
+			var w = c.xw;
+			w.Write("<c s=\"1\"><v>");
+
+			var val = (value - Epoch).TotalDays + 2;
+#if SPAN
+			var scratch = c.GetCharBuffer();
+			if (val.TryFormat(scratch.AsSpan(), out var sl, default, CultureInfo.InvariantCulture))
+			{
+				w.Write(scratch, 0, sl);
+			}
+#else
+			w.Write(val.ToString(CultureInfo.InvariantCulture));
+#endif
+			w.Write("</v></c>");
+		}
+
+		public static void WriteTimeSpan(Context c, TimeSpan value)
+		{
+			var val = value.TotalSeconds;
+			var w = c.xw;
+			// TODO: currently writing these as inline string.
+			// might make sense to put in shared string table instead.
+			w.Write("<c><v>");
+
+#if SPAN
+			var scratch = c.GetCharBuffer();
+			if (val.TryFormat(scratch.AsSpan(), out var sl, default, CultureInfo.InvariantCulture))
+			{
+				w.Write(scratch, 0, sl);
+			}
+#else
+			w.Write(val.ToString(CultureInfo.InvariantCulture));
+#endif
+
+			w.Write("</v></c>");
+		}
+
+#if DATE_ONLY
+
+		public static void WriteDateOnly(Context c, DateOnly value)
+		{
+			var w = c.xw;
+			w.Write("<c s=\"2\"><v>");
+
+			var val = (value.ToDateTime(Midnight) - Epoch).TotalDays + 2;
+
+			var scratch = c.GetCharBuffer();
+			if (val.TryFormat(scratch.AsSpan(), out var sl, default, CultureInfo.InvariantCulture))
+			{
+				w.Write(scratch, 0, sl);
+			}
+
+			w.Write("</v></c>");
+		}
+
+		public static void WriteTimeOnly(Context c, TimeOnly value)
+		{
+			var w = c.xw;
+			w.Write("<c s=\"3\"><v>");
+
+			var val = value.ToTimeSpan().TotalDays;
+
+			var scratch = c.GetCharBuffer();
+			if (val.TryFormat(scratch.AsSpan(), out var sl, default, CultureInfo.InvariantCulture))
+			{
+				w.Write(scratch, 0, sl);
+			}
+
+			w.Write("</v></c>");
+		}
+#endif
+
+		public static void WriteBinaryHex(Context c, Func<byte[], int> reader)
+		{
+			var w = c.xw;
+			w.Write("<c t=\"str\"><v>");
+			var idx = 0;
+			var buffer = c.GetByteBuffer();
+			var charBuffer = c.GetCharBuffer();
+			int len;
+			var pos = 0;
+			
+			w.Write("0x");
+			while ((len = reader(buffer)) != 0)
+			{
+				var l = ToHexCharArray(buffer, 0, len, charBuffer, pos);
+				w.Write(charBuffer, 0, l);
+				idx += len;
+				pos += l;
+			}
+
+			w.Write("</v></c>");
+
+		}
+
+		static int ToHexCharArray(byte[] dataBuffer, int offset, int length, char[] outputBuffer, int outputOffset)
+		{
+			if (length * 2 > outputBuffer.Length - outputOffset)
+				throw new ArgumentException();
+
+			var idx = offset;
+			var end = offset + length;
+			for (; idx < end; idx++)
+			{
+				var b = dataBuffer[idx];
+				var lo = HexMap[b & 0xf];
+				var hi = HexMap[b >> 4];
+				outputBuffer[outputOffset++] = hi;
+				outputBuffer[outputOffset++] = lo;
+			}
+			return length * 2;
+		}
+
+		static void WriteCharArray(Context c, Func<char[],int> reader)
+		{
+			var w = c.xw;
+			var buffer = c.GetCharBuffer();
+			w.Write("<c t=\"str\"><v>");
+			var idx = 0;
+			int len;
+			
+			while ((len = reader(buffer)) != 0)
+			{
+				w.Write(buffer, 0, len);
+				idx += len;
+			}
+
+			w.Write("</v></c>");
 		}
 	}
 
@@ -108,41 +437,30 @@ partial class XlsxDataWriter
 		public override void WriteField(Context c, int ordinal)
 		{
 			var val = c.dr.GetValue(ordinal);
-			var w = c.xw;
-			w.Write("<c t=\"s\"><v>");
 
-			var s = val?.ToString() ?? "";
-			var ssIdx = c.dw.sharedStrings.GetString(s);
-			w.Write(ssIdx);
-			w.Write("</v></c>");
+			var type = val.GetType();
+
+			var tc = Type.GetTypeCode(type);
+
+			switch (tc)
+			{
+				case TypeCode.String:
+					XlsxValueWriter.WriteString(c, (string)val);
+					break;
+				default:
+					var str = val?.ToString() ?? string.Empty;
+					XlsxValueWriter.WriteString(c, str);
+					break;
+			}
 		}
 	}
 
 	sealed class StringFieldWriter : FieldWriter
 	{
-		const string StringTooLongMessage = "String exceeds the maximum allowed length.";
-
 		public override void WriteField(Context c, int ordinal)
 		{
-			var w = c.xw;
-			w.Write("<c t=\"s\"><v>");
-			var s = c.dr.GetString(ordinal);
-			// truncate before adding to the sharestrings table.
-			if (s.Length > StringLimit)
-			{
-				if (c.dw.truncateStrings)
-				{
-					s = s.Substring(0, StringLimit);
-				}
-				else
-				{
-					throw new FormatException(StringTooLongMessage);
-				}
-			}
-
-			var ssIdx = c.dw.sharedStrings.GetString(s);
-			w.Write(ssIdx);
-			w.Write("</v></c>");
+			var value = c.dr.GetString(ordinal);
+			XlsxValueWriter.WriteString(c, value);
 		}
 	}
 
@@ -150,11 +468,8 @@ partial class XlsxDataWriter
 	{
 		public override void WriteField(Context c, int ordinal)
 		{
-			var w = c.xw;
-			w.Write("<c t=\"b\"><v>");
 			var val = c.dr.GetBoolean(ordinal);
-			w.Write(val ? '1' : '0');
-			w.Write("</v></c>");
+			XlsxValueWriter.WriteBoolean(c, val);
 		}
 	}
 
@@ -162,21 +477,8 @@ partial class XlsxDataWriter
 	{
 		public override void WriteField(Context c, int ordinal)
 		{
-			var w = c.xw;
-			w.Write("<c s=\"1\"><v>");
-
 			var dt = c.dr.GetDateTime(ordinal);
-			var val = (dt - Epoch).TotalDays + 2;
-#if SPAN
-			var scratch = c.GetScratch();
-			if (val.TryFormat(scratch.AsSpan(), out var sl, default, CultureInfo.InvariantCulture))
-			{
-				w.Write(scratch, 0, sl);
-			}
-#else
-			w.Write(val.ToString(CultureInfo.InvariantCulture));
-#endif
-			w.Write("</v></c>");
+			XlsxValueWriter.WriteDateTime(c, dt);			
 		}
 
 		public override double GetWidth(DbDataReader data, int ordinal)
@@ -189,23 +491,10 @@ partial class XlsxDataWriter
 
 	sealed class DateOnlyFieldWriter : FieldWriter
 	{
-		static readonly TimeOnly Midnight = new TimeOnly(0);
-
 		public override void WriteField(Context c, int ordinal)
 		{
-			var w = c.xw;
-			w.Write("<c s=\"2\"><v>");
-
 			var dt = c.dr.GetFieldValue<DateOnly>(ordinal);
-			var val = (dt.ToDateTime(Midnight) - Epoch).TotalDays + 2;
-
-			var scratch = c.GetScratch();
-			if (val.TryFormat(scratch.AsSpan(), out var sl, default, CultureInfo.InvariantCulture))
-			{
-				w.Write(scratch, 0, sl);
-			}
-
-			w.Write("</v></c>");
+			XlsxValueWriter.WriteDateOnly(c, dt);
 		}
 
 		public override double GetWidth(DbDataReader data, int ordinal)
@@ -218,19 +507,8 @@ partial class XlsxDataWriter
 	{
 		public override void WriteField(Context c, int ordinal)
 		{
-			var w = c.xw;
-			w.Write("<c s=\"3\"><v>");
-
-			var t = c.dr.GetFieldValue<TimeOnly>(ordinal);
-			var val = t.ToTimeSpan().TotalDays;
-
-			var scratch = c.GetScratch();
-			if (val.TryFormat(scratch.AsSpan(), out var sl, default, CultureInfo.InvariantCulture))
-			{
-				w.Write(scratch, 0, sl);
-			}
-
-			w.Write("</v></c>");
+			var value = c.dr.GetFieldValue<TimeOnly>(ordinal);
+			XlsxValueWriter.WriteTimeOnly(c, value);
 		}
 
 		public override double GetWidth(DbDataReader data, int ordinal)
@@ -245,21 +523,8 @@ partial class XlsxDataWriter
 	{
 		public override void WriteField(Context c, int ordinal)
 		{
-			var w = c.xw;
-			w.Write("<c><v>");
-
 			var val = c.dr.GetDecimal(ordinal);
-#if SPAN
-			var scratch = c.GetScratch();
-			if (val.TryFormat(scratch.AsSpan(), out var sl, default, CultureInfo.InvariantCulture))
-			{
-				w.Write(scratch, 0, sl);
-			}
-#else
-			w.Write(val.ToString(CultureInfo.InvariantCulture));
-#endif
-
-			w.Write("</v></c>");
+			XlsxValueWriter.WriteDecimal(c, val);			
 		}
 	}
 
@@ -267,21 +532,8 @@ partial class XlsxDataWriter
 	{
 		public override void WriteField(Context c, int ordinal)
 		{
-			var w = c.xw;
-			w.Write("<c><v>");
-
 			var val = c.dr.GetFloat(ordinal);
-#if SPAN
-			var scratch = c.GetScratch();
-			if (val.TryFormat(scratch.AsSpan(), out var sl, default, CultureInfo.InvariantCulture))
-			{
-				w.Write(scratch, 0, sl);
-			}
-#else
-			w.Write(val.ToString(CultureInfo.InvariantCulture));
-#endif
-
-			w.Write("</v></c>");
+			XlsxValueWriter.WriteSingle(c, val);
 		}
 	}
 
@@ -289,21 +541,8 @@ partial class XlsxDataWriter
 	{
 		public override void WriteField(Context c, int ordinal)
 		{
-			var w = c.xw;
-			w.Write("<c><v>");
-
 			var val = c.dr.GetDouble(ordinal);
-#if SPAN
-			var scratch = c.GetScratch();
-			if (val.TryFormat(scratch.AsSpan(), out var sl, default, CultureInfo.InvariantCulture))
-			{
-				w.Write(scratch, 0, sl);
-			}
-#else
-			w.Write(val.ToString(CultureInfo.InvariantCulture));
-#endif
-
-			w.Write("</v></c>");
+			XlsxValueWriter.WriteDouble(c, val);
 		}
 	}
 
@@ -311,12 +550,8 @@ partial class XlsxDataWriter
 	{
 		public override void WriteField(Context c, int ordinal)
 		{
-			var w = c.xw;
-			w.Write("<c t=\"str\"><v>");
-
 			var val = c.dr.GetChar(ordinal);
-			w.Write(val);
-			w.Write("</v></c>");
+			XlsxValueWriter.WriteChar(c, val);
 		}
 	}
 
@@ -324,21 +559,8 @@ partial class XlsxDataWriter
 	{
 		public override void WriteField(Context c, int ordinal)
 		{
-			var w = c.xw;
-			w.Write("<c><v>");
-
 			var val = c.dr.GetByte(ordinal);
-#if SPAN
-			var scratch = c.GetScratch();
-			if (val.TryFormat(scratch.AsSpan(), out var sl, default, CultureInfo.InvariantCulture))
-			{
-				w.Write(scratch, 0, sl);
-			}
-#else
-			w.Write(val.ToString(CultureInfo.InvariantCulture));
-#endif
-
-			w.Write("</v></c>");
+			XlsxValueWriter.WriteByte(c, val);
 		}
 	}
 
@@ -346,21 +568,8 @@ partial class XlsxDataWriter
 	{
 		public override void WriteField(Context c, int ordinal)
 		{
-			var w = c.xw;
-			w.Write("<c><v>");
-
 			var val = c.dr.GetInt16(ordinal);
-#if SPAN
-			var scratch = c.GetScratch();
-			if (val.TryFormat(scratch.AsSpan(), out var sl, default, CultureInfo.InvariantCulture))
-			{
-				w.Write(scratch, 0, sl);
-			}
-#else
-			w.Write(val.ToString(CultureInfo.InvariantCulture));
-#endif
-
-			w.Write("</v></c>");
+			XlsxValueWriter.WriteInt16(c, val);
 		}
 	}
 
@@ -368,21 +577,8 @@ partial class XlsxDataWriter
 	{
 		public override void WriteField(Context c, int ordinal)
 		{
-			var w = c.xw;
-			w.Write("<c><v>");
-
 			var val = c.dr.GetInt32(ordinal);
-#if SPAN
-			var scratch = c.GetScratch();
-			if (val.TryFormat(scratch.AsSpan(), out var sl, default, CultureInfo.InvariantCulture))
-			{
-				w.Write(scratch, 0, sl);
-			}
-#else
-			w.Write(val.ToString(CultureInfo.InvariantCulture));
-#endif
-
-			w.Write("</v></c>");
+			XlsxValueWriter.WriteInt32(c, val);
 		}
 	}
 
@@ -390,21 +586,8 @@ partial class XlsxDataWriter
 	{
 		public override void WriteField(Context c, int ordinal)
 		{
-			var w = c.xw;
-			w.Write("<c><v>");
-
 			var val = c.dr.GetInt64(ordinal);
-#if SPAN
-			var scratch = c.GetScratch();
-			if (val.TryFormat(scratch.AsSpan(), out var sl, default, CultureInfo.InvariantCulture))
-			{
-				w.Write(scratch, 0, sl);
-			}
-#else
-			w.Write(val.ToString(CultureInfo.InvariantCulture));
-#endif
-
-			w.Write("</v></c>");
+			XlsxValueWriter.WriteInt64(c, val);
 		}
 	}
 
@@ -412,23 +595,8 @@ partial class XlsxDataWriter
 	{
 		public override void WriteField(Context c, int ordinal)
 		{
-			var w = c.xw;
-			// TODO: currently writing these as inline string.
-			// might make sense to put in shared string table instead.
-			w.Write("<c t=\"str\"><v>");
-
 			var val = c.dr.GetGuid(ordinal);
-#if SPAN
-			var scratch = c.GetScratch();
-			if (val.TryFormat(scratch.AsSpan(), out var sl))
-			{
-				w.Write(scratch, 0, sl);
-			}
-#else
-			w.Write(val);
-#endif
-
-			w.Write("</v></c>");
+			XlsxValueWriter.WriteGuid(c, val);
 		}
 
 		public override double GetWidth(DbDataReader data, int ordinal)
@@ -441,90 +609,28 @@ partial class XlsxDataWriter
 	{
 		public override void WriteField(Context c, int ordinal)
 		{
-			var w = c.xw;
-			// TODO: currently writing these as inline string.
-			// might make sense to put in shared string table instead.
-			w.Write("<c><v>");
-
-			var val = c.dr.GetFieldValue<TimeSpan>(ordinal).TotalSeconds;
-#if SPAN
-			var scratch = c.GetScratch();
-			if (val.TryFormat(scratch.AsSpan(), out var sl, default, CultureInfo.InvariantCulture))
-			{
-				w.Write(scratch, 0, sl);
-			}
-#else
-			w.Write(val.ToString(CultureInfo.InvariantCulture));
-#endif
-
-			w.Write("</v></c>");
+			var val = c.dr.GetFieldValue<TimeSpan>(ordinal);
+			XlsxValueWriter.WriteTimeSpan(c, val);	
 		}
 	}
 
 	sealed class BinaryHexFieldWriter : FieldWriter
 	{
-		static char[] HexMap = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
 
 		byte[] dataBuffer = new byte[48];
 
 		public override void WriteField(Context context, int ordinal)
 		{
-			var w = context.xw;
-			w.Write("<c t=\"str\"><v>");
-			var idx = 0;
-			var buffer = context.GetScratch();
-			int len;
-			var pos = 0;
-			var reader = context.dr;
-			w.Write("0x");
-			while ((len = (int)reader.GetBytes(ordinal, idx, dataBuffer, 0, dataBuffer.Length)) != 0)
-			{
-				var c = ToHexCharArray(dataBuffer, 0, len, buffer, pos);
-				w.Write(buffer, 0, c);
-				idx += len;
-				pos += c;
-			}
-
-			w.Write("</v></c>");
-		}
-
-		static int ToHexCharArray(byte[] dataBuffer, int offset, int length, char[] outputBuffer, int outputOffset)
-		{
-			if (length * 2 > outputBuffer.Length - outputOffset)
-				throw new ArgumentException();
-
-			var idx = offset;
-			var end = offset + length;
-			for (; idx < end; idx++)
-			{
-				var b = dataBuffer[idx];
-				var lo = HexMap[b & 0xf];
-				var hi = HexMap[b >> 4];
-				outputBuffer[outputOffset++] = hi;
-				outputBuffer[outputOffset++] = lo;
-			}
-			return length * 2;
-		}
+			XlsxValueWriter.write
+		}		
 	}
 
 	sealed class CharArrayFieldWriter : FieldWriter
 	{
-		char[] dataBuffer = new char[128];
-
 		public override void WriteField(Context context, int ordinal)
 		{
-			var w = context.xw;
-			w.Write("<c t=\"str\"><v>");
-			var idx = 0;
-			int len;
-			var reader = context.dr;
-			while ((len = (int)reader.GetChars(ordinal, idx, dataBuffer, 0, dataBuffer.Length)) != 0)
-			{
-				w.Write(dataBuffer, 0, len);
-				idx += len;
-			}
-
-			w.Write("</v></c>");
+			
+			
 		}
 	}
 }
