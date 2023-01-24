@@ -40,7 +40,7 @@ partial class XlsxDataWriter
 		static readonly char[] HexMap = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
 
 		const string StringTooLongMessage = "String exceeds the maximum allowed length.";
-		static readonly TimeOnly Midnight = new TimeOnly(0);
+		
 
 		public static void WriteString(Context c, string value)
 		{
@@ -245,11 +245,11 @@ partial class XlsxDataWriter
 
 		public static void WriteTimeSpan(Context c, TimeSpan value)
 		{
-			var val = value.TotalSeconds;
+			var val = value.TotalDays;
 			var w = c.xw;
 			// TODO: currently writing these as inline string.
 			// might make sense to put in shared string table instead.
-			w.Write("<c><v>");
+			w.Write("<c s=\"3\"><v>");
 
 #if SPAN
 			var scratch = c.GetCharBuffer();
@@ -265,6 +265,8 @@ partial class XlsxDataWriter
 		}
 
 #if DATE_ONLY
+
+		static readonly TimeOnly Midnight = new TimeOnly(0);
 
 		public static void WriteDateOnly(Context c, DateOnly value)
 		{
@@ -299,30 +301,24 @@ partial class XlsxDataWriter
 		}
 #endif
 
-		public static void WriteBinaryHex(Context c, Func<byte[], int> reader)
+		public static void WriteBinaryHex(Context c, byte[] value)
 		{
 			var w = c.xw;
 			w.Write("<c t=\"str\"><v>");
-			var idx = 0;
-			var buffer = c.GetByteBuffer();
 			var charBuffer = c.GetCharBuffer();
-			int len;
-			var pos = 0;
-			
+			var idx = 0;
 			w.Write("0x");
-			while ((len = reader(buffer)) != 0)
+			while (idx < value.Length)
 			{
-				var l = ToHexCharArray(buffer, 0, len, charBuffer, pos);
+				var l = ToHexCharArray(value, idx, 48, charBuffer, 0);
 				w.Write(charBuffer, 0, l);
-				idx += len;
-				pos += l;
+				idx += 48;				
 			}
 
 			w.Write("</v></c>");
-
 		}
 
-		static int ToHexCharArray(byte[] dataBuffer, int offset, int length, char[] outputBuffer, int outputOffset)
+		public static int ToHexCharArray(byte[] dataBuffer, int offset, int length, char[] outputBuffer, int outputOffset)
 		{
 			if (length * 2 > outputBuffer.Length - outputOffset)
 				throw new ArgumentException();
@@ -340,26 +336,39 @@ partial class XlsxDataWriter
 			return length * 2;
 		}
 
-		static void WriteCharArray(Context c, Func<char[],int> reader)
+		public static void WriteCharArray(Context c, char[] value)
 		{
 			var w = c.xw;
-			var buffer = c.GetCharBuffer();
-			w.Write("<c t=\"str\"><v>");
-			var idx = 0;
-			int len;
-			
-			while ((len = reader(buffer)) != 0)
-			{
-				w.Write(buffer, 0, len);
-				idx += len;
-			}
-
+			w.Write("<c t=\"str\"><v>");			
+			// TODO: limit length...
+			w.Write(value);
 			w.Write("</v></c>");
 		}
 	}
 
 	abstract class FieldWriter
 	{
+		public static readonly ObjectFieldWriter Object = new ObjectFieldWriter();
+		public static readonly BooleanFieldWriter Boolean = new BooleanFieldWriter();
+		public static readonly CharFieldWriter Char = new CharFieldWriter();
+		public static readonly StringFieldWriter String = new StringFieldWriter();
+		public static readonly ByteFieldWriter Byte = new ByteFieldWriter();
+		public static readonly Int16FieldWriter Int16 = new Int16FieldWriter();
+		public static readonly Int32FieldWriter Int32 = new Int32FieldWriter();
+		public static readonly Int64FieldWriter Int64 = new Int64FieldWriter();
+		public static readonly SingleFieldWriter Single = new SingleFieldWriter();
+		public static readonly DoubleFieldWriter Double = new DoubleFieldWriter();
+		public static readonly DecimalFieldWriter Decimal = new DecimalFieldWriter();
+		public static readonly DateTimeFieldWriter DateTime = new DateTimeFieldWriter();
+		public static readonly TimeSpanFieldWriter TimeSpan = new TimeSpanFieldWriter();
+
+#if DATE_ONLY
+		public static readonly DateOnlyFieldWriter DateOnly = new DateOnlyFieldWriter();
+		public static readonly TimeOnlyFieldWriter TimeOnly = new TimeOnlyFieldWriter();
+#endif
+
+		public static readonly GuidFieldWriter Guid = new GuidFieldWriter();
+
 		public static FieldWriter Get(Type type)
 		{
 			var code = Type.GetTypeCode(type);
@@ -367,27 +376,27 @@ partial class XlsxDataWriter
 			switch (code)
 			{
 				case TypeCode.Boolean:
-					return new BooleanFieldWriter();
+					return Boolean;
 				case TypeCode.Char:
-					return new CharFieldWriter();
+					return Char;
 				case TypeCode.DateTime:
-					return new DateTimeFieldWriter();
+					return DateTime;
 				case TypeCode.String:
-					return new StringFieldWriter();
+					return String;
 				case TypeCode.Byte:
-					return new ByteFieldWriter();
+					return Byte;
 				case TypeCode.Int16:
-					return new Int16FieldWriter();
+					return Int16;
 				case TypeCode.Int32:
-					return new Int32FieldWriter();
+					return Int32;
 				case TypeCode.Int64:
-					return new Int64FieldWriter();
+					return Int64;
 				case TypeCode.Single:
-					return new SingleFieldWriter();
+					return Single;
 				case TypeCode.Double:
-					return new DoubleFieldWriter();
+					return Double;
 				case TypeCode.Decimal:
-					return new DecimalFieldWriter();
+					return Decimal;
 				default:
 					if (type == typeof(byte[]))
 					{
@@ -399,26 +408,26 @@ partial class XlsxDataWriter
 					}
 					if (type == typeof(Guid))
 					{
-						return new GuidFieldWriter();
+						return Guid;
 					}
 					if (type == typeof(TimeSpan))
 					{
-						return new TimeSpanFieldWriter();
+						return TimeSpan;
 					}
 
 #if DATE_ONLY
 					if (type == typeof(DateOnly))
 					{
-						return new DateOnlyFieldWriter();
+						return DateOnly;
 					}
 
 					if (type == typeof(TimeOnly))
 					{
-						return new TimeOnlyFieldWriter();
+						return TimeOnly;
 					}
 #endif
 
-					return new ObjectFieldWriter();
+					return Object;
 			}
 		}
 
@@ -432,8 +441,6 @@ partial class XlsxDataWriter
 
 	sealed class ObjectFieldWriter : FieldWriter
 	{
-		public static readonly ObjectFieldWriter Instance = new ObjectFieldWriter();
-
 		public override void WriteField(Context c, int ordinal)
 		{
 			var val = c.dr.GetValue(ordinal);
@@ -444,10 +451,73 @@ partial class XlsxDataWriter
 
 			switch (tc)
 			{
+				case TypeCode.Boolean:
+					XlsxValueWriter.WriteBoolean(c, (bool)val);
+					break;
 				case TypeCode.String:
 					XlsxValueWriter.WriteString(c, (string)val);
 					break;
+				case TypeCode.Byte:
+					XlsxValueWriter.WriteByte(c, (byte)val);
+					break;
+				case TypeCode.Int16:
+					XlsxValueWriter.WriteInt16(c, (short)val);
+					break;
+				case TypeCode.Int32:
+					XlsxValueWriter.WriteInt32(c, (int)val);
+					break;
+				case TypeCode.Int64:
+					XlsxValueWriter.WriteInt64(c, (long)val);
+					break;
+				case TypeCode.DateTime:
+					XlsxValueWriter.WriteDateTime(c, (DateTime)val);
+					break;
+				case TypeCode.Single:
+					XlsxValueWriter.WriteSingle(c, (float)val);
+					break;
+				case TypeCode.Double:
+					XlsxValueWriter.WriteDouble(c, (double)val);
+					break;
+				case TypeCode.Decimal:
+					XlsxValueWriter.WriteDecimal(c, (decimal)val);
+					break;
 				default:
+
+					if (type == typeof(byte[]))
+					{
+						XlsxValueWriter.WriteBinaryHex(c, (byte[])val);
+						break;
+					}
+					if (type == typeof(char[]))
+					{
+						XlsxValueWriter.WriteCharArray(c, (char[])val);
+						break;
+					}
+					if (type == typeof(Guid))
+					{
+						XlsxValueWriter.WriteGuid(c, (Guid)val);
+						break;
+					}
+					if (type == typeof(TimeSpan))
+					{
+						XlsxValueWriter.WriteTimeSpan(c, (TimeSpan)val);
+						break;
+					}
+
+#if DATE_ONLY
+					if (type == typeof(DateOnly))
+					{
+						XlsxValueWriter.WriteDateOnly(c, (DateOnly)val);
+						break;
+					}
+
+					if (type == typeof(TimeOnly))
+					{
+						XlsxValueWriter.WriteTimeOnly(c, (TimeOnly)val);
+						break;
+					}
+#endif
+					// anything else, we'll just ToString
 					var str = val?.ToString() ?? string.Empty;
 					XlsxValueWriter.WriteString(c, str);
 					break;
@@ -478,7 +548,7 @@ partial class XlsxDataWriter
 		public override void WriteField(Context c, int ordinal)
 		{
 			var dt = c.dr.GetDateTime(ordinal);
-			XlsxValueWriter.WriteDateTime(c, dt);			
+			XlsxValueWriter.WriteDateTime(c, dt);
 		}
 
 		public override double GetWidth(DbDataReader data, int ordinal)
@@ -524,7 +594,7 @@ partial class XlsxDataWriter
 		public override void WriteField(Context c, int ordinal)
 		{
 			var val = c.dr.GetDecimal(ordinal);
-			XlsxValueWriter.WriteDecimal(c, val);			
+			XlsxValueWriter.WriteDecimal(c, val);
 		}
 	}
 
@@ -610,27 +680,50 @@ partial class XlsxDataWriter
 		public override void WriteField(Context c, int ordinal)
 		{
 			var val = c.dr.GetFieldValue<TimeSpan>(ordinal);
-			XlsxValueWriter.WriteTimeSpan(c, val);	
+			XlsxValueWriter.WriteTimeSpan(c, val);
 		}
 	}
 
 	sealed class BinaryHexFieldWriter : FieldWriter
 	{
-
-		byte[] dataBuffer = new byte[48];
-
 		public override void WriteField(Context context, int ordinal)
 		{
-			XlsxValueWriter.write
-		}		
+			var w = context.xw;
+			w.Write("<c t=\"str\"><v>");
+			var idx = 0;
+			var dataBuffer = context.GetByteBuffer();
+			var charBuffer = context.GetCharBuffer();
+			int len;
+			var reader = context.dr;
+			w.Write("0x");
+			while ((len = (int)reader.GetBytes(ordinal, idx, dataBuffer, 0, dataBuffer.Length)) != 0)
+			{
+				var c = XlsxValueWriter.ToHexCharArray(dataBuffer, 0, len, charBuffer, 0);
+				w.Write(charBuffer, 0, c);
+				idx += len;
+			}
+
+			w.Write("</v></c>");
+		}
 	}
 
 	sealed class CharArrayFieldWriter : FieldWriter
 	{
 		public override void WriteField(Context context, int ordinal)
 		{
-			
-			
+			var w = context.xw;
+			w.Write("<c t=\"str\"><v>");
+			var idx = 0;
+			var dataBuffer = context.GetCharBuffer();
+			int len;
+			var reader = context.dr;
+			while ((len = (int)reader.GetChars(ordinal, idx, dataBuffer, 0, dataBuffer.Length)) != 0)
+			{
+				w.Write(dataBuffer, 0, len);
+				idx += len;
+			}
+
+			w.Write("</v></c>");
 		}
 	}
 }

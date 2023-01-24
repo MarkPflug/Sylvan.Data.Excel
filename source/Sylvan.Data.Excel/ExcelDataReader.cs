@@ -418,7 +418,35 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 				}
 				if (schemaType == typeof(object))
 				{
-					return GetExcelValue(ordinal);
+					var type = GetExcelDataType(ordinal);
+					switch (type)
+					{
+						case ExcelDataType.Boolean:
+							return GetBoolean(ordinal);
+						case ExcelDataType.DateTime:
+							return GetDateTime(ordinal);
+						case ExcelDataType.Error:
+							throw GetError(ordinal);
+						case ExcelDataType.Null:
+							return DBNull.Value;
+						case ExcelDataType.Numeric:
+							var fmt = GetFormat(ordinal);
+							var kind = fmt?.Kind ?? FormatKind.Number;
+							switch (kind)
+							{
+								case FormatKind.Number:
+									return GetDouble(ordinal);
+								case FormatKind.Date:
+									return GetDateTime(ordinal);
+								case FormatKind.Time:
+									return GetFieldValue<TimeSpan>(ordinal);
+							}
+							break;
+						case ExcelDataType.String:
+							return GetString(ordinal);
+						default:
+							throw new NotSupportedException();
+					}
 				}
 				break;
 		}
@@ -545,6 +573,43 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 					? value
 					: throw new InvalidCastException();
 		}
+	}
+
+	/// <summary>
+	/// Gets the value of the column as a TimeSpan.
+	/// </summary>
+	/// <remarks>
+	/// When called on cells containing a string value, will attempt to parse the string as a TimeSpan.
+	/// When called on a cell containing a number value, will convert the numeric value to a DateTime and return the Time component.
+	/// </remarks>
+	public TimeSpan GetTimeSpan(int ordinal)
+	{
+		var type = this.GetExcelDataType(ordinal);
+		switch (type)
+		{
+			case ExcelDataType.Error:
+				throw new ExcelFormulaException(ordinal, this.RowNumber, GetFormulaError(ordinal));
+			case ExcelDataType.Numeric:
+				var val = GetDouble(ordinal);
+				var fmt = GetFormat(ordinal);
+				if (fmt?.Kind == FormatKind.Time)
+				{
+					if (TryGetDate(fmt, val, DateEpochYear, out DateTime dt))
+					{
+						return dt.TimeOfDay;
+					}
+				}
+				break;
+			case ExcelDataType.String:
+			default:
+				var str = GetString(ordinal);
+				if(TimeSpan.TryParse(str, out TimeSpan value))
+				{
+					return value;
+				}
+				break;
+		}
+		throw new InvalidCastException();
 	}
 
 	internal abstract DateTime GetDateTimeValue(int ordinal);
