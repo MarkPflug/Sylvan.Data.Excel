@@ -12,7 +12,7 @@ static class OpenXmlCodec
 	// seen as an encoded sequence.
 	// This ends up encoding more than is technically required, as underscores only need to be encoded
 	// if they would otherwise be detected as an escape sequence.
-	static readonly Regex EncodeCharRegex = new Regex(@"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f_]", RegexOptions.Compiled);
+	static readonly Regex EncodeCharRegex = new Regex(@"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]|_(?=x[0-9a-fA-F]{4}_)", RegexOptions.Compiled);
 
 	static readonly Regex DecodeCharRegex = new Regex(@"_x[0-9a-fA-F]{4}_", RegexOptions.Compiled);
 
