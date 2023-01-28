@@ -1,5 +1,9 @@
 # Sylvan.Data.Excel Release Notes
 
+_0.4.5_
+  - Fix a bug where underscore characters where escaped when they didn't need to be. 
+    Certain versions of Excel could complain about this and incorrectly repair the over-escaping.
+
 _0.4.4_
   - Fix a bug in handling OpenXml character escaping that could cause certain strings in.xlsx files
    to be read incorrectly.
