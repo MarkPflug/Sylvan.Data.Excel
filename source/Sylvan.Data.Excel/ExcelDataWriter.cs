@@ -12,11 +12,14 @@ namespace Sylvan.Data.Excel;
 /// Writes data to excel files.
 /// </summary>
 public abstract class ExcelDataWriter : IDisposable
+#if ASYNC_DISPOSE
+	, IAsyncDisposable
+#endif
 {
 	private protected class SharedStringTable
 	{
-		Dictionary<SharedStringEntry, string> dict;
-		List<SharedStringEntry> entries;
+		readonly Dictionary<SharedStringEntry, string> dict;
+		readonly List<SharedStringEntry> entries;
 
 		public int UniqueCount => entries.Count;
 
@@ -47,10 +50,7 @@ public abstract class ExcelDataWriter : IDisposable
 
 			public override bool Equals(object? obj)
 			{
-				return
-					(obj is SharedStringEntry e)
-					? this.Equals(e)
-					: false;
+				return (obj is SharedStringEntry e) && this.Equals(e);
 			}
 
 			public bool Equals(SharedStringEntry other)
@@ -75,8 +75,32 @@ public abstract class ExcelDataWriter : IDisposable
 
 	bool ownsStream;
 	readonly Stream stream;
+	private protected readonly bool truncateStrings;
+	Stream? userStream;
+	bool isAsync = false;
 
 	private protected SharedStringTable sharedStrings;
+
+	/// <summary>
+	/// Creates a new ExcelDataWriter to be used with asynchronous writing.
+	/// </summary>
+	public static Task<ExcelDataWriter> CreateAsync(string file, ExcelDataWriterOptions? options = null)
+	{
+		options = options ?? ExcelDataWriterOptions.Default;
+		var type = ExcelDataReader.GetWorkbookType(file);
+		switch (type)
+		{
+			case ExcelWorkbookType.ExcelXml:
+				var userStream = File.Create(file);
+				var ms = new MemoryStream();
+				var w = new XlsxDataWriter(ms, options);
+				w.isAsync = true;
+				w.userStream = userStream;
+				w.ownsStream = true;
+				return Task.FromResult((ExcelDataWriter)w);
+		}
+		throw new NotSupportedException();
+	}
 
 	/// <summary>
 	/// Creates a new ExcelDataWriter.
@@ -110,18 +134,67 @@ public abstract class ExcelDataWriter : IDisposable
 		throw new NotSupportedException();
 	}
 
-	/// <inheritdoc/>
-	public virtual void Dispose()
-	{
-		if (ownsStream)
-			this.stream.Dispose();
-	}
-
 	private protected ExcelDataWriter(Stream stream, ExcelDataWriterOptions options)
 	{
 		this.stream = stream;
 		this.sharedStrings = new SharedStringTable();
+		this.truncateStrings = options.TruncateStrings;
 	}
+
+	/// <inheritdoc/>
+	public virtual void Dispose()
+	{
+		if (isAsync)
+		{
+			// this call pattern would be incorrect.
+			// DisposeAsync should have been called
+			// but we should do our best to clean up
+			if (userStream != null)
+			{
+				stream.Seek(0, SeekOrigin.Begin);
+				stream.CopyTo(this.userStream);
+			}
+			if (ownsStream)
+			{
+				if (this.userStream != null)
+				{
+					this.userStream.Dispose();
+				}
+			}
+		}
+		else
+		{
+			this.stream.Dispose();
+		}
+	}
+
+#if ASYNC_DISPOSE
+	/// <inheritdoc/>
+	public virtual async ValueTask DisposeAsync()
+	{
+		if (isAsync)
+		{
+			if (userStream != null)
+			{
+				stream.Seek(0, SeekOrigin.Begin);
+				await stream.CopyToAsync(this.userStream);
+			}
+			if (ownsStream)
+			{
+				if (this.userStream != null)
+				{
+					await this.userStream.DisposeAsync();
+				}
+			}
+		}
+		else
+		{
+			await this.stream.DisposeAsync();
+		}
+	}
+#endif
+
+
 
 	/// <summary>
 	/// Writes data to a new worksheet with the given name.

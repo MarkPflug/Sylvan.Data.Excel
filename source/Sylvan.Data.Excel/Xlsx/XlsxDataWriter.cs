@@ -27,26 +27,25 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 	const int FormatOffset = 165;
 	const int StringLimit = short.MaxValue;
 	const int MaxWorksheetNameLength = 31;
-
-	ZipArchive zipArchive;
-	List<string> worksheets;
-	List<string> formats = new List<string>();
 	const CompressionLevel Compression = CompressionLevel.Optimal;
-	bool truncateStrings;
+
+	readonly ZipArchive zipArchive;
+	readonly List<string> worksheets;
+	readonly List<string> formats;
 
 	public XlsxDataWriter(Stream stream, ExcelDataWriterOptions options) : base(stream, options)
 	{
 		this.zipArchive = new ZipArchive(stream, ZipArchiveMode.Create, true);
 
 		this.worksheets = new List<string>();
-		this.formats = new List<string>();
-		// used for datetime
-		this.formats.Add("yyyy\\-mm\\-dd\\ hh:mm:ss.000");
-		// used for dateonly
-		this.formats.Add("yyyy\\-mm\\-dd");
-		// used for timeonly
-		this.formats.Add("hh:mm:ss");
-		this.truncateStrings = options.TruncateStrings;
+		this.formats = new() {
+			// used for datetime
+			"yyyy\\-mm\\-dd\\ hh:mm:ss.000",
+			// used for dateonly
+			"yyyy\\-mm\\-dd",
+			// used for timeonly
+			"hh:mm:ss"
+		};
 	}
 
 	public override WriteResult Write(DbDataReader data, string? worksheetName)
@@ -66,6 +65,8 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 
 		if (worksheetName != null && this.worksheets.Contains(worksheetName))
 			throw new ArgumentException(nameof(worksheetName));
+
+		cancel.ThrowIfCancellationRequested();
 
 		if (worksheetName == null)
 		{
@@ -134,6 +135,7 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 		bool complete = true;
 		while (true)
 		{
+			cancel.ThrowIfCancellationRequested();
 			if (async)
 			{
 				if (!await data.ReadAsync(cancel))
@@ -154,7 +156,18 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 			for (int i = 0; i < c; i++)
 			{
 				var fw = i < fieldWriters.Length ? fieldWriters[i] : ObjectFieldWriter.Instance;
-				if (data.IsDBNull(i))
+
+				var isNull = false;
+				if (async)
+				{
+					isNull = await data.IsDBNullAsync(i);
+				}
+				else
+				{
+					isNull = data.IsDBNull(i);
+				}
+
+				if (isNull)
 				{
 					xw.Write("<c/>");
 				}
@@ -514,4 +527,16 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 		this.zipArchive.Dispose();
 		base.Dispose();
 	}
+
+#if ASYNC_DISPOSE
+	public override async ValueTask DisposeAsync()
+	{
+		// in async mode things are buffered to a memory stream
+		// so these apparently "sync" operations won't block
+		this.Close();
+		this.zipArchive.Dispose();
+		// then things are asynchronously flushed to the true output stream.
+		await base.DisposeAsync();
+	}
+#endif
 }

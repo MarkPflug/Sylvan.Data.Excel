@@ -7,6 +7,7 @@ using System.Data;
 using System.Data.Common;
 using System.Globalization;
 using System.IO;
+using System.Threading.Tasks;
 
 namespace Sylvan.Data.Excel;
 /// <summary>
@@ -110,6 +111,43 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 		}
 	}
 
+	/// <summary>
+	/// Creates a new ExcelDataReader.
+	/// </summary>
+	/// <param name="filename">The name of the file to open.</param>
+	/// <param name="options">An optional ExcelDataReaderOptions instance.</param>
+	/// <returns>The ExcelDataReader.</returns>
+	/// <exception cref="ArgumentException">If the filename refers to a file of an unknown type.</exception>
+	public static async Task<ExcelDataReader> CreateAsync(string filename, ExcelDataReaderOptions? options = null)
+	{
+		var type = GetWorkbookType(filename);
+		if (type == ExcelWorkbookType.Unknown)
+			throw new ArgumentException(null, nameof(filename));
+
+		var s = new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.Read, 1);
+
+		try
+		{
+			if (s.Length > int.MaxValue)
+				throw new InvalidDataException();
+
+			var len = (int)s.Length;
+			var ms = new MemoryStream(len);
+			await s.CopyToAsync(ms).ConfigureAwait(false);
+			ms.Seek(0, SeekOrigin.Begin);
+
+			var reader = Create(ms, type, options);
+			reader.ownsStream = true;
+			reader.stream = ms;
+			return reader;
+		}
+		catch (Exception)
+		{
+			s?.Dispose();
+			throw;
+		}
+	}
+
 	/// <inheritdoc/>
 	public override bool IsClosed => isClosed;
 
@@ -134,6 +172,38 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 	/// file.
 	/// </summary>
 	public abstract int MaxFieldCount { get; }
+
+	/// <summary>
+	/// Creates a new ExcelDataReader instance.
+	/// </summary>
+	/// <param name="stream">A stream containing the Excel file contents. </param>
+	/// <param name="fileType">The type of file represented by the stream.</param>
+	/// <param name="options">An optional ExcelDataReaderOptions instance.</param>
+	/// <returns>The ExcelDataReader.</returns>
+	public static async Task<ExcelDataReader> CreateAsync(Stream stream, ExcelWorkbookType fileType, ExcelDataReaderOptions? options = null)
+	{
+		if (stream is null) throw new ArgumentNullException(nameof(stream));
+		options = options ?? ExcelDataReaderOptions.Default;
+
+		MemoryStream? ms = stream as MemoryStream;
+		if (ms is null)
+		{
+			int len = 0;
+			if (stream.CanSeek)
+			{
+				long l = stream.Length;
+				if (l > int.MaxValue)
+				{
+					// can't load the entire thing contiguously...
+					throw new InvalidDataException();
+				}
+				len = (int)l;
+			}
+			ms = new MemoryStream(len);
+			await stream.CopyToAsync(ms);
+		}
+		return Create(ms, fileType, options);
+	}
 
 	/// <summary>
 	/// Creates a new ExcelDataReader instance.
