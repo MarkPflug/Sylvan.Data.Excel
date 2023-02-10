@@ -1,5 +1,10 @@
 # Sylvan.Data.Excel Release Notes
 
+_0.4.6_
+  - Allow enumerating and opening specific worksheets.
+  - Add the ability to read Excel data dynamically (`ExcelSchema.Dynamic`), where each cell
+    value is dynamically determined when accessed via `ExcelDataReader.GetValue(int)`.
+
 _0.4.5_
   - Fix a bug where underscore characters where escaped when they didn't need to be. 
     Certain versions of Excel could complain about this and incorrectly repair the over-escaping.
