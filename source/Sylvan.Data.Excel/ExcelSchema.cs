@@ -55,10 +55,10 @@ public sealed class ExcelSchema : ExcelSchemaProvider
 
 	/// <summary>
 	/// A schema that expects each sheet to have a header row, and describes
-	/// each column as being a nullable object.
+	/// each column as being a nullable object. This causes each cell to be interpreted
+	/// dynamically when accessed using <see cref="ExcelDataReader.GetValue(int)"/>.
 	/// </summary>
-	public static IExcelSchemaProvider Object = new DefaultExcelSchema(typeof(object), true);
-
+	public static IExcelSchemaProvider Dynamic = new DefaultExcelSchema(typeof(object), true);
 
 	/// <summary>
 	/// A schema that does not expect each sheet to have a header row, and describes
