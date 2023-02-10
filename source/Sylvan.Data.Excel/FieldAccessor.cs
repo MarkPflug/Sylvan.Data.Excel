@@ -225,6 +225,16 @@ sealed class DateTimeAccessor : FieldAccessor<DateTime>
 	}
 }
 
+sealed class TimeSpanAccessor : FieldAccessor<TimeSpan>
+{
+	internal static readonly TimeSpanAccessor Instance = new TimeSpanAccessor();
+
+	public override TimeSpan GetValue(ExcelDataReader reader, int ordinal)
+	{
+		return reader.GetTimeSpan(ordinal);
+	}
+}
+
 sealed class GuidAccessor : FieldAccessor<Guid>
 {
 	internal static readonly GuidAccessor Instance = new GuidAccessor();
@@ -293,6 +303,7 @@ sealed partial class ExcelDataAccessor :
 	IFieldAccessor<double>,
 	IFieldAccessor<decimal>,
 	IFieldAccessor<DateTime>,
+	IFieldAccessor<TimeSpan>,
 	IFieldAccessor<Guid>,
 	IFieldAccessor<Stream>,
 	IFieldAccessor<TextReader>,
@@ -319,7 +330,8 @@ sealed partial class ExcelDataAccessor :
 			{typeof(float), SingleAccessor.Instance },
 			{typeof(double), DoubleAccessor.Instance },
 			{typeof(decimal), DecimalAccessor.Instance },
-			{typeof(DateTime), DateTimeAccessor.Instance },			
+			{typeof(DateTime), DateTimeAccessor.Instance },
+			{typeof(TimeSpan), TimeSpanAccessor.Instance },
 			{typeof(Guid), GuidAccessor.Instance },
 
 			// TODO: add support for the following types?
@@ -398,6 +410,11 @@ sealed partial class ExcelDataAccessor :
 	DateTime IFieldAccessor<DateTime>.GetValue(ExcelDataReader reader, int ordinal)
 	{
 		return reader.GetDateTime(ordinal);
+	}
+
+	TimeSpan IFieldAccessor<TimeSpan>.GetValue(ExcelDataReader reader, int ordinal)
+	{
+		return reader.GetTimeSpan(ordinal);
 	}
 
 	decimal IFieldAccessor<decimal>.GetValue(ExcelDataReader reader, int ordinal)

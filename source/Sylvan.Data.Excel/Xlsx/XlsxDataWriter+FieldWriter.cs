@@ -21,118 +21,37 @@ partial class XlsxDataWriter
 		internal XlsxDataWriter dw;
 		internal TextWriter xw;
 		internal DbDataReader dr;
-		internal char[]? scratch;
+		internal char[]? charBuffer;
+		internal byte[]? byteBuffer;
 
-		public char[] GetScratch()
+		public char[] GetCharBuffer()
 		{
-			return scratch ?? (scratch = new char[64]);
+			return charBuffer ?? (charBuffer = new char[64]);
+		}
+
+		public byte[] GetByteBuffer()
+		{
+			return byteBuffer ?? (byteBuffer = new byte[48]);
 		}
 	}
 
-	abstract class FieldWriter
+	static class XlsxValueWriter
 	{
-		public static FieldWriter Get(Type type)
-		{
-			var code = Type.GetTypeCode(type);
+		static readonly char[] HexMap = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
 
-			switch (code)
-			{
-				case TypeCode.Boolean:
-					return new BooleanFieldWriter();
-				case TypeCode.Char:
-					return new CharFieldWriter();
-				case TypeCode.DateTime:
-					return new DateTimeFieldWriter();
-				case TypeCode.String:
-					return new StringFieldWriter();
-				case TypeCode.Byte:
-					return new ByteFieldWriter();
-				case TypeCode.Int16:
-					return new Int16FieldWriter();
-				case TypeCode.Int32:
-					return new Int32FieldWriter();
-				case TypeCode.Int64:
-					return new Int64FieldWriter();
-				case TypeCode.Single:
-					return new SingleFieldWriter();
-				case TypeCode.Double:
-					return new DoubleFieldWriter();
-				case TypeCode.Decimal:
-					return new DecimalFieldWriter();
-				default:
-					if (type == typeof(byte[]))
-					{
-						return new BinaryHexFieldWriter();
-					}
-					if (type == typeof(char[]))
-					{
-						return new CharArrayFieldWriter();
-					}
-					if (type == typeof(Guid))
-					{
-						return new GuidFieldWriter();
-					}
-					if (type == typeof(TimeSpan))
-					{
-						return new TimeSpanFieldWriter();
-					}
-
-#if DATE_ONLY
-					if (type == typeof(DateOnly))
-					{
-						return new DateOnlyFieldWriter();
-					}
-
-					if (type == typeof(TimeOnly))
-					{
-						return new TimeOnlyFieldWriter();
-					}
-#endif
-
-					return new ObjectFieldWriter();
-			}
-		}
-
-		public abstract void WriteField(Context c, int ordinal);
-
-		public virtual double GetWidth(DbDataReader data, int ordinal)
-		{
-			return 12;
-		}
-	}
-
-	sealed class ObjectFieldWriter : FieldWriter
-	{
-		public static readonly ObjectFieldWriter Instance = new ObjectFieldWriter();
-
-		public override void WriteField(Context c, int ordinal)
-		{
-			var val = c.dr.GetValue(ordinal);
-			var w = c.xw;
-			w.Write("<c t=\"s\"><v>");
-
-			var s = val?.ToString() ?? "";
-			var ssIdx = c.dw.sharedStrings.GetString(s);
-			w.Write(ssIdx);
-			w.Write("</v></c>");
-		}
-	}
-
-	sealed class StringFieldWriter : FieldWriter
-	{
 		const string StringTooLongMessage = "String exceeds the maximum allowed length.";
+		
 
-		public override void WriteField(Context c, int ordinal)
+		public static void WriteString(Context c, string value)
 		{
 			var w = c.xw;
 			w.Write("<c t=\"s\"><v>");
-			var s = c.dr.GetString(ordinal);
 			// truncate before adding to the sharestrings table.
-			if (s.Length > StringLimit)
+			if (value.Length > StringLimit)
 			{
 				if (c.dw.truncateStrings)
 				{
-					s = s.Substring(0, StringLimit);
+					value = value.Substring(0, StringLimit);
 				}
 				else
 				{
@@ -140,35 +59,180 @@ partial class XlsxDataWriter
 				}
 			}
 
-			var ssIdx = c.dw.sharedStrings.GetString(s);
+			var ssIdx = c.dw.sharedStrings.GetString(value);
 			w.Write(ssIdx);
 			w.Write("</v></c>");
 		}
-	}
 
-	sealed class BooleanFieldWriter : FieldWriter
-	{
-		public override void WriteField(Context c, int ordinal)
+		public static void WriteChar(Context c, char value)
+		{
+			var w = c.xw;
+			w.Write("<c t=\"str\"><v>");
+			w.Write(value);
+			w.Write("</v></c>");
+		}
+
+		public static void WriteByte(Context c, byte value)
+		{
+			var w = c.xw;
+			w.Write("<c><v>");
+
+#if SPAN
+			var scratch = c.GetCharBuffer();
+			if (value.TryFormat(scratch.AsSpan(), out var sl, default, CultureInfo.InvariantCulture))
+			{
+				w.Write(scratch, 0, sl);
+			}
+#else
+			w.Write(value.ToString(CultureInfo.InvariantCulture));
+#endif
+
+			w.Write("</v></c>");
+		}
+
+		public static void WriteInt16(Context c, short value)
+		{
+			var w = c.xw;
+			w.Write("<c><v>");
+
+#if SPAN
+			var scratch = c.GetCharBuffer();
+			if (value.TryFormat(scratch.AsSpan(), out var sl, default, CultureInfo.InvariantCulture))
+			{
+				w.Write(scratch, 0, sl);
+			}
+#else
+			w.Write(value.ToString(CultureInfo.InvariantCulture));
+#endif
+
+			w.Write("</v></c>");
+		}
+
+		public static void WriteInt32(Context c, int value)
+		{
+			var w = c.xw;
+			w.Write("<c><v>");
+
+#if SPAN
+			var scratch = c.GetCharBuffer();
+			if (value.TryFormat(scratch.AsSpan(), out var sl, default, CultureInfo.InvariantCulture))
+			{
+				w.Write(scratch, 0, sl);
+			}
+#else
+			w.Write(value.ToString(CultureInfo.InvariantCulture));
+#endif
+
+			w.Write("</v></c>");
+		}
+
+		public static void WriteInt64(Context c, long value)
+		{
+			var w = c.xw;
+			w.Write("<c><v>");
+
+#if SPAN
+			var scratch = c.GetCharBuffer();
+			if (value.TryFormat(scratch.AsSpan(), out var sl, default, CultureInfo.InvariantCulture))
+			{
+				w.Write(scratch, 0, sl);
+			}
+#else
+			w.Write(value.ToString(CultureInfo.InvariantCulture));
+#endif
+
+			w.Write("</v></c>");
+		}
+
+		public static void WriteSingle(Context c, float value)
+		{
+			var w = c.xw;
+			w.Write("<c><v>");
+
+#if SPAN
+			var scratch = c.GetCharBuffer();
+			if (value.TryFormat(scratch.AsSpan(), out var sl, default, CultureInfo.InvariantCulture))
+			{
+				w.Write(scratch, 0, sl);
+			}
+#else
+			w.Write(value.ToString(CultureInfo.InvariantCulture));
+#endif
+
+			w.Write("</v></c>");
+		}
+
+		public static void WriteDouble(Context c, double value)
+		{
+			var w = c.xw;
+			w.Write("<c><v>");
+
+#if SPAN
+			var scratch = c.GetCharBuffer();
+			if (value.TryFormat(scratch.AsSpan(), out var sl, default, CultureInfo.InvariantCulture))
+			{
+				w.Write(scratch, 0, sl);
+			}
+#else
+			w.Write(value.ToString(CultureInfo.InvariantCulture));
+#endif
+
+			w.Write("</v></c>");
+		}
+
+		public static void WriteDecimal(Context c, decimal value)
+		{
+			var w = c.xw;
+			w.Write("<c><v>");
+
+#if SPAN
+			var scratch = c.GetCharBuffer();
+			if (value.TryFormat(scratch.AsSpan(), out var sl, default, CultureInfo.InvariantCulture))
+			{
+				w.Write(scratch, 0, sl);
+			}
+#else
+			w.Write(value.ToString(CultureInfo.InvariantCulture));
+#endif
+			w.Write("</v></c>");
+		}
+
+		public static void WriteGuid(Context c, Guid value)
+		{
+			var w = c.xw;
+			// TODO: currently writing these as inline string.
+			// might make sense to put in shared string table instead.
+			w.Write("<c t=\"str\"><v>");
+
+#if SPAN
+			var scratch = c.GetCharBuffer();
+			if (value.TryFormat(scratch.AsSpan(), out var sl))
+			{
+				w.Write(scratch, 0, sl);
+			}
+#else
+			w.Write(value);
+#endif
+
+			w.Write("</v></c>");
+		}
+
+		public static void WriteBoolean(Context c, bool value)
 		{
 			var w = c.xw;
 			w.Write("<c t=\"b\"><v>");
-			var val = c.dr.GetBoolean(ordinal);
-			w.Write(val ? '1' : '0');
+			w.Write(value ? '1' : '0');
 			w.Write("</v></c>");
 		}
-	}
 
-	sealed class DateTimeFieldWriter : FieldWriter
-	{
-		public override void WriteField(Context c, int ordinal)
+		public static void WriteDateTime(Context c, DateTime value)
 		{
 			var w = c.xw;
 			w.Write("<c s=\"1\"><v>");
 
-			var dt = c.dr.GetDateTime(ordinal);
-			var val = (dt - Epoch).TotalDays + 2;
+			var val = (value - Epoch).TotalDays + 2;
 #if SPAN
-			var scratch = c.GetScratch();
+			var scratch = c.GetCharBuffer();
 			if (val.TryFormat(scratch.AsSpan(), out var sl, default, CultureInfo.InvariantCulture))
 			{
 				w.Write(scratch, 0, sl);
@@ -179,27 +243,39 @@ partial class XlsxDataWriter
 			w.Write("</v></c>");
 		}
 
-		public override double GetWidth(DbDataReader data, int ordinal)
+		public static void WriteTimeSpan(Context c, TimeSpan value)
 		{
-			return 22;
+			var val = value.TotalDays;
+			var w = c.xw;
+			// TODO: currently writing these as inline string.
+			// might make sense to put in shared string table instead.
+			w.Write("<c s=\"3\"><v>");
+
+#if SPAN
+			var scratch = c.GetCharBuffer();
+			if (val.TryFormat(scratch.AsSpan(), out var sl, default, CultureInfo.InvariantCulture))
+			{
+				w.Write(scratch, 0, sl);
+			}
+#else
+			w.Write(val.ToString(CultureInfo.InvariantCulture));
+#endif
+
+			w.Write("</v></c>");
 		}
-	}
 
 #if DATE_ONLY
 
-	sealed class DateOnlyFieldWriter : FieldWriter
-	{
 		static readonly TimeOnly Midnight = new TimeOnly(0);
 
-		public override void WriteField(Context c, int ordinal)
+		public static void WriteDateOnly(Context c, DateOnly value)
 		{
 			var w = c.xw;
 			w.Write("<c s=\"2\"><v>");
 
-			var dt = c.dr.GetFieldValue<DateOnly>(ordinal);
-			var val = (dt.ToDateTime(Midnight) - Epoch).TotalDays + 2;
+			var val = (value.ToDateTime(Midnight) - Epoch).TotalDays + 2;
 
-			var scratch = c.GetScratch();
+			var scratch = c.GetCharBuffer();
 			if (val.TryFormat(scratch.AsSpan(), out var sl, default, CultureInfo.InvariantCulture))
 			{
 				w.Write(scratch, 0, sl);
@@ -208,23 +284,14 @@ partial class XlsxDataWriter
 			w.Write("</v></c>");
 		}
 
-		public override double GetWidth(DbDataReader data, int ordinal)
-		{
-			return 11;
-		}
-	}
-
-	sealed class TimeOnlyFieldWriter : FieldWriter
-	{
-		public override void WriteField(Context c, int ordinal)
+		public static void WriteTimeOnly(Context c, TimeOnly value)
 		{
 			var w = c.xw;
 			w.Write("<c s=\"3\"><v>");
 
-			var t = c.dr.GetFieldValue<TimeOnly>(ordinal);
-			var val = t.ToTimeSpan().TotalDays;
+			var val = value.ToTimeSpan().TotalDays;
 
-			var scratch = c.GetScratch();
+			var scratch = c.GetCharBuffer();
 			if (val.TryFormat(scratch.AsSpan(), out var sl, default, CultureInfo.InvariantCulture))
 			{
 				w.Write(scratch, 0, sl);
@@ -232,263 +299,26 @@ partial class XlsxDataWriter
 
 			w.Write("</v></c>");
 		}
-
-		public override double GetWidth(DbDataReader data, int ordinal)
-		{
-			return 11;
-		}
-	}
-
 #endif
 
-	sealed class DecimalFieldWriter : FieldWriter
-	{
-		public override void WriteField(Context c, int ordinal)
-		{
-			var w = c.xw;
-			w.Write("<c><v>");
-
-			var val = c.dr.GetDecimal(ordinal);
-#if SPAN
-			var scratch = c.GetScratch();
-			if (val.TryFormat(scratch.AsSpan(), out var sl, default, CultureInfo.InvariantCulture))
-			{
-				w.Write(scratch, 0, sl);
-			}
-#else
-			w.Write(val.ToString(CultureInfo.InvariantCulture));
-#endif
-
-			w.Write("</v></c>");
-		}
-	}
-
-	sealed class SingleFieldWriter : FieldWriter
-	{
-		public override void WriteField(Context c, int ordinal)
-		{
-			var w = c.xw;
-			w.Write("<c><v>");
-
-			var val = c.dr.GetFloat(ordinal);
-#if SPAN
-			var scratch = c.GetScratch();
-			if (val.TryFormat(scratch.AsSpan(), out var sl, default, CultureInfo.InvariantCulture))
-			{
-				w.Write(scratch, 0, sl);
-			}
-#else
-			w.Write(val.ToString(CultureInfo.InvariantCulture));
-#endif
-
-			w.Write("</v></c>");
-		}
-	}
-
-	sealed class DoubleFieldWriter : FieldWriter
-	{
-		public override void WriteField(Context c, int ordinal)
-		{
-			var w = c.xw;
-			w.Write("<c><v>");
-
-			var val = c.dr.GetDouble(ordinal);
-#if SPAN
-			var scratch = c.GetScratch();
-			if (val.TryFormat(scratch.AsSpan(), out var sl, default, CultureInfo.InvariantCulture))
-			{
-				w.Write(scratch, 0, sl);
-			}
-#else
-			w.Write(val.ToString(CultureInfo.InvariantCulture));
-#endif
-
-			w.Write("</v></c>");
-		}
-	}
-
-	sealed class CharFieldWriter : FieldWriter
-	{
-		public override void WriteField(Context c, int ordinal)
+		public static void WriteBinaryHex(Context c, byte[] value)
 		{
 			var w = c.xw;
 			w.Write("<c t=\"str\"><v>");
-
-			var val = c.dr.GetChar(ordinal);
-			w.Write(val);
-			w.Write("</v></c>");
-		}
-	}
-
-	sealed class ByteFieldWriter : FieldWriter
-	{
-		public override void WriteField(Context c, int ordinal)
-		{
-			var w = c.xw;
-			w.Write("<c><v>");
-
-			var val = c.dr.GetByte(ordinal);
-#if SPAN
-			var scratch = c.GetScratch();
-			if (val.TryFormat(scratch.AsSpan(), out var sl, default, CultureInfo.InvariantCulture))
-			{
-				w.Write(scratch, 0, sl);
-			}
-#else
-			w.Write(val.ToString(CultureInfo.InvariantCulture));
-#endif
-
-			w.Write("</v></c>");
-		}
-	}
-
-	sealed class Int16FieldWriter : FieldWriter
-	{
-		public override void WriteField(Context c, int ordinal)
-		{
-			var w = c.xw;
-			w.Write("<c><v>");
-
-			var val = c.dr.GetInt16(ordinal);
-#if SPAN
-			var scratch = c.GetScratch();
-			if (val.TryFormat(scratch.AsSpan(), out var sl, default, CultureInfo.InvariantCulture))
-			{
-				w.Write(scratch, 0, sl);
-			}
-#else
-			w.Write(val.ToString(CultureInfo.InvariantCulture));
-#endif
-
-			w.Write("</v></c>");
-		}
-	}
-
-	sealed class Int32FieldWriter : FieldWriter
-	{
-		public override void WriteField(Context c, int ordinal)
-		{
-			var w = c.xw;
-			w.Write("<c><v>");
-
-			var val = c.dr.GetInt32(ordinal);
-#if SPAN
-			var scratch = c.GetScratch();
-			if (val.TryFormat(scratch.AsSpan(), out var sl, default, CultureInfo.InvariantCulture))
-			{
-				w.Write(scratch, 0, sl);
-			}
-#else
-			w.Write(val.ToString(CultureInfo.InvariantCulture));
-#endif
-
-			w.Write("</v></c>");
-		}
-	}
-
-	sealed class Int64FieldWriter : FieldWriter
-	{
-		public override void WriteField(Context c, int ordinal)
-		{
-			var w = c.xw;
-			w.Write("<c><v>");
-
-			var val = c.dr.GetInt64(ordinal);
-#if SPAN
-			var scratch = c.GetScratch();
-			if (val.TryFormat(scratch.AsSpan(), out var sl, default, CultureInfo.InvariantCulture))
-			{
-				w.Write(scratch, 0, sl);
-			}
-#else
-			w.Write(val.ToString(CultureInfo.InvariantCulture));
-#endif
-
-			w.Write("</v></c>");
-		}
-	}
-
-	sealed class GuidFieldWriter : FieldWriter
-	{
-		public override void WriteField(Context c, int ordinal)
-		{
-			var w = c.xw;
-			// TODO: currently writing these as inline string.
-			// might make sense to put in shared string table instead.
-			w.Write("<c t=\"str\"><v>");
-
-			var val = c.dr.GetGuid(ordinal);
-#if SPAN
-			var scratch = c.GetScratch();
-			if (val.TryFormat(scratch.AsSpan(), out var sl))
-			{
-				w.Write(scratch, 0, sl);
-			}
-#else
-			w.Write(val);
-#endif
-
-			w.Write("</v></c>");
-		}
-
-		public override double GetWidth(DbDataReader data, int ordinal)
-		{
-			return 38;
-		}
-	}
-
-	sealed class TimeSpanFieldWriter : FieldWriter
-	{
-		public override void WriteField(Context c, int ordinal)
-		{
-			var w = c.xw;
-			// TODO: currently writing these as inline string.
-			// might make sense to put in shared string table instead.
-			w.Write("<c><v>");
-
-			var val = c.dr.GetFieldValue<TimeSpan>(ordinal).TotalSeconds;
-#if SPAN
-			var scratch = c.GetScratch();
-			if (val.TryFormat(scratch.AsSpan(), out var sl, default, CultureInfo.InvariantCulture))
-			{
-				w.Write(scratch, 0, sl);
-			}
-#else
-			w.Write(val.ToString(CultureInfo.InvariantCulture));
-#endif
-
-			w.Write("</v></c>");
-		}
-	}
-
-	sealed class BinaryHexFieldWriter : FieldWriter
-	{
-		static char[] HexMap = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
-
-		byte[] dataBuffer = new byte[48];
-
-		public override void WriteField(Context context, int ordinal)
-		{
-			var w = context.xw;
-			w.Write("<c t=\"str\"><v>");
+			var charBuffer = c.GetCharBuffer();
 			var idx = 0;
-			var buffer = context.GetScratch();
-			int len;
-			var pos = 0;
-			var reader = context.dr;
 			w.Write("0x");
-			while ((len = (int)reader.GetBytes(ordinal, idx, dataBuffer, 0, dataBuffer.Length)) != 0)
+			while (idx < value.Length)
 			{
-				var c = ToHexCharArray(dataBuffer, 0, len, buffer, pos);
-				w.Write(buffer, 0, c);
-				idx += len;
-				pos += c;
+				var l = ToHexCharArray(value, idx, 48, charBuffer, 0);
+				w.Write(charBuffer, 0, l);
+				idx += 48;				
 			}
 
 			w.Write("</v></c>");
 		}
 
-		static int ToHexCharArray(byte[] dataBuffer, int offset, int length, char[] outputBuffer, int outputOffset)
+		public static int ToHexCharArray(byte[] dataBuffer, int offset, int length, char[] outputBuffer, int outputOffset)
 		{
 			if (length * 2 > outputBuffer.Length - outputOffset)
 				throw new ArgumentException();
@@ -505,17 +335,386 @@ partial class XlsxDataWriter
 			}
 			return length * 2;
 		}
+
+		public static void WriteCharArray(Context c, char[] value)
+		{
+			var w = c.xw;
+			w.Write("<c t=\"str\"><v>");			
+			// TODO: limit length...
+			w.Write(value);
+			w.Write("</v></c>");
+		}
 	}
 
-	sealed class CharArrayFieldWriter : FieldWriter
+	abstract class FieldWriter
 	{
-		char[] dataBuffer = new char[128];
+		public static readonly ObjectFieldWriter Object = new ObjectFieldWriter();
+		public static readonly BooleanFieldWriter Boolean = new BooleanFieldWriter();
+		public static readonly CharFieldWriter Char = new CharFieldWriter();
+		public static readonly StringFieldWriter String = new StringFieldWriter();
+		public static readonly ByteFieldWriter Byte = new ByteFieldWriter();
+		public static readonly Int16FieldWriter Int16 = new Int16FieldWriter();
+		public static readonly Int32FieldWriter Int32 = new Int32FieldWriter();
+		public static readonly Int64FieldWriter Int64 = new Int64FieldWriter();
+		public static readonly SingleFieldWriter Single = new SingleFieldWriter();
+		public static readonly DoubleFieldWriter Double = new DoubleFieldWriter();
+		public static readonly DecimalFieldWriter Decimal = new DecimalFieldWriter();
+		public static readonly DateTimeFieldWriter DateTime = new DateTimeFieldWriter();
+		public static readonly TimeSpanFieldWriter TimeSpan = new TimeSpanFieldWriter();
 
+#if DATE_ONLY
+		public static readonly DateOnlyFieldWriter DateOnly = new DateOnlyFieldWriter();
+		public static readonly TimeOnlyFieldWriter TimeOnly = new TimeOnlyFieldWriter();
+#endif
+
+		public static readonly GuidFieldWriter Guid = new GuidFieldWriter();
+
+		public static FieldWriter Get(Type type)
+		{
+			var code = Type.GetTypeCode(type);
+
+			switch (code)
+			{
+				case TypeCode.Boolean:
+					return Boolean;
+				case TypeCode.Char:
+					return Char;
+				case TypeCode.DateTime:
+					return DateTime;
+				case TypeCode.String:
+					return String;
+				case TypeCode.Byte:
+					return Byte;
+				case TypeCode.Int16:
+					return Int16;
+				case TypeCode.Int32:
+					return Int32;
+				case TypeCode.Int64:
+					return Int64;
+				case TypeCode.Single:
+					return Single;
+				case TypeCode.Double:
+					return Double;
+				case TypeCode.Decimal:
+					return Decimal;
+				default:
+					if (type == typeof(byte[]))
+					{
+						return new BinaryHexFieldWriter();
+					}
+					if (type == typeof(char[]))
+					{
+						return new CharArrayFieldWriter();
+					}
+					if (type == typeof(Guid))
+					{
+						return Guid;
+					}
+					if (type == typeof(TimeSpan))
+					{
+						return TimeSpan;
+					}
+
+#if DATE_ONLY
+					if (type == typeof(DateOnly))
+					{
+						return DateOnly;
+					}
+
+					if (type == typeof(TimeOnly))
+					{
+						return TimeOnly;
+					}
+#endif
+
+					return Object;
+			}
+		}
+
+		public abstract void WriteField(Context c, int ordinal);
+
+		public virtual double GetWidth(DbDataReader data, int ordinal)
+		{
+			return 12;
+		}
+	}
+
+	sealed class ObjectFieldWriter : FieldWriter
+	{
+		public override void WriteField(Context c, int ordinal)
+		{
+			var val = c.dr.GetValue(ordinal);
+
+			var type = val.GetType();
+
+			var tc = Type.GetTypeCode(type);
+
+			switch (tc)
+			{
+				case TypeCode.Boolean:
+					XlsxValueWriter.WriteBoolean(c, (bool)val);
+					break;
+				case TypeCode.String:
+					XlsxValueWriter.WriteString(c, (string)val);
+					break;
+				case TypeCode.Byte:
+					XlsxValueWriter.WriteByte(c, (byte)val);
+					break;
+				case TypeCode.Int16:
+					XlsxValueWriter.WriteInt16(c, (short)val);
+					break;
+				case TypeCode.Int32:
+					XlsxValueWriter.WriteInt32(c, (int)val);
+					break;
+				case TypeCode.Int64:
+					XlsxValueWriter.WriteInt64(c, (long)val);
+					break;
+				case TypeCode.DateTime:
+					XlsxValueWriter.WriteDateTime(c, (DateTime)val);
+					break;
+				case TypeCode.Single:
+					XlsxValueWriter.WriteSingle(c, (float)val);
+					break;
+				case TypeCode.Double:
+					XlsxValueWriter.WriteDouble(c, (double)val);
+					break;
+				case TypeCode.Decimal:
+					XlsxValueWriter.WriteDecimal(c, (decimal)val);
+					break;
+				default:
+
+					if (type == typeof(byte[]))
+					{
+						XlsxValueWriter.WriteBinaryHex(c, (byte[])val);
+						break;
+					}
+					if (type == typeof(char[]))
+					{
+						XlsxValueWriter.WriteCharArray(c, (char[])val);
+						break;
+					}
+					if (type == typeof(Guid))
+					{
+						XlsxValueWriter.WriteGuid(c, (Guid)val);
+						break;
+					}
+					if (type == typeof(TimeSpan))
+					{
+						XlsxValueWriter.WriteTimeSpan(c, (TimeSpan)val);
+						break;
+					}
+
+#if DATE_ONLY
+					if (type == typeof(DateOnly))
+					{
+						XlsxValueWriter.WriteDateOnly(c, (DateOnly)val);
+						break;
+					}
+
+					if (type == typeof(TimeOnly))
+					{
+						XlsxValueWriter.WriteTimeOnly(c, (TimeOnly)val);
+						break;
+					}
+#endif
+					// anything else, we'll just ToString
+					var str = val?.ToString() ?? string.Empty;
+					XlsxValueWriter.WriteString(c, str);
+					break;
+			}
+		}
+	}
+
+	sealed class StringFieldWriter : FieldWriter
+	{
+		public override void WriteField(Context c, int ordinal)
+		{
+			var value = c.dr.GetString(ordinal);
+			XlsxValueWriter.WriteString(c, value);
+		}
+	}
+
+	sealed class BooleanFieldWriter : FieldWriter
+	{
+		public override void WriteField(Context c, int ordinal)
+		{
+			var val = c.dr.GetBoolean(ordinal);
+			XlsxValueWriter.WriteBoolean(c, val);
+		}
+	}
+
+	sealed class DateTimeFieldWriter : FieldWriter
+	{
+		public override void WriteField(Context c, int ordinal)
+		{
+			var dt = c.dr.GetDateTime(ordinal);
+			XlsxValueWriter.WriteDateTime(c, dt);
+		}
+
+		public override double GetWidth(DbDataReader data, int ordinal)
+		{
+			return 22;
+		}
+	}
+
+#if DATE_ONLY
+
+	sealed class DateOnlyFieldWriter : FieldWriter
+	{
+		public override void WriteField(Context c, int ordinal)
+		{
+			var dt = c.dr.GetFieldValue<DateOnly>(ordinal);
+			XlsxValueWriter.WriteDateOnly(c, dt);
+		}
+
+		public override double GetWidth(DbDataReader data, int ordinal)
+		{
+			return 11;
+		}
+	}
+
+	sealed class TimeOnlyFieldWriter : FieldWriter
+	{
+		public override void WriteField(Context c, int ordinal)
+		{
+			var value = c.dr.GetFieldValue<TimeOnly>(ordinal);
+			XlsxValueWriter.WriteTimeOnly(c, value);
+		}
+
+		public override double GetWidth(DbDataReader data, int ordinal)
+		{
+			return 11;
+		}
+	}
+
+#endif
+
+	sealed class DecimalFieldWriter : FieldWriter
+	{
+		public override void WriteField(Context c, int ordinal)
+		{
+			var val = c.dr.GetDecimal(ordinal);
+			XlsxValueWriter.WriteDecimal(c, val);
+		}
+	}
+
+	sealed class SingleFieldWriter : FieldWriter
+	{
+		public override void WriteField(Context c, int ordinal)
+		{
+			var val = c.dr.GetFloat(ordinal);
+			XlsxValueWriter.WriteSingle(c, val);
+		}
+	}
+
+	sealed class DoubleFieldWriter : FieldWriter
+	{
+		public override void WriteField(Context c, int ordinal)
+		{
+			var val = c.dr.GetDouble(ordinal);
+			XlsxValueWriter.WriteDouble(c, val);
+		}
+	}
+
+	sealed class CharFieldWriter : FieldWriter
+	{
+		public override void WriteField(Context c, int ordinal)
+		{
+			var val = c.dr.GetChar(ordinal);
+			XlsxValueWriter.WriteChar(c, val);
+		}
+	}
+
+	sealed class ByteFieldWriter : FieldWriter
+	{
+		public override void WriteField(Context c, int ordinal)
+		{
+			var val = c.dr.GetByte(ordinal);
+			XlsxValueWriter.WriteByte(c, val);
+		}
+	}
+
+	sealed class Int16FieldWriter : FieldWriter
+	{
+		public override void WriteField(Context c, int ordinal)
+		{
+			var val = c.dr.GetInt16(ordinal);
+			XlsxValueWriter.WriteInt16(c, val);
+		}
+	}
+
+	sealed class Int32FieldWriter : FieldWriter
+	{
+		public override void WriteField(Context c, int ordinal)
+		{
+			var val = c.dr.GetInt32(ordinal);
+			XlsxValueWriter.WriteInt32(c, val);
+		}
+	}
+
+	sealed class Int64FieldWriter : FieldWriter
+	{
+		public override void WriteField(Context c, int ordinal)
+		{
+			var val = c.dr.GetInt64(ordinal);
+			XlsxValueWriter.WriteInt64(c, val);
+		}
+	}
+
+	sealed class GuidFieldWriter : FieldWriter
+	{
+		public override void WriteField(Context c, int ordinal)
+		{
+			var val = c.dr.GetGuid(ordinal);
+			XlsxValueWriter.WriteGuid(c, val);
+		}
+
+		public override double GetWidth(DbDataReader data, int ordinal)
+		{
+			return 38;
+		}
+	}
+
+	sealed class TimeSpanFieldWriter : FieldWriter
+	{
+		public override void WriteField(Context c, int ordinal)
+		{
+			var val = c.dr.GetFieldValue<TimeSpan>(ordinal);
+			XlsxValueWriter.WriteTimeSpan(c, val);
+		}
+	}
+
+	sealed class BinaryHexFieldWriter : FieldWriter
+	{
 		public override void WriteField(Context context, int ordinal)
 		{
 			var w = context.xw;
 			w.Write("<c t=\"str\"><v>");
 			var idx = 0;
+			var dataBuffer = context.GetByteBuffer();
+			var charBuffer = context.GetCharBuffer();
+			int len;
+			var reader = context.dr;
+			w.Write("0x");
+			while ((len = (int)reader.GetBytes(ordinal, idx, dataBuffer, 0, dataBuffer.Length)) != 0)
+			{
+				var c = XlsxValueWriter.ToHexCharArray(dataBuffer, 0, len, charBuffer, 0);
+				w.Write(charBuffer, 0, c);
+				idx += len;
+			}
+
+			w.Write("</v></c>");
+		}
+	}
+
+	sealed class CharArrayFieldWriter : FieldWriter
+	{
+		public override void WriteField(Context context, int ordinal)
+		{
+			var w = context.xw;
+			w.Write("<c t=\"str\"><v>");
+			var idx = 0;
+			var dataBuffer = context.GetCharBuffer();
 			int len;
 			var reader = context.dr;
 			while ((len = (int)reader.GetChars(ordinal, idx, dataBuffer, 0, dataBuffer.Length)) != 0)

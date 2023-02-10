@@ -9,29 +9,31 @@ namespace Sylvan.Data.Excel;
 sealed class DefaultExcelSchema : ExcelSchemaProvider
 {
 	readonly bool hasHeaders;
+	readonly Type type;
 
-	internal static DbColumn DefaultColumnSchema = new DefaultExcelSchemaColumn(string.Empty);
+	internal static DbColumn DefaultColumnSchema = new DefaultExcelSchemaColumn(typeof(string), string.Empty);
 
 	sealed class DefaultExcelSchemaColumn : DbColumn
 	{
-		public DefaultExcelSchemaColumn(string? name)
+		public DefaultExcelSchemaColumn(Type type, string? name)
 		{
 			this.ColumnName = name ?? string.Empty;
-			this.DataType = typeof(string);
+			this.DataType = type;
 			this.DataTypeName = this.DataType.Name;
 			this.AllowDBNull = true;
 		}
 	}
 
-	public DefaultExcelSchema(bool hasHeaders)
+	public DefaultExcelSchema(Type type, bool hasHeaders)
 	{
+		this.type = type;
 		this.hasHeaders = hasHeaders;
 	}
 
 	public override DbColumn? GetColumn(string sheetName, string? columName, int ordinal)
 	{
 		var name = hasHeaders ? columName : ExcelSchema.GetExcelColumnName(ordinal);
-		return new DefaultExcelSchemaColumn(name);
+		return new DefaultExcelSchemaColumn(type, name);
 	}
 
 	public override bool HasHeaders(string sheetName)
@@ -49,13 +51,20 @@ public sealed class ExcelSchema : ExcelSchemaProvider
 	/// A schema that expects each sheet to have a header row, and describes
 	/// each column as being a nullable string.
 	/// </summary>
-	public static IExcelSchemaProvider Default = new DefaultExcelSchema(true);
+	public static IExcelSchemaProvider Default = new DefaultExcelSchema(typeof(string), true);
+
+	/// <summary>
+	/// A schema that expects each sheet to have a header row, and describes
+	/// each column as being a nullable object.
+	/// </summary>
+	public static IExcelSchemaProvider Object = new DefaultExcelSchema(typeof(object), true);
+
 
 	/// <summary>
 	/// A schema that does not expect each sheet to have a header row, and describes
 	/// each column as being a nullable string. Column names are exposed as the Excel column header "A", "B", etc.
 	/// </summary>
-	public static IExcelSchemaProvider NoHeaders = new DefaultExcelSchema(false);
+	public static IExcelSchemaProvider NoHeaders = new DefaultExcelSchema(typeof(string), false);
 
 	class ExcelSchemaColumn : DbColumn
 	{
