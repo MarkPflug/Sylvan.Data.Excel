@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -70,6 +69,11 @@ partial class Ole2Package
 			}
 
 			this.position = pos;
+			var idx = pos / this.sectorLen;
+
+			this.sectorIdx = (int)idx;
+			this.sectorOff = (int) (pos - (idx * sectorLen));
+			this.sector = this.sectors[sectorIdx];
 			return this.position;
 		}
 

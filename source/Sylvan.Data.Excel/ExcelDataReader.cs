@@ -7,6 +7,9 @@ using System.Data;
 using System.Data.Common;
 using System.Globalization;
 using System.IO;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Sylvan.Data.Excel;
 /// <summary>
@@ -27,7 +30,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 	private protected FieldInfo[] values;
 	private protected string[] sst;
 
-	private protected SheetInfo[] sheetNames;
+	private protected SheetInfo[] sheetInfos;
 	private protected int sheetIdx = -1;
 
 	private protected bool readHiddenSheets;
@@ -36,11 +39,11 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 	private protected int rowCount;
 	private protected int rowFieldCount;
 
-	string? trueString;
-	string? falseString;
+	readonly string? trueString;
+	readonly string? falseString;
 
-	CultureInfo culture;
-	string? dateTimeFormat;
+	readonly CultureInfo culture;
+	readonly string? dateTimeFormat;
 
 	/// <inheritdoc/>
 	public sealed override Type GetFieldType(int ordinal)
@@ -70,7 +73,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 		this.sst = Array.Empty<string>();
 
 		this.xfMap = Array.Empty<int>();
-		this.sheetNames = Array.Empty<SheetInfo>();
+		this.sheetInfos = Array.Empty<SheetInfo>();
 
 		this.columnSchema = Array.Empty<ExcelColumn>();
 		this.formats = ExcelFormat.CreateFormatCollection();
@@ -180,9 +183,59 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 	}
 
 	/// <summary>
+	/// Tries to open a worksheet.
+	/// </summary>
+	/// <param name="name">The name of the worksheet to open.</param>
+	/// <returns>True if the sheet was opened, otherwise false.</returns>
+	public bool TryOpenWorksheet(string name)
+	{
+		return TryOpenWorksheetAsync(name).GetAwaiter().GetResult();
+	}
+
+	/// <summary>
+	/// Tries to open a worksheet.
+	/// </summary>
+	/// <param name="name">The name of the worksheet to open.</param>
+	/// <param name="cancel">A cancellation token for the async operation.</param>
+	/// <returns>True if the sheet was opened, otherwise false.</returns>
+	public Task<bool> TryOpenWorksheetAsync(string name, CancellationToken cancel = default)
+	{
+		var sheetIdx = -1;
+		for (int i = 0; i < this.sheetInfos.Length; i++)
+		{
+			if (StringComparer.OrdinalIgnoreCase.Equals(name, this.sheetInfos[i].Name))
+			{
+				sheetIdx = i;
+				break;
+			}
+		}
+		if (sheetIdx == -1)
+		{
+			return Task.FromResult(false);
+		}
+		return OpenWorksheetAsync(sheetIdx, cancel);
+	}
+
+	private protected abstract Task<bool> OpenWorksheetAsync(int sheetIdx, CancellationToken cancel);
+
+	/// <summary>
+	/// Gets the names of the worksheets in the workbook.
+	/// </summary>
+	public IEnumerable<string> WorksheetNames
+	{
+		get
+		{
+			return
+				this.sheetInfos
+				.Where(s => this.readHiddenSheets || !s.Hidden)
+				.Select(s => s.Name);
+		}
+	}
+
+	/// <summary>
 	/// Gets the number of worksheets in the workbook.
 	/// </summary>
-	public int WorksheetCount => this.sheetNames.Length;
+	public int WorksheetCount => this.sheetInfos.Length;
 
 	/// <summary>
 	/// Gets the name of the current worksheet.
@@ -192,8 +245,8 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 		get
 		{
 			return
-				sheetIdx < this.sheetNames.Length
-				? this.sheetNames[sheetIdx].Name
+				sheetIdx < this.sheetInfos.Length
+				? this.sheetInfos[sheetIdx].Name
 				: null;
 		}
 	}

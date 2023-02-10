@@ -5,6 +5,8 @@ using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Xml;
 
 namespace Sylvan.Data.Excel;
@@ -123,7 +125,7 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 			}
 		}
 
-		this.sheetNames = sheetNameList.ToArray();
+		this.sheetInfos = sheetNameList.ToArray();
 		if (stylePart == null)
 		{
 			throw new InvalidDataException();
@@ -144,27 +146,17 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 		return ref values[ordinal];
 	}
 
-	public override bool NextResult()
+	private protected override Task<bool> OpenWorksheetAsync(int sheetIdx, CancellationToken cancel)
 	{
-		sheetIdx++;
-		for (; sheetIdx < this.sheetNames.Length; sheetIdx++)
-		{
-			if (readHiddenSheets || sheetNames[sheetIdx].Hidden == false)
-			{
-				break;
-			}
-		}
-		if (sheetIdx >= this.sheetNames.Length)
-			return false;
-
-		var sheetName = sheetNames[sheetIdx].Part;
+		var sheetName = sheetInfos[sheetIdx].Part;
 		// the relationship is recorded as an absolute path
 		// but the zip entry has a relative name.
 		sheetName = sheetName.TrimStart('/');
 
 		var sheetPart = package.GetEntry(sheetName);
 		if (sheetPart == null)
-			return false;
+			throw new InvalidDataException();
+
 		if (sheetStream != null)
 		{
 			this.sheetStream.Close();
@@ -174,8 +166,24 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 		this.reader = new RecordReader(this.sheetStream);
 		var rr = this.reader;
 		this.rowFieldCount = 0;
+		this.sheetIdx = sheetIdx;
+		return Task.FromResult(InitializeSheet());
+	}
 
-		return InitializeSheet();
+	public override bool NextResult()
+	{
+		sheetIdx++;
+		for (; sheetIdx < this.sheetInfos.Length; sheetIdx++)
+		{
+			if (readHiddenSheets || sheetInfos[sheetIdx].Hidden == false)
+			{
+				break;
+			}
+		}
+		if (sheetIdx >= this.sheetInfos.Length)
+			return false;
+
+		return OpenWorksheetAsync(sheetIdx, default).GetAwaiter().GetResult();
 	}
 
 	bool InitializeSheet()
