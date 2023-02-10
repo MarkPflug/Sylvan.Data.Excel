@@ -44,7 +44,7 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 		this.formats.Add("yyyy\\-mm\\-dd\\ hh:mm:ss.000");
 		// used for dateonly
 		this.formats.Add("yyyy\\-mm\\-dd");
-		// used for timeonly
+		// used for timeonly/timespan
 		this.formats.Add("hh:mm:ss");
 		this.truncateStrings = options.TruncateStrings;
 	}
@@ -153,7 +153,7 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 			var c = data.FieldCount;
 			for (int i = 0; i < c; i++)
 			{
-				var fw = i < fieldWriters.Length ? fieldWriters[i] : ObjectFieldWriter.Instance;
+				var fw = i < fieldWriters.Length ? fieldWriters[i] : FieldWriter.Object;
 				if (data.IsDBNull(i))
 				{
 					xw.Write("<c/>");
