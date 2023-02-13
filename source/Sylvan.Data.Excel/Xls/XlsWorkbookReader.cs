@@ -61,21 +61,26 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 
 	public override int RowNumber => rowNumber;
 
+	private protected override async Task<bool> OpenWorksheetAsync(int sheetIdx, CancellationToken cancel)
+	{
+		var info = (XlsSheetInfo)this.sheetInfos[sheetIdx];
+		this.rowNumber = 0;
+		this.pendingRow = -1;
+		reader.SetPosition(info.Offset);
+		await InitSheet(cancel).ConfigureAwait(false);
+		this.sheetIdx = sheetIdx;
+		return true;
+	}
+
 	public override async Task<bool> NextResultAsync(CancellationToken cancel)
 	{
 		sheetIdx++;
-		this.rowNumber = 0;
-		this.pendingRow = -1;
-		for (; sheetIdx < this.sheetNames.Length; sheetIdx++)
+
+		for (; sheetIdx < this.sheetInfos.Length; sheetIdx++)
 		{
-			var info = (XlsSheetInfo)this.sheetNames[sheetIdx];
-
-			reader.SetPosition(info.Offset);
-
-
-			await InitSheet(cancel).ConfigureAwait(false);
-			if (this.readHiddenSheets || this.sheetNames[sheetIdx].Hidden == false)
+			if (this.readHiddenSheets || this.sheetInfos[sheetIdx].Hidden == false)
 			{
+				await OpenWorksheetAsync(sheetIdx, cancel).ConfigureAwait(false);
 				return true;
 			}
 		}
@@ -168,7 +173,7 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 					break;
 			}
 		}
-		this.sheetNames = sheets.ToArray();
+		this.sheetInfos = sheets.ToArray();
 		this.xfMap = xfs.ToArray();
 	}
 

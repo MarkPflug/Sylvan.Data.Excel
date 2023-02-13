@@ -898,6 +898,41 @@ public class XlsxTests
 		Assert.Equal(3, reader.GetOrdinal("STRINGNUM"));
 	}
 
+	[Fact]
+	public void OpenWorksheetFound()
+	{
+		var reader = ExcelDataReader.Create(GetFile("MultiSheet"));
+		Assert.True(reader.TryOpenWorksheet("Secondary"));
+		Assert.True(reader.Read());
+		Assert.Equal("e", reader.GetString(0));
+	}
+
+	[Fact]
+	public void OpenWorksheetMissing()
+	{
+		var reader = ExcelDataReader.Create(GetFile("MultiSheet"));
+		Assert.False(reader.TryOpenWorksheet("MISSING"));
+		// we're still on the original sheet.
+		Assert.True(reader.Read());
+		Assert.Equal("b", reader.GetString(0));
+	}
+
+	[Fact]
+	public void OpenWorksheetBacktrack()
+	{
+		var reader = ExcelDataReader.Create(GetFile("MultiSheet"));
+		Assert.True(reader.NextResult());
+		Assert.Equal("Secondary", reader.WorksheetName);
+		Assert.True(reader.Read());
+		Assert.Equal("e", reader.GetString(0));
+		Assert.True(reader.TryOpenWorksheet("Primary"));
+		Assert.Equal("Primary", reader.WorksheetName);
+		Assert.True(reader.Read());
+		Assert.Equal("b", reader.GetString(0));
+		Assert.True(reader.NextResult());
+		Assert.Equal("Secondary", reader.WorksheetName);
+	}
+
 	enum MyEnum
 	{
 		Yes = 1,

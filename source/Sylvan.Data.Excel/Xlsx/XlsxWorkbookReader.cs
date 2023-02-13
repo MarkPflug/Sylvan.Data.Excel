@@ -7,6 +7,8 @@ using System.IO.Compression;
 using System.Linq;
 using System.Text;
 using System.Xml;
+using System.Threading.Tasks;
+using System.Threading;
 
 #if !SPAN
 using ReadonlyCharSpan = System.String;
@@ -131,7 +133,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 					sheets.Add(si);
 				}
 			}
-			this.sheetNames = sheets.ToArray();
+			this.sheetInfos = sheets.ToArray();
 		}
 		if (stylePart == null)
 		{
@@ -212,27 +214,15 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 		ValidationFlags = System.Xml.Schema.XmlSchemaValidationFlags.None,
 	};
 
-	public override bool NextResult()
+	private protected override Task<bool> OpenWorksheetAsync(int sheetIdx, CancellationToken cancel)
 	{
-		sheetIdx++;
-		for (; sheetIdx < this.sheetNames.Length; sheetIdx++)
-		{
-			if (readHiddenSheets || sheetNames[sheetIdx].Hidden == false)
-			{
-				break;
-			}
-		}
-		if (sheetIdx >= this.sheetNames.Length)
-		{
-			return false;
-		}
-		var sheetName = sheetNames[sheetIdx].Part;
+		var sheetName = sheetInfos[sheetIdx].Part;
 		// the relationship is recorded as an absolute path
 		// but the zip entry has a relative name.
 		sheetName = sheetName.TrimStart('/');
 		var sheetPart = package.GetEntry(sheetName);
 		if (sheetPart == null)
-			return false;
+			return Task.FromResult(false);
 
 		this.sheetStream = sheetPart.Open();
 
@@ -278,7 +268,26 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 		}
 
 		this.hasRows = InitializeSheet();
-		return true;
+		this.sheetIdx = sheetIdx;
+		return Task.FromResult(true);
+	}
+
+	public override bool NextResult()
+	{
+		sheetIdx++;
+		for (; sheetIdx < this.sheetInfos.Length; sheetIdx++)
+		{
+			if (readHiddenSheets || sheetInfos[sheetIdx].Hidden == false)
+			{
+				break;
+			}
+		}
+		if (sheetIdx >= this.sheetInfos.Length)
+		{
+			return false;
+		}
+
+		return OpenWorksheetAsync(sheetIdx, default).GetAwaiter().GetResult();
 	}
 
 	bool InitializeSheet()

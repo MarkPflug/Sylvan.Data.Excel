@@ -77,6 +77,10 @@ sealed partial class XlsWorkbookReader
 		public void SetPosition(long offset)
 		{
 			this.stream.Seek(offset, SeekOrigin.Begin);
+			this.bufferLen = 0;
+			this.bufferPos = 0;
+			this.recordOff = 0;
+			this.recordLen = 0;
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -274,7 +278,6 @@ sealed partial class XlsWorkbookReader
 
 		public async Task<string> ReadStringAsync(int length, bool compressed)
 		{
-			//Debug.WriteLine("ReadString");
 			var str = await ReadStringBufferAsync(length, compressed);
 			return str;
 		}
@@ -284,7 +287,6 @@ sealed partial class XlsWorkbookReader
 		public async Task<bool> NextRecordAsync()
 		{
 			bufferPos = recordOff + recordLen;
-			Assert();
 
 			if (bufferPos + 4 >= bufferLen)
 			{
