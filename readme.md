@@ -20,6 +20,15 @@ Be aware that I will be unlikely to investigate any issue unless an example file
 
 `Install-Package Sylvan.Data.Excel`
 
+## Asynchrony
+
+ExcelDataReader and ExcelDataWriter provide `async` implementations that allow them to be used
+with the async/await pattern. In this mode these classes will buffer the entire file in a MemoryStream 
+on creation and dispose. This is done because the `System.IO.Compression.ZipArchive` class 
+that .xlsx and .xlsb files depend on, doesn't yet provide async methods. To get fully async operation
+make sure to call `CreateAsync`, `ReadAsync`, `NextRecordAsync` and `async using` 
+to asynchronously dispose the classes.
+
 ## ExcelDataReader
 
 ExcelDataReader derives from DbDataReader, so it exposes an API that should be familiar for anyone who has worked with ADO.NET before. The field accessors allow reading data in an efficient, strongly-typed manner: `GetString`, `GetInt32`, `GetDateTime`, `GetBoolean`, etc. 
