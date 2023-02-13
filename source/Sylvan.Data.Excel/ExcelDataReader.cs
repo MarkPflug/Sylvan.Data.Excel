@@ -202,7 +202,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 				len = (int)l;
 			}
 			ms = new MemoryStream(len);
-			await stream.CopyToAsync(ms);
+			await stream.CopyToAsync(ms).ConfigureAwait(false);
 		}
 		return Create(ms, fileType, options);
 	}

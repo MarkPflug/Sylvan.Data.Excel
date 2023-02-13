@@ -89,7 +89,7 @@ public abstract class ExcelDataWriter : IDisposable
 		options = options ?? ExcelDataWriterOptions.Default;
 		var type = ExcelDataReader.GetWorkbookType(file);
 		var stream = File.Create(file);
-		var writer = await CreateAsync(stream, type, options);
+		var writer = await CreateAsync(stream, type, options).ConfigureAwait(false);
 		writer.ownsStream = true;
 		return writer;
 	}
@@ -197,19 +197,19 @@ public abstract class ExcelDataWriter : IDisposable
 			if (userStream != null)
 			{
 				stream.Seek(0, SeekOrigin.Begin);
-				await stream.CopyToAsync(this.userStream);
+				await stream.CopyToAsync(this.userStream).ConfigureAwait(false);
 			}
 			if (ownsStream)
 			{
 				if (this.userStream != null)
 				{
-					await this.userStream.DisposeAsync();
+					await this.userStream.DisposeAsync().ConfigureAwait(false);
 				}
 			}
 		}
 		else
 		{
-			await this.stream.DisposeAsync();
+			await this.stream.DisposeAsync().ConfigureAwait(false);
 		}
 	}
 #endif

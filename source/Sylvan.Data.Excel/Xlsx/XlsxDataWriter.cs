@@ -55,7 +55,7 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 
 	public override async Task<WriteResult> WriteAsync(DbDataReader data, string? worksheetName, CancellationToken cancel)
 	{
-		return await WriteInternal(data, worksheetName, true, default);
+		return await WriteInternal(data, worksheetName, true, default).ConfigureAwait(false);
 	}
 
 	async Task<WriteResult> WriteInternal(DbDataReader data, string? worksheetName, bool async, CancellationToken cancel)
@@ -138,7 +138,7 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 			cancel.ThrowIfCancellationRequested();
 			if (async)
 			{
-				if (!await data.ReadAsync(cancel))
+				if (!await data.ReadAsync(cancel).ConfigureAwait(false))
 				{
 					break;
 				}
@@ -160,7 +160,7 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 				var isNull = false;
 				if (async)
 				{
-					isNull = await data.IsDBNullAsync(i);
+					isNull = await data.IsDBNullAsync(i).ConfigureAwait(false);
 				}
 				else
 				{
@@ -536,7 +536,7 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 		this.Close();
 		this.zipArchive.Dispose();
 		// then things are asynchronously flushed to the true output stream.
-		await base.DisposeAsync();
+		await base.DisposeAsync().ConfigureAwait(false);
 	}
 #endif
 }
