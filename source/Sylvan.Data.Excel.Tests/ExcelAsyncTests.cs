@@ -34,7 +34,7 @@ public partial class XlsxWriterAsyncTests
 	}
 
 	[Fact]
-	public async Task TestAsync()
+	public async Task TestMemoryStreamAsync()
 	{
 		var data = GetTestData();
 		var ms = new MemoryStream();
@@ -46,6 +46,29 @@ public partial class XlsxWriterAsyncTests
 		Assert.NotEqual(0, ms.Length);
 
 		using var r = await ExcelDataReader.CreateAsync(ms, ExcelWorkbookType.ExcelXml, new ExcelDataReaderOptions { Schema = ExcelSchema.Dynamic });
+
+		var b = GetTestData();
+
+		while (await r.ReadAsync())
+		{
+			Assert.True(b.Read());
+			for (int i = 0; i < r.FieldCount; i++)
+			{
+				Assert.Equal(b.GetValue(i), r.GetValue(i));
+			}
+		}
+	}
+
+	[Fact]
+	public async Task TestFileAsync()
+	{
+		var data = GetTestData();
+		{
+			await using var w = await ExcelDataWriter.CreateAsync("FileAsync.xlsx");
+			await w.WriteAsync(data);
+		}
+
+		using var r = await ExcelDataReader.CreateAsync("FileAsync.xlsx", new ExcelDataReaderOptions { Schema = ExcelSchema.Dynamic });
 
 		var b = GetTestData();
 

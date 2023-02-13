@@ -108,10 +108,10 @@ public abstract class ExcelDataWriter : IDisposable
 			stream is MemoryStream ms
 			? ms
 			: new MemoryStream();
-		
+
 		switch (type)
 		{
-			case ExcelWorkbookType.ExcelXml:				
+			case ExcelWorkbookType.ExcelXml:
 				var w = new XlsxDataWriter(asyncStream, options);
 				w.isAsync = true;
 				w.userStream = userStream;
@@ -168,7 +168,7 @@ public abstract class ExcelDataWriter : IDisposable
 		{
 			// this call pattern would be incorrect.
 			// DisposeAsync should have been called
-			// but we should do our best to clean up
+			// but we will do our best to clean up
 			if (userStream != null)
 			{
 				stream.Seek(0, SeekOrigin.Begin);
@@ -184,11 +184,15 @@ public abstract class ExcelDataWriter : IDisposable
 		}
 		else
 		{
-			this.stream.Dispose();
+			if (this.ownsStream)
+			{
+				this.stream.Dispose();
+			}
 		}
 	}
 
 #if ASYNC_DISPOSE
+
 	/// <inheritdoc/>
 	public virtual async ValueTask DisposeAsync()
 	{
@@ -209,7 +213,10 @@ public abstract class ExcelDataWriter : IDisposable
 		}
 		else
 		{
-			await this.stream.DisposeAsync().ConfigureAwait(false);
+			if (ownsStream)
+			{
+				await this.stream.DisposeAsync().ConfigureAwait(false);
+			}
 		}
 	}
 #endif
