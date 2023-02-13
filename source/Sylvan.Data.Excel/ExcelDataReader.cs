@@ -557,7 +557,16 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 							switch (kind)
 							{
 								case FormatKind.Number:
-									return GetDouble(ordinal);
+									var doubleValue = GetDouble(ordinal);
+									if (doubleValue == (int)doubleValue)
+									{
+										return (int)doubleValue;
+									}
+									if (doubleValue == (long)doubleValue)
+									{
+										return (long)doubleValue;
+									}
+									return doubleValue;
 								case FormatKind.Date:
 									return GetDateTime(ordinal);
 								case FormatKind.Time:
@@ -725,7 +734,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 			case ExcelDataType.String:
 			default:
 				var str = GetString(ordinal);
-				if(TimeSpan.TryParse(str, out TimeSpan value))
+				if (TimeSpan.TryParse(str, out TimeSpan value))
 				{
 					return value;
 				}

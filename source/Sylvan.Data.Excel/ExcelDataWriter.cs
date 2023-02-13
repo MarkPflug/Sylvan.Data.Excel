@@ -84,19 +84,39 @@ public abstract class ExcelDataWriter : IDisposable
 	/// <summary>
 	/// Creates a new ExcelDataWriter to be used with asynchronous writing.
 	/// </summary>
-	public static Task<ExcelDataWriter> CreateAsync(string file, ExcelDataWriterOptions? options = null)
+	public static async Task<ExcelDataWriter> CreateAsync(string file, ExcelDataWriterOptions? options = null)
 	{
 		options = options ?? ExcelDataWriterOptions.Default;
 		var type = ExcelDataReader.GetWorkbookType(file);
+		var stream = File.Create(file);
+		var writer = await CreateAsync(stream, type, options);
+		writer.ownsStream = true;
+		return writer;
+	}
+
+	/// <summary>
+	/// Creates a new ExcelDataWriter to be used with asynchronous writing.
+	/// </summary>
+	public static Task<ExcelDataWriter> CreateAsync(Stream stream, ExcelWorkbookType type, ExcelDataWriterOptions? options = null)
+	{
+		// if the stream that is being written to might block (FileStream)
+		// then write to a MemoryStream instead, and asynchronously
+		// flush to the user stream during async dispose.
+		options = options ?? ExcelDataWriterOptions.Default;
+		Stream userStream = stream;
+		Stream asyncStream =
+			stream is MemoryStream ms
+			? ms
+			: new MemoryStream();
+		
 		switch (type)
 		{
-			case ExcelWorkbookType.ExcelXml:
-				var userStream = File.Create(file);
-				var ms = new MemoryStream();
-				var w = new XlsxDataWriter(ms, options);
+			case ExcelWorkbookType.ExcelXml:				
+				var w = new XlsxDataWriter(asyncStream, options);
 				w.isAsync = true;
 				w.userStream = userStream;
-				w.ownsStream = true;
+
+				w.ownsStream = false;
 				return Task.FromResult((ExcelDataWriter)w);
 		}
 		throw new NotSupportedException();

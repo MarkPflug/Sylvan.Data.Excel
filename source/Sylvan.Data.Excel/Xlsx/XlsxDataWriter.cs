@@ -155,7 +155,7 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 			var c = data.FieldCount;
 			for (int i = 0; i < c; i++)
 			{
-				var fw = i < fieldWriters.Length ? fieldWriters[i] : ObjectFieldWriter.Instance;
+				var fw = i < fieldWriters.Length ? fieldWriters[i] : FieldWriter.Object;
 
 				var isNull = false;
 				if (async)
