@@ -471,6 +471,9 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 				}
 				if (schemaType == typeof(object))
 				{
+					// when the type of the column is object
+					// we'll treat it "dynamically" and try
+					// to return the most appropriate value.
 					var type = GetExcelDataType(ordinal);
 					switch (type)
 					{
@@ -488,7 +491,20 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 							switch (kind)
 							{
 								case FormatKind.Number:
-									return GetDouble(ordinal);
+									var doubleValue = GetDouble(ordinal);
+									unchecked
+									{
+										// excel stores all values as double
+										// but we'll try to return it as the
+										// most "intuitive" type.
+										var int32Value = (int)doubleValue;
+										if (doubleValue == int32Value)
+											return int32Value;
+										var int64Value = (long)doubleValue;
+										if (doubleValue == int64Value)
+											return int64Value;
+										return doubleValue;
+									}
 								case FormatKind.Date:
 									return GetDateTime(ordinal);
 								case FormatKind.Time:
@@ -656,7 +672,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 			case ExcelDataType.String:
 			default:
 				var str = GetString(ordinal);
-				if(TimeSpan.TryParse(str, out TimeSpan value))
+				if (TimeSpan.TryParse(str, out TimeSpan value))
 				{
 					return value;
 				}

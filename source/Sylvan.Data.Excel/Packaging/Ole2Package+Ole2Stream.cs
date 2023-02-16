@@ -138,7 +138,7 @@ partial class Ole2Package
 				int len = 0;
 				while (len < readLen)
 				{
-					int l = await package.stream.ReadAsync(buffer, offset, readLen);
+					int l = await package.stream.ReadAsync(buffer, offset, readLen).ConfigureAwait(false);
 					if (l == 0)
 						throw new IOException();//"Unexpectedly encountered end of Ole2Package Stream"
 					len += l;

@@ -4,13 +4,11 @@
 		<TargetFrameworks>net6.0;netstandard2.1;netstandard2.0</TargetFrameworks>
 		<LangVersion>latest</LangVersion>
 		<VersionPrefix>0.4.6</VersionPrefix>
-		<VersionSuffix>b0001</VersionSuffix>
 		<Description>A cross-platform .NET library for reading Excel data files.</Description>
 		<PackageTags>excel;xls;xlsx;xlsb;datareader</PackageTags>
 		<Nullable>enable</Nullable>
 		<GenerateDocumentationFile>true</GenerateDocumentationFile>
 		<DisableImplicitNamespaceImports>true</DisableImplicitNamespaceImports>
-		
 	</PropertyGroup>
 
 	<PropertyGroup Condition="$(TargetFramework) == 'netstandard2.1'">

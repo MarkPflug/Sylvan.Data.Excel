@@ -24,6 +24,11 @@
 			Condition="Exists($(ReadmeFile))">readme.md</PackageReadmeFile>
 
 	</PropertyGroup>
+
+	<PropertyGroup Condition="$(IsTestProject) == true">
+		<NoWarn>CA2007</NoWarn>
+	</PropertyGroup>
+	
 	<ItemGroup>
 		<None Include="$(MSBuildThisFileDirectory)license.txt" Pack="true" PackagePath="">
 			<Visible>false</Visible>

@@ -28,25 +28,25 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 	const int StringLimit = short.MaxValue;
 	const int MaxWorksheetNameLength = 31;
 
-	ZipArchive zipArchive;
-	List<string> worksheets;
-	List<string> formats = new List<string>();
+    readonly ZipArchive zipArchive;
+	readonly List<string> worksheets;
+
+	static string[] Formats = new[]
+	{
+		// used for datetime
+		"yyyy\\-mm\\-dd\\ hh:mm:ss.000",
+		// used for dateonly
+		"yyyy\\-mm\\-dd",
+		// used for timeonly/timespan
+		"hh:mm:ss",
+	};
+
 	const CompressionLevel Compression = CompressionLevel.Optimal;
-	bool truncateStrings;
 
 	public XlsxDataWriter(Stream stream, ExcelDataWriterOptions options) : base(stream, options)
 	{
 		this.zipArchive = new ZipArchive(stream, ZipArchiveMode.Create, true);
-
 		this.worksheets = new List<string>();
-		this.formats = new List<string>();
-		// used for datetime
-		this.formats.Add("yyyy\\-mm\\-dd\\ hh:mm:ss.000");
-		// used for dateonly
-		this.formats.Add("yyyy\\-mm\\-dd");
-		// used for timeonly/timespan
-		this.formats.Add("hh:mm:ss");
-		this.truncateStrings = options.TruncateStrings;
 	}
 
 	public override WriteResult Write(DbDataReader data, string? worksheetName)
@@ -56,7 +56,7 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 
 	public override async Task<WriteResult> WriteAsync(DbDataReader data, string? worksheetName, CancellationToken cancel)
 	{
-		return await WriteInternal(data, worksheetName, true, default);
+		return await WriteInternal(data, worksheetName, true, default).ConfigureAwait(false);
 	}
 
 	async Task<WriteResult> WriteInternal(DbDataReader data, string? worksheetName, bool async, CancellationToken cancel)
@@ -136,7 +136,7 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 		{
 			if (async)
 			{
-				if (!await data.ReadAsync(cancel))
+				if (!await data.ReadAsync(cancel).ConfigureAwait(false))
 				{
 					break;
 				}
@@ -410,7 +410,7 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 		wx.WriteStartElement("styleSheet", NS);
 
 		wx.WriteStartElement("numFmts", NS);
-		for (int i = 0; i < formats.Count; i++)
+		for (int i = 0; i < Formats.Length; i++)
 		{
 			wx.WriteStartElement("numFmt", NS);
 
@@ -419,7 +419,7 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 			wx.WriteEndAttribute();
 
 			wx.WriteStartAttribute("formatCode");
-			wx.WriteValue(formats[i]);
+			wx.WriteValue(Formats[i]);
 			wx.WriteEndAttribute();
 			wx.WriteEndElement();
 		}
@@ -468,7 +468,7 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 			wx.WriteEndElement();
 		}
 
-		for (int i = 0; i < formats.Count; i++)
+		for (int i = 0; i < Formats.Length; i++)
 		{
 			wx.WriteStartElement("xf", NS);
 
@@ -485,14 +485,12 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 
 		wx.WriteEndElement();
 
-
 		wx.WriteStartElement("cellStyles");
 		wx.WriteStartElement("cellStyle");
 		wx.WriteAttributeString("name", "Normal");
 		wx.WriteAttributeString("xfId", "0");
 		wx.WriteEndElement();
 		wx.WriteEndElement();
-
 
 		wx.WriteEndElement();
 	}

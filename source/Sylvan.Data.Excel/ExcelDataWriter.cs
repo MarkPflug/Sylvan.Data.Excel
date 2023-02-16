@@ -15,8 +15,8 @@ public abstract class ExcelDataWriter : IDisposable
 {
 	private protected class SharedStringTable
 	{
-		Dictionary<SharedStringEntry, string> dict;
-		List<SharedStringEntry> entries;
+		readonly Dictionary<SharedStringEntry, string> dict;
+		readonly List<SharedStringEntry> entries;
 
 		public int UniqueCount => entries.Count;
 
@@ -47,10 +47,7 @@ public abstract class ExcelDataWriter : IDisposable
 
 			public override bool Equals(object? obj)
 			{
-				return
-					(obj is SharedStringEntry e)
-					? this.Equals(e)
-					: false;
+				return obj is SharedStringEntry e && this.Equals(e);
 			}
 
 			public bool Equals(SharedStringEntry other)
@@ -74,9 +71,10 @@ public abstract class ExcelDataWriter : IDisposable
 	}
 
 	bool ownsStream;
-	readonly Stream stream;
+	readonly Stream stream; 
+	private protected readonly bool truncateStrings;
 
-	private protected SharedStringTable sharedStrings;
+    private protected SharedStringTable sharedStrings;
 
 	/// <summary>
 	/// Creates a new ExcelDataWriter.
@@ -121,6 +119,7 @@ public abstract class ExcelDataWriter : IDisposable
 	{
 		this.stream = stream;
 		this.sharedStrings = new SharedStringTable();
+		this.truncateStrings = options.TruncateStrings;
 	}
 
 	/// <summary>
