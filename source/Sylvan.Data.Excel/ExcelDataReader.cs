@@ -126,28 +126,46 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 		if (type == ExcelWorkbookType.Unknown)
 			throw new ArgumentException(null, nameof(filename));
 
-		var s = new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.Read, 1);
+		// this FileStream will be copied to a MemoryStream
+		// so it can be disposed immediately
+		// will it be okay that we don't hold a lock on it while the reader is active? I think so.
+		using var s = new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.Read, 1);
+		return await CreateAsync(s, type, options).ConfigureAwait(false);		
+	}
 
-		try
+	/// <summary>
+	/// Creates a new ExcelDataReader instance.
+	/// </summary>
+	/// <param name="stream">A stream containing the Excel file contents. </param>
+	/// <param name="fileType">The type of file represented by the stream.</param>
+	/// <param name="options">An optional ExcelDataReaderOptions instance.</param>
+	/// <returns>The ExcelDataReader.</returns>
+	public static async Task<ExcelDataReader> CreateAsync(Stream stream, ExcelWorkbookType fileType, ExcelDataReaderOptions? options = null)
+	{
+		if (stream is null) throw new ArgumentNullException(nameof(stream));
+		options = options ?? ExcelDataReaderOptions.Default;
+
+		MemoryStream? ms = stream as MemoryStream;
+		// if we aren't provided a memorystream
+		// then we copy to a MemoryStream to allow non-blocking reading
+		// this is because ZipArchive doesn't provide async APIs currently.
+		if (ms is null)
 		{
-			if (s.Length > int.MaxValue)
-				throw new InvalidDataException();
-
-			var len = (int)s.Length;
-			var ms = new MemoryStream(len);
-			await s.CopyToAsync(ms).ConfigureAwait(false);
-			ms.Seek(0, SeekOrigin.Begin);
-
-			var reader = Create(ms, type, options);
-			reader.ownsStream = true;
-			reader.stream = ms;
-			return reader;
+			int len = 0;
+			if (stream.CanSeek)
+			{
+				long l = stream.Length;
+				if (l > int.MaxValue)
+				{
+					// can't load the entire thing contiguously...
+					throw new InvalidDataException();
+				}
+				len = (int)l;
+			}
+			ms = new MemoryStream(len);
+			await stream.CopyToAsync(ms).ConfigureAwait(false);
 		}
-		catch (Exception)
-		{
-			s?.Dispose();
-			throw;
-		}
+		return Create(ms, fileType, options);
 	}
 
 	/// <inheritdoc/>
@@ -174,39 +192,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 	/// file.
 	/// </summary>
 	public abstract int MaxFieldCount { get; }
-
-	/// <summary>
-	/// Creates a new ExcelDataReader instance.
-	/// </summary>
-	/// <param name="stream">A stream containing the Excel file contents. </param>
-	/// <param name="fileType">The type of file represented by the stream.</param>
-	/// <param name="options">An optional ExcelDataReaderOptions instance.</param>
-	/// <returns>The ExcelDataReader.</returns>
-	public static async Task<ExcelDataReader> CreateAsync(Stream stream, ExcelWorkbookType fileType, ExcelDataReaderOptions? options = null)
-	{
-		if (stream is null) throw new ArgumentNullException(nameof(stream));
-		options = options ?? ExcelDataReaderOptions.Default;
-
-		MemoryStream? ms = stream as MemoryStream;
-		if (ms is null)
-		{
-			int len = 0;
-			if (stream.CanSeek)
-			{
-				long l = stream.Length;
-				if (l > int.MaxValue)
-				{
-					// can't load the entire thing contiguously...
-					throw new InvalidDataException();
-				}
-				len = (int)l;
-			}
-			ms = new MemoryStream(len);
-			await stream.CopyToAsync(ms).ConfigureAwait(false);
-		}
-		return Create(ms, fileType, options);
-	}
-
+	
 	/// <summary>
 	/// Creates a new ExcelDataReader instance.
 	/// </summary>
