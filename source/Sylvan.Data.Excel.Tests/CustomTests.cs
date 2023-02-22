@@ -214,4 +214,15 @@ public class CustomTests
 		Assert.Equal(" a ", r.GetString(4));
 		Assert.Equal("b", r.GetString(5));
 	}
+
+	[Fact]
+	public void MalformedCellRef()
+	{
+		using var r = XlsxBuilder.Create(TestData.MalformedRef, null, null, o => o.Schema = ExcelSchema.NoHeaders);
+		r.Read();
+		Assert.Equal(0, r.GetInt32(0));
+		// the cell reference "/1" is broken
+		// and will be interpreted as the "next" cell instead.
+		Assert.Equal(1, r.GetInt32(1));
+	}
 }

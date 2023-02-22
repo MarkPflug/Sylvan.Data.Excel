@@ -1,4 +1,8 @@
 # Sylvan.Data.Excel Release Notes
+_0.4.7_
+ - Xlsx files can be read that contain malfored cell references. 
+    When opened in Excel these files present no error, and the cell defaults to what would be 
+    the next cell in the sheet, as if no cell reference were present at all.
 
 _0.4.6_
   - Allow enumerating and opening specific worksheets.

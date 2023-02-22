@@ -256,8 +256,10 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 					if (dim != null)
 					{
 						var idx = dim.IndexOf(':');
-						var p = CellPosition.Parse(dim.Substring(idx + 1));
-						this.rowCount = p.Row + 1;
+						if (CellPosition.TryParse(dim.Substring(idx + 1), out var p))
+						{
+							this.rowCount = p.Row + 1;
+						}
 					}
 				}
 				if (reader.LocalName == "sheetData")
@@ -365,8 +367,10 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 		public int Column;
 		public int Row;
 
-		public static CellPosition Parse(ReadonlyCharSpan str)
+		public static bool TryParse(ReadonlyCharSpan str, out CellPosition pos)
 		{
+			pos = default;
+
 			int col = -1;
 			int row = 0;
 			int i = 0;
@@ -391,11 +395,12 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 				var v = c - '0';
 				if ((uint)v >= 10)
 				{
-					throw new FormatException();
+					return false;
 				}
 				row = row * 10 + v;
 			}
-			return new CellPosition() { Column = col, Row = row - 1 };
+			pos = new CellPosition() { Column = col, Row = row - 1 };
+			return true;
 		}
 	}
 
@@ -471,8 +476,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 				if (ReferenceEquals(n, refName))
 				{
 					len = reader.ReadValueChunk(valueBuffer, 0, valueBuffer.Length);
-					var pos = CellPosition.Parse(valueBuffer.AsSpan().ToParsable(0, len));
-					if (pos.Column >= 0)
+					if (CellPosition.TryParse(valueBuffer.AsSpan().ToParsable(0, len), out var pos))
 					{
 						col = pos.Column;
 					}
