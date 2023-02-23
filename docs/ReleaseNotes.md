@@ -1,4 +1,9 @@
 # Sylvan.Data.Excel Release Notes
+
+_0.4.8_
+ - Fix an issue with reading .xlsb files where moving to the next sheet didn't reset the reader state,
+   and could cause issues reading certain files.
+
 _0.4.7_
  - Xlsx files can be read that contain malfored cell references. 
     When opened in Excel these files present no error, and the cell defaults to what would be 
