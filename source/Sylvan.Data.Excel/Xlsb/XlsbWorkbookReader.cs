@@ -166,6 +166,7 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 		this.reader = new RecordReader(this.sheetStream);
 		var rr = this.reader;
 		this.rowFieldCount = 0;
+		this.curFieldCount = -1;
 		this.sheetIdx = sheetIdx;
 		return Task.FromResult(InitializeSheet());
 	}
