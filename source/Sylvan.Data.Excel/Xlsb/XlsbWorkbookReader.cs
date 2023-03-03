@@ -7,14 +7,11 @@ using System.IO.Compression;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Xml;
 
 namespace Sylvan.Data.Excel;
 
 sealed class XlsbWorkbookReader : ExcelDataReader
 {
-	const string RelationsNS = "http://schemas.openxmlformats.org/package/2006/relationships";
-
 	readonly ZipArchive package;
 
 	Stream sheetStream;
@@ -35,50 +32,33 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 		base.Close();
 	}
 
+	const string DefaultWorkbookPartName = "xl/workbook.bin";
+
 	public XlsbWorkbookReader(Stream stream, ExcelDataReaderOptions opts) : base(stream, opts)
 	{
 		this.sheetStream = Stream.Null;
 		package = new ZipArchive(stream, ZipArchiveMode.Read);
 
-		var stylePart = package.GetEntry("xl/styles.bin");
+		var workbookPartName = OpenPackaging.GetWorkbookPart(package) ?? DefaultWorkbookPartName;
 
-		var sheetsPart = package.GetEntry("xl/workbook.bin");
-		var sheetsRelsPart = package.GetEntry("xl/_rels/workbook.bin.rels");
+		var workbookPart = package.GetEntry(workbookPartName);
 
-		if (sheetsPart == null || sheetsRelsPart == null)
+		var sheetsRelsPart = OpenPackaging.GetPartRelationsName(workbookPartName);
+
+		var stylesPartName = "xl/styles.bin";
+		var sharedStringsPartName = "xl/sharedStrings.bin";
+
+		if (workbookPart == null || sheetsRelsPart == null)
 			throw new InvalidDataException();
 
-		Dictionary<string, string> sheetRelMap = new Dictionary<string, string>();
-		using (Stream sheetRelStream = sheetsRelsPart.Open())
-		{
-			var doc = new XmlDocument();
-			doc.Load(sheetRelStream);
-			var nsm = new XmlNamespaceManager(doc.NameTable);
-			nsm.AddNamespace("r", RelationsNS);
-			var nodes = doc.SelectNodes("/r:Relationships/r:Relationship", nsm);
-			if (nodes != null)
-			{
-				foreach (XmlElement node in nodes)
-				{
-					var id = node.GetAttribute("Id");
-					var target = node.GetAttribute("Target");
-					if (target.StartsWith("/"))
-					{
-					}
-					else
-					{
-						target = "xl/" + target;
-					}
+		var sheetRelMap = OpenPackaging.LoadWorkbookRelations(package, workbookPartName, ref stylesPartName, ref sharedStringsPartName);
+		
+		var stylePart = package.GetEntry(stylesPartName);
 
-					sheetRelMap.Add(id, target);
-				}
-			}
-		}
-
-		sst = ReadSharedStrings();
+		sst = ReadSharedStrings(sharedStringsPartName);
 
 		var sheetNameList = new List<SheetInfo>();
-		using (Stream sheetsStream = sheetsPart.Open())
+		using (Stream sheetsStream = workbookPart.Open())
 		{
 			var rr = new RecordReader(sheetsStream);
 			var atEnd = false;
@@ -246,9 +226,9 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 		return true;
 	}
 
-	string[] ReadSharedStrings()
+	string[] ReadSharedStrings(string sharedStringsPartName)
 	{
-		var ssPart = package.GetEntry("xl/sharedStrings.bin");
+		var ssPart = package.GetEntry(sharedStringsPartName);
 		if (ssPart == null)
 		{
 			return Array.Empty<string>();
