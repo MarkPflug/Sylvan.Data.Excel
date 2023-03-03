@@ -13,68 +13,10 @@ namespace Sylvan.Data.Excel;
 /// </summary>
 public abstract class ExcelDataWriter : IDisposable
 {
-	private protected class SharedStringTable
-	{
-		readonly Dictionary<SharedStringEntry, string> dict;
-		readonly List<SharedStringEntry> entries;
-
-		public int UniqueCount => entries.Count;
-
-		public string this[int idx] => entries[idx].str;
-
-		public SharedStringTable()
-		{
-			const int InitialSize = 128;
-			this.dict = new Dictionary<SharedStringEntry, string>(InitialSize);
-			this.entries = new List<SharedStringEntry>(InitialSize);
-		}
-
-		struct SharedStringEntry : IEquatable<SharedStringEntry>
-		{
-			public string str;
-			public string idxStr;
-
-			public SharedStringEntry(string str)
-			{
-				this.str = str;
-				this.idxStr = "";
-			}
-
-			public override int GetHashCode()
-			{
-				return str.GetHashCode();
-			}
-
-			public override bool Equals(object? obj)
-			{
-				return obj is SharedStringEntry e && this.Equals(e);
-			}
-
-			public bool Equals(SharedStringEntry other)
-			{
-				return this.str.Equals(other.str);
-			}
-		}
-
-		public string GetString(string str)
-		{
-			var entry = new SharedStringEntry(str);
-			string? idxStr;
-			if (!dict.TryGetValue(entry, out idxStr))
-			{
-				idxStr = this.entries.Count.ToString();
-				this.entries.Add(entry);
-				this.dict.Add(entry, idxStr);
-			}
-			return idxStr;
-		}
-	}
-
 	bool ownsStream;
 	readonly Stream stream; 
 	private protected readonly bool truncateStrings;
 
-    private protected SharedStringTable sharedStrings;
 
 	/// <summary>
 	/// Creates a new ExcelDataWriter.
@@ -86,10 +28,21 @@ public abstract class ExcelDataWriter : IDisposable
 		switch (type)
 		{
 			case ExcelWorkbookType.ExcelXml:
-				var stream = File.Create(file);
-				var w = new XlsxDataWriter(stream, options);
-				w.ownsStream = true;
-				return w;
+				{
+					var stream = File.Create(file);
+					var w = new XlsxDataWriter(stream, options);
+					w.ownsStream = true;
+					return w;
+				}
+#if NET6_0_OR_GREATER
+			case ExcelWorkbookType.ExcelBinary:
+				{
+					var stream = File.Create(file);
+					var w = new Xlsb.XlsbDataWriter(stream, options);
+					w.ownsStream = true;
+					return w;
+				}
+#endif
 		}
 		throw new NotSupportedException();
 	}
@@ -118,7 +71,6 @@ public abstract class ExcelDataWriter : IDisposable
 	private protected ExcelDataWriter(Stream stream, ExcelDataWriterOptions options)
 	{
 		this.stream = stream;
-		this.sharedStrings = new SharedStringTable();
 		this.truncateStrings = options.TruncateStrings;
 	}
 

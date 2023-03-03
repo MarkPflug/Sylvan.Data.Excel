@@ -1,43 +1,153 @@
-﻿using System;
+﻿#if NET6_0_OR_GREATER
+
+using System;
 using System.Collections.Generic;
 using System.Data.Common;
 using System.IO;
 using System.IO.Compression;
 using System.Reflection;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
 
-namespace Sylvan.Data.Excel.Xlsx;
+namespace Sylvan.Data.Excel.Xlsb;
 
-sealed partial class XlsxDataWriter : ExcelDataWriter
+static class XlsbWriterExtensions
+{
+	public static void WriteType(this BinaryWriter bw, RecordType type)
+	{
+		var val = (int)type;
+		bw.Write7BitEncodedInt(val);
+	}
+
+	public static void WriteRow(this BinaryWriter bw, int idx)
+	{
+		// Write ROW
+		bw.WriteType(RecordType.Row);
+		// len
+		bw.Write7BitEncodedInt(8);
+		// row
+		bw.Write(idx);
+		// ifx
+		bw.Write(0);
+	}
+
+	public static void WriteBlankCell(this BinaryWriter bw, int col)
+	{
+		// Write ROW
+		bw.WriteType(RecordType.CellBlank);
+		// len
+		bw.Write7BitEncodedInt(8);
+		// row
+		bw.Write(col);
+		// sf
+		bw.Write(0);
+	}
+
+	public static void WriteSharedString(this BinaryWriter bw, int col, int ssIdx)
+	{
+		// Write ROW
+		bw.WriteType(RecordType.CellIsst);
+		// len
+		bw.Write7BitEncodedInt(12);
+		// row
+		bw.Write(col);
+		// sf
+		bw.Write(0);
+
+		bw.Write(ssIdx);
+	}
+
+	public static void WriteBool(this BinaryWriter bw, int col, bool value)
+	{
+		// Write ROW
+		bw.WriteType(RecordType.CellBool);
+		// len
+		bw.Write7BitEncodedInt(9);
+		// row
+		bw.Write(col);
+		// sf
+		bw.Write(0);
+
+		bw.Write(value ? (byte)1 : (byte)0);
+	}
+
+	public static void WriteNumber(this BinaryWriter bw, int col, double value)
+	{
+		// Write ROW
+		bw.WriteType(RecordType.CellNum);
+		// len
+		bw.Write7BitEncodedInt(12);
+		// row
+		bw.Write(col);
+		// sf
+		bw.Write(0);
+
+		bw.Write(value);
+	}
+
+	public static void WriteBundleStart(this BinaryWriter bw)
+	{
+		bw.WriteType(RecordType.BundleBegin);
+		bw.Write7BitEncodedInt(0);
+	}
+
+	public static void WriteBundleSheet(this BinaryWriter bw, int idx, string name)
+	{
+		bw.WriteType(RecordType.BundleSheet);
+		var id = idx + 1;
+
+		var relId = "s" + id;
+
+		var len =
+			8 +
+			4 + (relId.Length * 2) +
+			4 + (name.Length * 2);
+
+		bw.Write7BitEncodedInt(len);
+		bw.Write(0); // state (vis)
+		bw.Write(id); // id
+		bw.Write(relId.Length);
+		bw.Write(relId.AsSpan());
+		bw.Write(name.Length);
+		bw.Write(name.AsSpan());
+	}
+
+	public static void WriteBundleEnd(this BinaryWriter bw)
+	{
+		bw.WriteType(RecordType.BundleEnd);
+		bw.Write7BitEncodedInt(0);
+	}
+}
+
+sealed partial class XlsbDataWriter : ExcelDataWriter
 {
 	sealed class SharedStringTable
 	{
-		readonly Dictionary<SharedStringEntry, string> dict;
+		readonly Dictionary<SharedStringEntry, int> dict;
 		readonly List<SharedStringEntry> entries;
-
+		int count;
 		public int UniqueCount => entries.Count;
+		public int Count => count;
 
 		public string this[int idx] => entries[idx].str;
 
 		public SharedStringTable()
 		{
 			const int InitialSize = 128;
-			this.dict = new Dictionary<SharedStringEntry, string>(InitialSize);
+			this.dict = new Dictionary<SharedStringEntry, int>(InitialSize);
 			this.entries = new List<SharedStringEntry>(InitialSize);
 		}
 
 		struct SharedStringEntry : IEquatable<SharedStringEntry>
 		{
 			public string str;
-			public string idxStr;
+			public int idx;
 
 			public SharedStringEntry(string str)
 			{
 				this.str = str;
-				this.idxStr = "";
+				this.idx = 0;
 			}
 
 			public override int GetHashCode()
@@ -56,31 +166,31 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 			}
 		}
 
-		public string GetString(string str)
+		public int GetString(string str)
 		{
 			var entry = new SharedStringEntry(str);
-			string? idxStr;
-			if (!dict.TryGetValue(entry, out idxStr))
+			int idx;
+			this.count++;
+			if (!dict.TryGetValue(entry, out idx))
 			{
-				idxStr = this.entries.Count.ToString();
+				idx = this.entries.Count;
 				this.entries.Add(entry);
-				this.dict.Add(entry, idxStr);
+				this.dict.Add(entry, idx);
 			}
-			return idxStr;
+			return idx;
 		}
 	}
 
-
 	static readonly XmlWriterSettings XmlSettings =
-		new XmlWriterSettings
-		{
-			//IndentChars = " ",
-			//Indent = true,
-			//NewLineChars = "\n",
-			OmitXmlDeclaration = true,
-			// We are handling this ourselves in the shared string handling.
-			CheckCharacters = false,
-		};
+	new XmlWriterSettings
+	{
+		//IndentChars = " ",
+		//Indent = true,
+		//NewLineChars = "\n",
+		OmitXmlDeclaration = true,
+		// We are handling this ourselves in the shared string handling.
+		CheckCharacters = false,
+	};
 
 	const int FormatOffset = 165;
 	const int StringLimit = short.MaxValue;
@@ -88,9 +198,7 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 
     readonly ZipArchive zipArchive;
 	readonly List<string> worksheets;
-
 	readonly SharedStringTable sharedStrings;
-
 
 	static string[] Formats = new[]
 	{
@@ -104,7 +212,7 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 
 	const CompressionLevel Compression = CompressionLevel.Optimal;
 
-	public XlsxDataWriter(Stream stream, ExcelDataWriterOptions options) : base(stream, options)
+	public XlsbDataWriter(Stream stream, ExcelDataWriterOptions options) : base(stream, options)
 	{
 		this.sharedStrings = new SharedStringTable();
 		this.zipArchive = new ZipArchive(stream, ZipArchiveMode.Create, true);
@@ -140,57 +248,30 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 			} while (worksheets.Contains(worksheetName));
 		}
 
-		var fieldWriters = new FieldWriter[data.FieldCount];
-		for (int i = 0; i < fieldWriters.Length; i++)
-		{
-			fieldWriters[i] = FieldWriter.Get(data.GetFieldType(i));
-		}
-
 		this.worksheets.Add(worksheetName);
 		var idx = this.worksheets.Count;
-		var entryName = "xl/worksheets/sheet" + idx + ".xml";
+		var entryName = "xl/worksheets/sheet" + idx + ".bin";
 		var entry = zipArchive.CreateEntry(entryName, Compression);
 		using var es = entry.Open();
-		using var xw = new StreamWriter(es, Encoding.UTF8, 0x4000);
-		xw.Write($"<worksheet xmlns=\"{NS}\">");
-		// freeze the header row.
-		xw.Write("<sheetViews><sheetView workbookViewId=\"0\"><pane ySplit=\"1\" topLeftCell=\"A2\" state=\"frozen\"/></sheetView></sheetViews>");
-		xw.Write("<cols>");
-		for (int i = 0; i < fieldWriters.Length; i++)
-		{
-			var num = (i + 1).ToString();
-			var width = fieldWriters[i].GetWidth(data, i);
-			xw.Write($"<col min=\"{num}\" max=\"{num}\" width=\"{width}\"/>");
-		}
-
-		xw.Write("</cols>");
-		xw.Write("<sheetData>");
-
-		var context = new Context(this, xw, data);
+		using var bw = new BinaryWriter(es);
 
 		var row = 0;
 		// headers
 		{
-			xw.Write("<row>");
+			bw.WriteRow(row);
 			for (int i = 0; i < data.FieldCount; i++)
 			{
 				var colName = data.GetName(i);
 				if (string.IsNullOrEmpty(colName))
 				{
-					xw.Write("<c/>");
+					bw.WriteBlankCell(i);
 				}
 				else
 				{
-					xw.Write("<c t=\"s\"><v>");
-
 					var ssIdx = this.sharedStrings.GetString(colName);
-					xw.Write(ssIdx);
-
-					xw.Write("</v></c>");
+					bw.WriteSharedString(i, ssIdx);
 				}
 			}
-
-			xw.Write("</row>");
 			row++;
 		}
 		bool complete = true;
@@ -211,21 +292,21 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 				}
 			}
 
-			xw.Write("<row>");
+			bw.WriteRow(row);
 			var c = data.FieldCount;
 			for (int i = 0; i < c; i++)
-			{
-				var fw = i < fieldWriters.Length ? fieldWriters[i] : FieldWriter.Object;
+			{				
 				if (data.IsDBNull(i))
 				{
-					xw.Write("<c/>");
+					bw.WriteBlankCell(i);
 				}
 				else
 				{
-					fw.WriteField(context, i);
+					var str = data.GetValue(i)?.ToString() ?? string.Empty;
+					var ssIdx = this.sharedStrings.GetString(str);
+					bw.WriteSharedString(i, ssIdx);
 				}
 			}
-			xw.Write("</row>");
 			row++;
 			if (row >= 0x100000)
 			{
@@ -236,12 +317,6 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 			}
 		}
 
-		xw.Write("</sheetData>");
-
-		var end = ExcelSchema.GetExcelColumnName(fieldWriters.Length - 1);
-		// apply filter to header row
-		xw.Write($"<autoFilter ref=\"A1:{end}{row}\"/>");
-		xw.Write("</worksheet>");
 		return new WriteResult(row, complete);
 	}
 
@@ -253,35 +328,34 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 	const string ContentTypeNS = "http://schemas.openxmlformats.org/package/2006/content-types";
 
 
-	const string WorkbookPath = "xl/workbook.xml";
+	const string WorkbookPath = "xl/workbook.bin";
 	const string AppPath = "docProps/app.xml";
 
 	void WriteSharedStrings()
 	{
-		var e = this.zipArchive.CreateEntry("xl/sharedStrings.xml", Compression);
+		var e = this.zipArchive.CreateEntry("xl/sharedStrings.bin", Compression);
 		using var s = e.Open();
-		using var xw = XmlWriter.Create(s, XmlSettings);
-		xw.WriteStartElement("sst", NS);
-		xw.WriteStartAttribute("uniqueCount");
+		using var bw = new BinaryWriter(s);
+
+
 		var c = this.sharedStrings.UniqueCount;
-		xw.WriteValue(c);
-		xw.WriteEndAttribute();
+		bw.WriteType(RecordType.SSTBegin);
+		bw.Write7BitEncodedInt(8);
+		// total count
+		bw.Write(c);
+		// count
+		bw.Write(c);
+
 		for (int i = 0; i < c; i++)
 		{
-			xw.WriteStartElement("si");
-			xw.WriteStartElement("t");
-			var str = this.sharedStrings[i];
+			bw.WriteType(RecordType.SSTItem);
 
-			var encodedStr = OpenXmlCodec.EncodeString(str);
-			if (HasWhiteSpace(encodedStr))
-			{
-				xw.WriteAttributeString("xml", "space", null, "preserve");
-			}
-			xw.WriteValue(encodedStr);
-			xw.WriteEndElement();
-			xw.WriteEndElement();
+			var str = this.sharedStrings[i];
+			var len = 1 + (4 + str.Length * 2);
+			bw.Write((byte)0);
+			bw.Write(str.Length);
+			bw.Write(str.AsSpan());
 		}
-		xw.WriteEndElement();
 	}
 
 	static bool HasWhiteSpace(string str)
@@ -301,38 +375,20 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 
 	void WriteWorkbook()
 	{
-		var ns = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
-		var wbName = "xl/workbook.xml";
+		var wbName = WorkbookPath;
 		var e = this.zipArchive.CreateEntry(wbName, Compression);
 
 		using var s = e.Open();
-		using var xw = XmlWriter.Create(s, XmlSettings);
+		using var bw = new BinaryWriter(s);
 
-		xw.WriteStartElement("workbook", ns);
-		xw.WriteAttributeString("xmlns", "r", null, ODRelNS);
-
-		xw.WriteStartElement("sheets", ns);
+		bw.WriteBundleStart();
+		
 		for (int i = 0; i < this.worksheets.Count; i++)
 		{
 			var num = i + 1;
-			xw.WriteStartElement("sheet", ns);
-
-			xw.WriteStartAttribute("name");
-			xw.WriteValue(this.worksheets[i]);
-			xw.WriteEndAttribute();
-
-			xw.WriteStartAttribute("sheetId");
-			xw.WriteValue(num);
-			xw.WriteEndAttribute();
-
-			xw.WriteStartAttribute("id", ODRelNS);
-			xw.WriteValue("s" + num);
-			xw.WriteEndAttribute();
-
-			xw.WriteEndElement();
+			bw.WriteBundleSheet(i, this.worksheets[i]);
 		}
-		xw.WriteEndElement();
-		xw.WriteEndElement();
+		bw.WriteBundleStart();
 	}
 
 	void WriteAppProps()
@@ -395,7 +451,7 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 
 		// workbook rels
 		{
-			var entry = zipArchive.CreateEntry("xl/_rels/workbook.xml.rels", Compression);
+			var entry = zipArchive.CreateEntry("xl/_rels/workbook.bin.rels", Compression);
 			using var appStream = entry.Open();
 			using var xw = XmlWriter.Create(appStream, XmlSettings);
 			xw.WriteStartElement("Relationships", PkgRelNS);
@@ -403,13 +459,13 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 			xw.WriteStartElement("Relationship", PkgRelNS);
 			xw.WriteAttributeString("Id", "s");
 			xw.WriteAttributeString("Type", "http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles");
-			xw.WriteAttributeString("Target", "styles.xml");
+			xw.WriteAttributeString("Target", "styles.bin");
 			xw.WriteEndElement();
 
 			xw.WriteStartElement("Relationship", PkgRelNS);
 			xw.WriteAttributeString("Id", "ss");
 			xw.WriteAttributeString("Type", "http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings");
-			xw.WriteAttributeString("Target", "sharedStrings.xml");
+			xw.WriteAttributeString("Target", "sharedStrings.bin");
 			xw.WriteEndElement();
 
 			for (int i = 0; i < worksheets.Count; i++)
@@ -418,7 +474,7 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 				xw.WriteStartElement("Relationship", PkgRelNS);
 				xw.WriteAttributeString("Id", "s" + num);
 				xw.WriteAttributeString("Type", "http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet");
-				xw.WriteAttributeString("Target", "worksheets/sheet" + num + ".xml");
+				xw.WriteAttributeString("Target", "worksheets/sheet" + num + ".bin");
 				xw.WriteEndElement();
 			}
 
@@ -433,9 +489,15 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 			xw.WriteStartElement("Types", ContentTypeNS);
 
 			xw.WriteStartElement("Default", ContentTypeNS);
+			xw.WriteAttributeString("Extension", "bin");
+			xw.WriteAttributeString("ContentType", "application/vnd.ms-excel.sheet.binary.macroEnabled.main");
+			xw.WriteEndElement();
+
+			xw.WriteStartElement("Default", ContentTypeNS);
 			xw.WriteAttributeString("Extension", "xml");
 			xw.WriteAttributeString("ContentType", "application/xml");
 			xw.WriteEndElement();
+
 
 			xw.WriteStartElement("Default", ContentTypeNS);
 			xw.WriteAttributeString("Extension", "rels");
@@ -449,15 +511,15 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 				xw.WriteAttributeString("ContentType", type);
 				xw.WriteEndElement();
 			}
-			Override(xw, "/xl/workbook.xml", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml");
-			Override(xw, "/xl/styles.xml", "application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml");
-			Override(xw, "/xl/sharedStrings.xml", "application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml");
+			
+			Override(xw, "/xl/styles.bin", "application/vnd.ms-excel.styles");
+			Override(xw, "/xl/sharedStrings.bin", "application/vnd.ms-excel.sharedStrings");
 			Override(xw, "/docProps/app.xml", "application/vnd.openxmlformats-officedocument.extended-properties+xml");
 
 			for (int i = 0; i < worksheets.Count; i++)
 			{
 				var num = (i + 1).ToString();
-				Override(xw, "/xl/worksheets/sheet" + num + ".xml", "application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml");
+				Override(xw, "/xl/worksheets/sheet" + num + ".bin", "application/vnd.ms-excel.worksheet");
 			}
 
 			xw.WriteEndElement();
@@ -466,95 +528,102 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 
 	void WriteStyles()
 	{
-		var appEntry = zipArchive.CreateEntry("xl/styles.xml", Compression);
-		using var appStream = appEntry.Open();
-		using var wx = XmlWriter.Create(appStream, XmlSettings);
-		wx.WriteStartElement("styleSheet", NS);
+		var styleEntry = zipArchive.CreateEntry("xl/styles.bin", Compression);
+		using var styleStream = styleEntry.Open();
+		using var s = typeof(XlsbDataWriter).Assembly.GetManifestResourceStream("styles");
+		s!.CopyTo(styleStream);
+		//using var bw = new BinaryWriter(appStream);
 
-		wx.WriteStartElement("numFmts", NS);
-		for (int i = 0; i < Formats.Length; i++)
-		{
-			wx.WriteStartElement("numFmt", NS);
+		//bw.WriteType(RecordType.StyleBegin);
+		//bw.Write7BitEncodedInt(0);//len
 
-			wx.WriteStartAttribute("numFmtId");
-			wx.WriteValue(FormatOffset + i);
-			wx.WriteEndAttribute();
+		//bw.WriteType(RecordType.CellXFStart);
+		//bw.Write7BitEncodedInt(4);
+		//bw.write
 
-			wx.WriteStartAttribute("formatCode");
-			wx.WriteValue(Formats[i]);
-			wx.WriteEndAttribute();
-			wx.WriteEndElement();
-		}
+		//for (int i = 0; i < Formats.Length; i++)
+		//{
+		//	wx.WriteStartElement("numFmt", NS);
 
-		wx.WriteEndElement();
+		//	wx.WriteStartAttribute("numFmtId");
+		//	wx.WriteValue(FormatOffset + i);
+		//	wx.WriteEndAttribute();
 
-		wx.WriteStartElement("fonts", NS);
-		wx.WriteStartElement("font", NS);
-		wx.WriteStartElement("name", NS);
-		wx.WriteAttributeString("val", "Calibri");
-		wx.WriteEndElement();
-		wx.WriteEndElement();
-		wx.WriteEndElement();
+		//	wx.WriteStartAttribute("formatCode");
+		//	wx.WriteValue(Formats[i]);
+		//	wx.WriteEndAttribute();
+		//	wx.WriteEndElement();
+		//}
 
-		wx.WriteStartElement("fills");
-		wx.WriteStartElement("fill");
-		wx.WriteEndElement();
-		wx.WriteEndElement();
+		//wx.WriteEndElement();
 
-		wx.WriteStartElement("borders");
-		wx.WriteStartElement("border");
-		wx.WriteEndElement();
-		wx.WriteEndElement();
+		//wx.WriteStartElement("fonts", NS);
+		//wx.WriteStartElement("font", NS);
+		//wx.WriteStartElement("name", NS);
+		//wx.WriteAttributeString("val", "Calibri");
+		//wx.WriteEndElement();
+		//wx.WriteEndElement();
+		//wx.WriteEndElement();
 
-		wx.WriteStartElement("cellStyleXfs");
-		wx.WriteStartElement("xf");
-		wx.WriteEndElement();
-		wx.WriteEndElement();
+		//wx.WriteStartElement("fills");
+		//wx.WriteStartElement("fill");
+		//wx.WriteEndElement();
+		//wx.WriteEndElement();
 
-		wx.WriteStartElement("cellXfs", NS);
-		//appX.WriteStartAttribute("count");
-		//appX.WriteValue(formats.Count + 1);
-		//appX.WriteEndAttribute();
+		//wx.WriteStartElement("borders");
+		//wx.WriteStartElement("border");
+		//wx.WriteEndElement();
+		//wx.WriteEndElement();
 
-		{
-			wx.WriteStartElement("xf", NS);
+		//wx.WriteStartElement("cellStyleXfs");
+		//wx.WriteStartElement("xf");
+		//wx.WriteEndElement();
+		//wx.WriteEndElement();
 
-			wx.WriteStartAttribute("numFmtId");
-			wx.WriteValue(0);
-			wx.WriteEndAttribute();
+		//wx.WriteStartElement("cellXfs", NS);
+		////appX.WriteStartAttribute("count");
+		////appX.WriteValue(formats.Count + 1);
+		////appX.WriteEndAttribute();
 
-			wx.WriteStartAttribute("xfId");
-			wx.WriteValue(0);
-			wx.WriteEndAttribute();
+		//{
+		//	wx.WriteStartElement("xf", NS);
 
-			wx.WriteEndElement();
-		}
+		//	wx.WriteStartAttribute("numFmtId");
+		//	wx.WriteValue(0);
+		//	wx.WriteEndAttribute();
 
-		for (int i = 0; i < Formats.Length; i++)
-		{
-			wx.WriteStartElement("xf", NS);
+		//	wx.WriteStartAttribute("xfId");
+		//	wx.WriteValue(0);
+		//	wx.WriteEndAttribute();
 
-			wx.WriteStartAttribute("numFmtId");
-			wx.WriteValue(FormatOffset + i);
-			wx.WriteEndAttribute();
+		//	wx.WriteEndElement();
+		//}
 
-			wx.WriteStartAttribute("xfId");
-			wx.WriteValue(0);
-			wx.WriteEndAttribute();
+		//for (int i = 0; i < Formats.Length; i++)
+		//{
+		//	wx.WriteStartElement("xf", NS);
 
-			wx.WriteEndElement();
-		}
+		//	wx.WriteStartAttribute("numFmtId");
+		//	wx.WriteValue(FormatOffset + i);
+		//	wx.WriteEndAttribute();
 
-		wx.WriteEndElement();
+		//	wx.WriteStartAttribute("xfId");
+		//	wx.WriteValue(0);
+		//	wx.WriteEndAttribute();
 
-		wx.WriteStartElement("cellStyles");
-		wx.WriteStartElement("cellStyle");
-		wx.WriteAttributeString("name", "Normal");
-		wx.WriteAttributeString("xfId", "0");
-		wx.WriteEndElement();
-		wx.WriteEndElement();
+		//	wx.WriteEndElement();
+		//}
 
-		wx.WriteEndElement();
+		//wx.WriteEndElement();
+
+		//wx.WriteStartElement("cellStyles");
+		//wx.WriteStartElement("cellStyle");
+		//wx.WriteAttributeString("name", "Normal");
+		//wx.WriteAttributeString("xfId", "0");
+		//wx.WriteEndElement();
+		//wx.WriteEndElement();
+
+		//wx.WriteEndElement();
 	}
 
 	void Close()
@@ -575,3 +644,6 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 		base.Dispose();
 	}
 }
+
+
+#endif

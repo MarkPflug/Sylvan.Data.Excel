@@ -23,6 +23,18 @@ public class XlsxDataWriterTests : ExcelDataWriterTests
 	}
 }
 
+public class XlsbDataWriterTests : ExcelDataWriterTests
+{
+	const string FileFormat = "{0}.xlsb";
+
+	public override ExcelWorkbookType WorkbookType => ExcelWorkbookType.ExcelBinary;
+
+	protected override string GetFile(string name)
+	{
+		return string.Format(FileFormat, name);
+	}
+}
+
 public abstract class ExcelDataWriterTests
 {
 	protected abstract string GetFile([CallerMemberName] string name = null);
@@ -48,6 +60,32 @@ public abstract class ExcelDataWriterTests
 			UseShellExecute = true,
 		};
 		Process.Start(psi);
+	}
+
+	[Fact]
+	public void Simple()
+	{
+		// tests the most common types.
+		Random r = new Random();
+		var data =
+			Enumerable.Range(1, 10)
+			.Select(
+				i => new
+				{
+					Id = i, //int32
+					Name = "Name" + i, //string
+					ValueInt = r.Next(), // another, bigger int
+					ValueDouble = r.NextDouble() * 100d, // double
+				}
+			);
+
+		var f = GetFile();
+		var reader = data.AsDataReader();
+		using (var w = ExcelDataWriter.Create(f))
+		{
+			w.Write(reader);
+		}
+		Open(f);
 	}
 
 	[Fact]

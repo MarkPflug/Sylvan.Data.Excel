@@ -1,4 +1,4 @@
-﻿namespace Sylvan.Data.Excel;
+﻿namespace Sylvan.Data.Excel.Xls;
 
 enum RecordType
 {
