@@ -64,6 +64,7 @@ class XlsxBuilder
 			w.WriteStartElement("Relationships");
 			w.WriteStartElement("Relationship");
 			w.WriteAttributeString("Id", "r1");
+			w.WriteAttributeString("Type", "http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet");
 			w.WriteAttributeString("Target", "worksheets/sheet1.xml");
 			w.WriteEndElement();
 			w.WriteEndElement();

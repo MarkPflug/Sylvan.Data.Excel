@@ -52,6 +52,104 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 		return a.Entries.FirstOrDefault(e => StringComparer.OrdinalIgnoreCase.Equals(e.FullName, name));
 	}
 
+	const string PackageRelationPart = "_rels/.rels";
+	const string DefaultWorkbookPart = "xl/workbook.xml";
+
+	const string RelationNS = "http://schemas.openxmlformats.org/package/2006/relationships";
+	const string RelationBase = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
+	const string DocRelationType =      RelationBase + "/officeDocument";
+	const string WorksheetRelType =     RelationBase + "/worksheet";
+	const string StylesRelType =        RelationBase + "/styles";
+	const string SharedStringsRelType = RelationBase + "/sharedStrings";
+
+	string GetWorkbookPart()
+	{
+		var part = package.GetEntry(PackageRelationPart);
+		if (part == null) return DefaultWorkbookPart;
+
+		var doc = new XmlDocument();
+		using var stream = part.Open();
+		doc.Load(stream);
+
+		var nsm = new XmlNamespaceManager(doc.NameTable);
+		nsm.AddNamespace("r", RelationNS);
+
+		var wbPartRel = doc.SelectSingleNode($"/r:Relationships/r:Relationship[@Type='{DocRelationType}']", nsm);
+		if (wbPartRel == null) return DefaultWorkbookPart;
+
+		var wbPartName = wbPartRel.Attributes?["Target"]?.Value;
+		return wbPartName ?? DefaultWorkbookPart;
+	}
+
+	static string GetPartRelationsName(string partName)
+	{
+		var dir = Path.GetDirectoryName(partName);
+		var file = Path.GetFileName(partName);
+
+		return
+			string.IsNullOrEmpty(dir)
+			? "_rels/" + file + ".rels"
+			: dir + "/_rels/" + file + ".rels";
+	}
+
+	string stylesPartName;
+	string sharedStringsPartName;
+
+	Dictionary<string, string> LoadWorkbookRelations(string workbookPartName)
+	{
+		var workbookPartRelsName = GetPartRelationsName(workbookPartName);
+
+		var part = package.GetEntry(workbookPartRelsName);
+
+		if (part == null) throw new InvalidDataException();
+
+		using Stream sheetRelStream = part.Open();
+		var doc = new XmlDocument();
+		doc.Load(sheetRelStream);
+		if (doc.DocumentElement == null)
+		{
+			throw new InvalidDataException();
+		}
+		var nsm = new XmlNamespaceManager(doc.NameTable);
+		nsm.AddNamespace("r", doc.DocumentElement.NamespaceURI);
+		var nodes = doc.SelectNodes("/r:Relationships/r:Relationship", nsm);
+
+		var root = Path.GetDirectoryName(workbookPartName) ?? "";
+
+		static string MakeRelative(string root, string path)
+		{
+			return
+				root.Length == 0
+				? path
+				: root + "/" + path;
+		}
+
+		var sheetRelMap = new Dictionary<string, string>();
+		if (nodes != null)
+		{
+			foreach (XmlElement node in nodes)
+			{
+				var id = node.GetAttribute("Id");
+				var type = node.GetAttribute("Type");
+				var target = node.GetAttribute("Target");
+				switch (type)
+				{
+					case WorksheetRelType:
+						var t = MakeRelative(root, target);
+						sheetRelMap.Add(id, t);
+						break;
+					case StylesRelType:
+						this.stylesPartName = MakeRelative(root, target);
+						break;
+					case SharedStringsRelType:
+						this.sharedStringsPartName = MakeRelative(root, target);
+						break;
+				}
+			}
+		}
+		return sheetRelMap;
+	}
+
 	public XlsxWorkbookReader(Stream iStream, ExcelDataReaderOptions opts) : base(iStream, opts)
 	{
 		this.rowCount = -1;
@@ -61,49 +159,27 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 
 		package = new ZipArchive(iStream, ZipArchiveMode.Read, true);
 
-		var ssPart = GetEntry(package, "xl/sharedStrings.xml");
-		var stylePart = GetEntry(package, "xl/styles.xml");
+		var workbookPartName = GetWorkbookPart();
 
-		var sheetsPart = GetEntry(package, "xl/workbook.xml");
-		var sheetsRelsPart = GetEntry(package, "xl/_rels/workbook.xml.rels");
-		if (sheetsPart == null || sheetsRelsPart == null)
+		var workbookPart = GetEntry(package, workbookPartName);
+
+
+		//var sheetsRelsPart = GetEntry(package, workbookPartRels);
+
+		if (workbookPart == null /*|| sheetsRelsPart == null*/)
 			throw new InvalidDataException();
+
+		this.stylesPartName = "xl/styles.xml";
+		this.sharedStringsPartName = "xl/sharedStrings.xml";
+
+		var sheetRelMap = LoadWorkbookRelations(workbookPartName);
+
+		var ssPart = GetEntry(package, sharedStringsPartName);
+		var stylePart = GetEntry(package, stylesPartName);
 
 		LoadSharedStrings(ssPart);
 
-		Dictionary<string, string> sheetRelMap = new Dictionary<string, string>();
-		using (Stream sheetRelStream = sheetsRelsPart.Open())
-		{
-			var doc = new XmlDocument();
-			doc.Load(sheetRelStream);
-			if (doc.DocumentElement == null)
-			{
-				throw new InvalidDataException();
-			}
-			var nsm = new XmlNamespaceManager(doc.NameTable);
-			nsm.AddNamespace("r", doc.DocumentElement.NamespaceURI);
-			var nodes = doc.SelectNodes("/r:Relationships/r:Relationship", nsm);
-			if (nodes != null)
-			{
-				foreach (XmlElement node in nodes)
-				{
-					var id = node.GetAttribute("Id");
-					var target = node.GetAttribute("Target");
-					if (target.StartsWith("/"))
-					{
-
-					}
-					else
-					{
-						target = "xl/" + target;
-					}
-
-					sheetRelMap.Add(id, target);
-				}
-			}
-		}
-
-		using (Stream sheetsStream = sheetsPart.Open())
+		using (Stream sheetsStream = workbookPart.Open())
 		{
 			// quick and dirty, good enough, this doc should be small.
 			var doc = new XmlDocument();
