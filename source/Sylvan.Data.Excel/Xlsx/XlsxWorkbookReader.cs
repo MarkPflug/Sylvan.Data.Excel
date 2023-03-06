@@ -52,6 +52,8 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 		return a.Entries.FirstOrDefault(e => StringComparer.OrdinalIgnoreCase.Equals(e.FullName, name));
 	}
 
+	const string DefaultWorkbookPartName = "xl/workbook.xml";
+
 	public XlsxWorkbookReader(Stream iStream, ExcelDataReaderOptions opts) : base(iStream, opts)
 	{
 		this.rowCount = -1;
@@ -61,49 +63,24 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 
 		package = new ZipArchive(iStream, ZipArchiveMode.Read, true);
 
-		var ssPart = GetEntry(package, "xl/sharedStrings.xml");
-		var stylePart = GetEntry(package, "xl/styles.xml");
+		var workbookPartName = OpenPackaging.GetWorkbookPart(package) ?? DefaultWorkbookPartName;
 
-		var sheetsPart = GetEntry(package, "xl/workbook.xml");
-		var sheetsRelsPart = GetEntry(package, "xl/_rels/workbook.xml.rels");
-		if (sheetsPart == null || sheetsRelsPart == null)
+		var workbookPart = GetEntry(package, workbookPartName);
+
+		if (workbookPart == null)
 			throw new InvalidDataException();
+
+		var stylesPartName = "xl/styles.xml";
+		var sharedStringsPartName = "xl/sharedStrings.xml";
+
+		var sheetRelMap = OpenPackaging.LoadWorkbookRelations(package, workbookPartName, ref stylesPartName, ref sharedStringsPartName);
+
+		var ssPart = GetEntry(package, sharedStringsPartName);
+		var stylePart = GetEntry(package, stylesPartName);
 
 		LoadSharedStrings(ssPart);
 
-		Dictionary<string, string> sheetRelMap = new Dictionary<string, string>();
-		using (Stream sheetRelStream = sheetsRelsPart.Open())
-		{
-			var doc = new XmlDocument();
-			doc.Load(sheetRelStream);
-			if (doc.DocumentElement == null)
-			{
-				throw new InvalidDataException();
-			}
-			var nsm = new XmlNamespaceManager(doc.NameTable);
-			nsm.AddNamespace("r", doc.DocumentElement.NamespaceURI);
-			var nodes = doc.SelectNodes("/r:Relationships/r:Relationship", nsm);
-			if (nodes != null)
-			{
-				foreach (XmlElement node in nodes)
-				{
-					var id = node.GetAttribute("Id");
-					var target = node.GetAttribute("Target");
-					if (target.StartsWith("/"))
-					{
-
-					}
-					else
-					{
-						target = "xl/" + target;
-					}
-
-					sheetRelMap.Add(id, target);
-				}
-			}
-		}
-
-		using (Stream sheetsStream = sheetsPart.Open())
+		using (Stream sheetsStream = workbookPart.Open())
 		{
 			// quick and dirty, good enough, this doc should be small.
 			var doc = new XmlDocument();

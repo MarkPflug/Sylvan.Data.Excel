@@ -1,5 +1,9 @@
 # Sylvan.Data.Excel Release Notes
 
+_0.4.9_
+ - Reading of .xlsx and .xlsb files is fixed to correctly use open packaging specifications.
+   This should allow more third-party sourced files to be read.
+
 _0.4.8_
  - Fix an issue with reading .xlsb files where moving to the next sheet didn't reset the reader state,
    and could cause issues reading certain files.
