@@ -6,6 +6,7 @@ using System.Data.Common;
 using System.IO;
 using System.IO.Compression;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
@@ -17,19 +18,38 @@ static class XlsbWriterExtensions
 	public static void WriteType(this BinaryWriter bw, RecordType type)
 	{
 		var val = (int)type;
-		bw.Write7BitEncodedInt(val);
+		if(val < 0x80)
+		{
+			bw.Write((byte)val); return;
+		} 
+		else
+		{
+			bw.Write((byte)(0x80 | val & 0x7f));
+			bw.Write((byte)(val >> 7));
+		}
 	}
 
-	public static void WriteRow(this BinaryWriter bw, int idx)
+	public static void WriteRow(this BinaryWriter bw, int idx, int fieldCount)
 	{
 		// Write ROW
 		bw.WriteType(RecordType.Row);
 		// len
-		bw.Write7BitEncodedInt(8);
+		bw.Write7BitEncodedInt(25);
 		// row
 		bw.Write(idx);
 		// ifx
 		bw.Write(0);
+		// flags n stuff
+		bw.Write(0);
+		// flags n stuff
+		bw.Write((byte)0);
+		// ccolspan
+		bw.Write(1);
+		// first cell
+		bw.Write(0);
+		// last cell
+		bw.Write(fieldCount);
+
 	}
 
 	public static void WriteBlankCell(this BinaryWriter bw, int col)
@@ -86,10 +106,29 @@ static class XlsbWriterExtensions
 		bw.Write(value);
 	}
 
+	public static void WriteWorksheetStart(this BinaryWriter bw)
+	{
+		bw.WriteMarker(RecordType.SheetStart);
+	}
+
+	public static void WriteWorksheetEnd(this BinaryWriter bw)
+	{
+		bw.WriteMarker(RecordType.SheetEnd);
+	}
+
+	public static void WriteWorkbookStart(this BinaryWriter bw)
+	{
+		bw.WriteMarker(RecordType.BookBegin);
+	}
+
+	public static void WriteWorkbookEnd(this BinaryWriter bw)
+	{
+		bw.WriteMarker(RecordType.BookEnd);
+	}
+
 	public static void WriteBundleStart(this BinaryWriter bw)
 	{
-		bw.WriteType(RecordType.BundleBegin);
-		bw.Write7BitEncodedInt(0);
+		bw.WriteMarker(RecordType.BundleBegin);		
 	}
 
 	public static void WriteBundleSheet(this BinaryWriter bw, int idx, string name)
@@ -107,16 +146,26 @@ static class XlsbWriterExtensions
 		bw.Write7BitEncodedInt(len);
 		bw.Write(0); // state (vis)
 		bw.Write(id); // id
-		bw.Write(relId.Length);
-		bw.Write(relId.AsSpan());
-		bw.Write(name.Length);
-		bw.Write(name.AsSpan());
+		bw.WriteString(relId);
+		bw.WriteString(name);
+	}
+
+	public static void WriteString(this BinaryWriter bw, string str)
+	{
+		bw.Write(str.Length);
+		var bs = MemoryMarshal.Cast<char, byte>(str.AsSpan());
+		bw.Write(bs);
 	}
 
 	public static void WriteBundleEnd(this BinaryWriter bw)
 	{
-		bw.WriteType(RecordType.BundleEnd);
-		bw.Write7BitEncodedInt(0);
+		bw.WriteMarker(RecordType.BundleEnd);
+	}
+
+	public static void WriteMarker(this BinaryWriter bw, RecordType type)
+	{
+		bw.WriteType(type);
+		bw.Write((byte)0);
 	}
 }
 
@@ -184,11 +233,7 @@ sealed partial class XlsbDataWriter : ExcelDataWriter
 	static readonly XmlWriterSettings XmlSettings =
 	new XmlWriterSettings
 	{
-		//IndentChars = " ",
-		//Indent = true,
-		//NewLineChars = "\n",
 		OmitXmlDeclaration = true,
-		// We are handling this ourselves in the shared string handling.
 		CheckCharacters = false,
 	};
 
@@ -255,10 +300,12 @@ sealed partial class XlsbDataWriter : ExcelDataWriter
 		using var es = entry.Open();
 		using var bw = new BinaryWriter(es);
 
+		bw.WriteWorksheetStart();
 		var row = 0;
 		// headers
 		{
-			bw.WriteRow(row);
+			var fc = data.FieldCount;
+			bw.WriteRow(row, fc);
 			for (int i = 0; i < data.FieldCount; i++)
 			{
 				var colName = data.GetName(i);
@@ -292,8 +339,8 @@ sealed partial class XlsbDataWriter : ExcelDataWriter
 				}
 			}
 
-			bw.WriteRow(row);
 			var c = data.FieldCount;
+			bw.WriteRow(row, c);
 			for (int i = 0; i < c; i++)
 			{				
 				if (data.IsDBNull(i))
@@ -317,6 +364,7 @@ sealed partial class XlsbDataWriter : ExcelDataWriter
 			}
 		}
 
+		bw.WriteWorksheetEnd();
 		return new WriteResult(row, complete);
 	}
 
@@ -341,10 +389,8 @@ sealed partial class XlsbDataWriter : ExcelDataWriter
 		var c = this.sharedStrings.UniqueCount;
 		bw.WriteType(RecordType.SSTBegin);
 		bw.Write7BitEncodedInt(8);
-		// total count
-		bw.Write(c);
-		// count
-		bw.Write(c);
+		bw.Write(this.sharedStrings.Count);
+		bw.Write(this.sharedStrings.UniqueCount);
 
 		for (int i = 0; i < c; i++)
 		{
@@ -352,10 +398,11 @@ sealed partial class XlsbDataWriter : ExcelDataWriter
 
 			var str = this.sharedStrings[i];
 			var len = 1 + (4 + str.Length * 2);
+			bw.Write7BitEncodedInt(len);
 			bw.Write((byte)0);
-			bw.Write(str.Length);
-			bw.Write(str.AsSpan());
+			bw.WriteString(str);
 		}
+		bw.WriteMarker(RecordType.SSTEnd);
 	}
 
 	static bool HasWhiteSpace(string str)
@@ -381,6 +428,7 @@ sealed partial class XlsbDataWriter : ExcelDataWriter
 		using var s = e.Open();
 		using var bw = new BinaryWriter(s);
 
+		bw.WriteWorkbookStart();
 		bw.WriteBundleStart();
 		
 		for (int i = 0; i < this.worksheets.Count; i++)
@@ -388,7 +436,8 @@ sealed partial class XlsbDataWriter : ExcelDataWriter
 			var num = i + 1;
 			bw.WriteBundleSheet(i, this.worksheets[i]);
 		}
-		bw.WriteBundleStart();
+		bw.WriteBundleEnd();
+		bw.WriteWorkbookEnd();
 	}
 
 	void WriteAppProps()

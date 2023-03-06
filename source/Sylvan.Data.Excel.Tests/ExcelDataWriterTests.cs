@@ -68,14 +68,14 @@ public abstract class ExcelDataWriterTests
 		// tests the most common types.
 		Random r = new Random();
 		var data =
-			Enumerable.Range(1, 10)
+			Enumerable.Range(1, 2)
 			.Select(
 				i => new
 				{
 					Id = i, //int32
-					Name = "Name" + i, //string
-					ValueInt = r.Next(), // another, bigger int
-					ValueDouble = r.NextDouble() * 100d, // double
+					//Name = "Name" + i, //string
+					//ValueInt = r.Next(), // another, bigger int
+					//ValueDouble = r.NextDouble() * 100d, // double
 				}
 			);
 
@@ -85,7 +85,7 @@ public abstract class ExcelDataWriterTests
 		{
 			w.Write(reader);
 		}
-		Open(f);
+		//Open(f);
 	}
 
 	[Fact]

@@ -35,6 +35,7 @@ enum RecordType
 	BookEnd = 132,
 	Dimension = 148,
 	SSTBegin = 159,
+	SSTEnd = 160,
 	StyleBegin = 278,
 	StyleEnd = 279,
 	CellXFStart = 617,
