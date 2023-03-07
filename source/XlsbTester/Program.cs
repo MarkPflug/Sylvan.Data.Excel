@@ -1,7 +1,11 @@
-﻿using System.IO.Compression;
+﻿using Sylvan.Data.Excel;
+using System.IO.Compression;
 
-var name = "C:\\Users\\Mark\\source\\Sylvan.Data.Excel\\bin\\Debug\\net6.0\\simple.xlsb";
+//var name = "C:\\Users\\Mark\\source\\Sylvan.Data.Excel\\bin\\Debug\\net6.0\\simple.xlsb";
 //var name = "/data/excel/input.xlsb";
+var name = "/data/excel/numbers.xlsb";
+
+Dump(name);
 
 var fs = File.OpenRead(name);
 
@@ -18,15 +22,40 @@ foreach (var e in a.Entries)
 		while (r.ReadRecord())
 		{
 			Console.WriteLine(r.Type + " " + r.Length);
-			if(r.Type == 0)
+			if (r.Type == 0)
 			{
 				var dat = r.DataSpan;
+			}
+
+			switch (r.Type)
+			{
+				case 2: //RK
+				case 5: // Real
+					var data = r.DataSpan;
+					foreach (var b in data)
+					{
+						Console.Write(b.ToString("x2"));
+						Console.Write(' ');
+					}
+					Console.WriteLine();
+					break;
 			}
 		}
 	}
 }
 
-
+void Dump(string file)
+{
+	var r = ExcelDataReader.Create(file, new ExcelDataReaderOptions { Schema = ExcelSchema.NoHeaders });
+	while (r.Read())
+	{
+		for (int i = 0; i < r.RowFieldCount; i++)
+		{
+			Console.WriteLine(r.GetDouble(i));
+		}
+		Console.WriteLine();
+	}
+}
 
 sealed class XlsbReader
 {
@@ -74,7 +103,7 @@ sealed class XlsbReader
 
 		var i = idx;
 
-		this.type =  ReadRecordType(ref i);
+		this.type = ReadRecordType(ref i);
 		this.len = ReadRecordLen(ref i);
 		this.dataStart = i;
 
@@ -117,3 +146,5 @@ sealed class XlsbReader
 		return accum;
 	}
 }
+
+

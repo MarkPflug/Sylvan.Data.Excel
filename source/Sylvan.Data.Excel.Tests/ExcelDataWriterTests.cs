@@ -68,14 +68,16 @@ public abstract class ExcelDataWriterTests
 		// tests the most common types.
 		Random r = new Random();
 		var data =
-			Enumerable.Range(1, 2)
+			Enumerable.Range(1, 1024)
 			.Select(
 				i => new
 				{
 					Id = i, //int32
-					//Name = "Name" + i, //string
-					//ValueInt = r.Next(), // another, bigger int
-					//ValueDouble = r.NextDouble() * 100d, // double
+					Name = "Name" + i, //string
+					ValueInt = r.Next(), // another, bigger int
+					ValueDouble = Math.PI * i, // double
+					F = 1.25m * i,
+					Date = DateTime.Today.AddHours(i),
 				}
 			);
 

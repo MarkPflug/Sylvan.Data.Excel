@@ -15,13 +15,58 @@ namespace Sylvan.Data.Excel.Xlsb;
 
 static class XlsbWriterExtensions
 {
+
+	internal static double GetRKVal(int rk)
+	{
+		bool mult = (rk & 0x01) != 0;
+		bool isFloat = (rk & 0x02) == 0;
+		double d;
+
+		if (isFloat)
+		{
+			long v = rk & 0xfffffffc;
+			v = v << 32;
+			d = BitConverter.Int64BitsToDouble(v);
+		}
+		else
+		{
+			// TODO: this seems wrong.
+			d = rk >> 2;
+		}
+
+		if (mult)
+		{
+			d = d / 100;
+		}
+
+		return d;
+	}
+
+	static uint GetRK(double value)
+	{
+		var ul = BitConverter.DoubleToUInt64Bits(value);
+		return (uint)(ul >> 32) & 0xfffffffc;
+	}
+
+	static uint GetRK(int value)
+	{
+		if (((uint)value & 0xc0000000) != 0)
+			throw new ArgumentOutOfRangeException(nameof(value));
+		return 0x0000002 | (uint)(value << 2);
+	}
+
+	static uint GetRK(decimal value)
+	{
+		throw new NotImplementedException();
+	}
+
 	public static void WriteType(this BinaryWriter bw, RecordType type)
 	{
 		var val = (int)type;
-		if(val < 0x80)
+		if (val < 0x80)
 		{
 			bw.Write((byte)val); return;
-		} 
+		}
 		else
 		{
 			bw.Write((byte)(0x80 | val & 0x7f));
@@ -78,6 +123,74 @@ static class XlsbWriterExtensions
 		bw.Write(ssIdx);
 	}
 
+	public static void WriteNumber(this BinaryWriter bw, int col, int val)
+	{
+		var rkv = val & ~0xc0000000;
+		if (rkv == val)
+		{
+			// Write ROW
+			bw.WriteType(RecordType.CellRK);
+			// len
+			bw.Write7BitEncodedInt(12);
+			// row
+			bw.Write(col);
+			// sf
+			bw.Write(0);
+			var rk = 0x0000002 | (uint)(rkv << 2);
+			bw.Write(rk);
+		}
+		else
+		{
+			WriteNumber(bw, col, (double)val);
+		}
+	}
+
+	public static void WriteNumber(this BinaryWriter bw, int col, double value)
+	{
+		var l = BitConverter.DoubleToInt64Bits(value);
+		// write the value as an RK value if it can be done losslessly.
+		if (((uint)l & 0xffffffff) == 0)
+		{
+			// Write ROW
+			bw.WriteType(RecordType.CellRK);
+			// len
+			bw.Write7BitEncodedInt(12);
+			// row
+			bw.Write(col);
+			// sf
+			bw.Write(0);
+			var rk = (uint)(l >> 32) & 0xfffffffc;
+			bw.Write(rk);
+		}
+		else
+		{
+			// Write ROW
+			bw.WriteType(RecordType.CellReal);
+			// len
+			bw.Write7BitEncodedInt(16);
+			// row
+			bw.Write(col);
+			// sf
+			bw.Write(0);
+			bw.Write(value);
+		}
+	}
+
+	public static void WriteNumber(this BinaryWriter bw, int col, decimal val)
+	{
+		// Write ROW
+		bw.WriteType(RecordType.CellRK);
+		// len
+		bw.Write7BitEncodedInt(12);
+		// row
+		bw.Write(col);
+		// sf
+		bw.Write(0);
+
+		var rk = GetRK((double)val);
+		bw.Write(rk);
+	}
+
 	public static void WriteBool(this BinaryWriter bw, int col, bool value)
 	{
 		// Write ROW
@@ -92,19 +205,7 @@ static class XlsbWriterExtensions
 		bw.Write(value ? (byte)1 : (byte)0);
 	}
 
-	public static void WriteNumber(this BinaryWriter bw, int col, double value)
-	{
-		// Write ROW
-		bw.WriteType(RecordType.CellNum);
-		// len
-		bw.Write7BitEncodedInt(12);
-		// row
-		bw.Write(col);
-		// sf
-		bw.Write(0);
 
-		bw.Write(value);
-	}
 
 	public static void WriteWorksheetStart(this BinaryWriter bw)
 	{
@@ -128,7 +229,7 @@ static class XlsbWriterExtensions
 
 	public static void WriteBundleStart(this BinaryWriter bw)
 	{
-		bw.WriteMarker(RecordType.BundleBegin);		
+		bw.WriteMarker(RecordType.BundleBegin);
 	}
 
 	public static void WriteBundleSheet(this BinaryWriter bw, int idx, string name)
@@ -241,7 +342,7 @@ sealed partial class XlsbDataWriter : ExcelDataWriter
 	const int StringLimit = short.MaxValue;
 	const int MaxWorksheetNameLength = 31;
 
-    readonly ZipArchive zipArchive;
+	readonly ZipArchive zipArchive;
 	readonly List<string> worksheets;
 	readonly SharedStringTable sharedStrings;
 
@@ -298,9 +399,19 @@ sealed partial class XlsbDataWriter : ExcelDataWriter
 		var entryName = "xl/worksheets/sheet" + idx + ".bin";
 		var entry = zipArchive.CreateEntry(entryName, Compression);
 		using var es = entry.Open();
-		using var bw = new BinaryWriter(es);
+		using var bs = new BufferedStream(es, 0x4000);
+		using var bw = new BinaryWriter(bs);
+
+		var context = new Context(this, bw, data);
+
+		var fieldWriters = new FieldWriter[data.FieldCount];
+		for (int i = 0; i < fieldWriters.Length; i++)
+		{
+			fieldWriters[i] = FieldWriter.Get(data.GetFieldType(i));
+		}
 
 		bw.WriteWorksheetStart();
+		// TODO: handle column widths based on fieldwriters.
 		var row = 0;
 		// headers
 		{
@@ -342,16 +453,18 @@ sealed partial class XlsbDataWriter : ExcelDataWriter
 			var c = data.FieldCount;
 			bw.WriteRow(row, c);
 			for (int i = 0; i < c; i++)
-			{				
+			{
 				if (data.IsDBNull(i))
 				{
 					bw.WriteBlankCell(i);
 				}
 				else
 				{
-					var str = data.GetValue(i)?.ToString() ?? string.Empty;
-					var ssIdx = this.sharedStrings.GetString(str);
-					bw.WriteSharedString(i, ssIdx);
+					//var str = data.GetValue(i)?.ToString() ?? string.Empty;
+					//var ssIdx = this.sharedStrings.GetString(str);
+					//bw.WriteSharedString(i, ssIdx);
+					var fw = i < fieldWriters.Length ? fieldWriters[i] : FieldWriter.Object;
+					fw.WriteField(context, i);
 				}
 			}
 			row++;
@@ -430,7 +543,7 @@ sealed partial class XlsbDataWriter : ExcelDataWriter
 
 		bw.WriteWorkbookStart();
 		bw.WriteBundleStart();
-		
+
 		for (int i = 0; i < this.worksheets.Count; i++)
 		{
 			var num = i + 1;
@@ -560,7 +673,7 @@ sealed partial class XlsbDataWriter : ExcelDataWriter
 				xw.WriteAttributeString("ContentType", type);
 				xw.WriteEndElement();
 			}
-			
+
 			Override(xw, "/xl/styles.bin", "application/vnd.ms-excel.styles");
 			Override(xw, "/xl/sharedStrings.bin", "application/vnd.ms-excel.sharedStrings");
 			Override(xw, "/docProps/app.xml", "application/vnd.openxmlformats-officedocument.extended-properties+xml");

@@ -215,13 +215,13 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 			var c = data.FieldCount;
 			for (int i = 0; i < c; i++)
 			{
-				var fw = i < fieldWriters.Length ? fieldWriters[i] : FieldWriter.Object;
 				if (data.IsDBNull(i))
 				{
 					xw.Write("<c/>");
 				}
 				else
 				{
+					var fw = i < fieldWriters.Length ? fieldWriters[i] : FieldWriter.Object;
 					fw.WriteField(context, i);
 				}
 			}

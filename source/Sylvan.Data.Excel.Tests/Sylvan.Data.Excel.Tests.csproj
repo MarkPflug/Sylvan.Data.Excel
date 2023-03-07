@@ -8,12 +8,12 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<PackageReference Include="Sylvan.BuildTools.Resources" Version="0.6.0">
+		<PackageReference Include="Sylvan.BuildTools.Resources" Version="0.6.1">
 			<PrivateAssets>all</PrivateAssets>
 			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 		</PackageReference>
-		<PackageReference Include="Sylvan.Data" Version="0.2.8" />
-		<PackageReference Include="Sylvan.Data.Csv" Version="1.2.4" />
+		<PackageReference Include="Sylvan.Data" Version="0.2.11" />
+		<PackageReference Include="Sylvan.Data.Csv" Version="1.2.7" />
 		<PackageReference Include="System.Data.SqlClient" Version="4.8.5" />
 		<ProjectReference Include="..\Sylvan.Data.Excel\Sylvan.Data.Excel.csproj" />
 		<Reference Include="System.IO.Compression" Condition="$(TargetFramework) == 'net48'" />

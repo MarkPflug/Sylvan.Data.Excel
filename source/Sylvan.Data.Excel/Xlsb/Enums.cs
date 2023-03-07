@@ -18,7 +18,7 @@ enum RecordType
 	CellRK = 2,
 	CellError = 3,
 	CellBool = 4,
-	CellNum = 5,
+	CellReal = 5,
 	CellSt = 6,
 	CellIsst = 7,
 	CellFmlaString = 8,

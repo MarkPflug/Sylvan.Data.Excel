@@ -373,7 +373,7 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 						count = col + 1;
 					}
 					break;
-				case RecordType.CellNum:
+				case RecordType.CellReal:
 					{
 						var col = reader.GetInt32(0);
 						var sf = reader.GetInt32(4) & 0xffffff;
