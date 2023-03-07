@@ -48,13 +48,6 @@ static class XlsbWriterExtensions
 		return (uint)(ul >> 32) & 0xfffffffc;
 	}
 
-	//static uint GetRK(int value)
-	//{
-	//	if (((uint)value & 0xc0000000) != 0)
-	//		throw new ArgumentOutOfRangeException(nameof(value));
-	//	return 0x0000002 | (uint)(value << 2);
-	//}
-
 	public static void WriteType(this BinaryWriter bw, RecordType type)
 	{
 		var val = (int)type;
@@ -493,14 +486,12 @@ sealed partial class XlsbDataWriter : ExcelDataWriter
 	const string NS = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
 	const string PkgRelNS = "http://schemas.openxmlformats.org/package/2006/relationships";
 	const string ODRelNS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
-	const string PropNS = "http://schemas.openxmlformats.org/officeDocument/2006/extended-properties";
 	const string CoreNS = "http://schemas.openxmlformats.org/package/2006/metadata/core-properties";
 	const string ContentTypeNS = "http://schemas.openxmlformats.org/package/2006/content-types";
 
 
 	const string WorkbookPath = "xl/workbook.bin";
-	const string AppPath = "docProps/app.xml";
-
+	
 	void WriteSharedStrings()
 	{
 		var e = this.zipArchive.CreateEntry("xl/sharedStrings.bin", Compression);
@@ -562,25 +553,6 @@ sealed partial class XlsbDataWriter : ExcelDataWriter
 		bw.WriteWorkbookEnd();
 	}
 
-	void WriteAppProps()
-	{
-		var appEntry = zipArchive.CreateEntry("docProps/app.xml", Compression);
-		using var appStream = appEntry.Open();
-		using var xw = XmlWriter.Create(appStream, XmlSettings);
-		xw.WriteStartElement("Properties", PropNS);
-		var asmName = Assembly.GetExecutingAssembly().GetName();
-		xw.WriteStartElement("Application", PropNS);
-		xw.WriteValue(asmName.Name);
-		xw.WriteEndElement();
-		xw.WriteStartElement("AppVersion", PropNS);
-		var v = asmName.Version!;
-		// AppVersion must be of the format XX.YYYY
-		var ver = $"{v.Major:00}.{v.Minor:00}{v.Build:00}";
-		xw.WriteValue(ver);
-		xw.WriteEndElement();
-		xw.WriteEndElement();
-	}
-
 	void WriteCoreProps()
 	{
 		var appEntry = zipArchive.CreateEntry("docProps/core.xml", Compression);
@@ -606,7 +578,7 @@ sealed partial class XlsbDataWriter : ExcelDataWriter
 			xw.WriteStartElement("Relationship", PkgRelNS);
 			xw.WriteAttributeString("Id", "app");
 			xw.WriteAttributeString("Type", "http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties");
-			xw.WriteAttributeString("Target", AppPath);
+			xw.WriteAttributeString("Target", OpenPackaging.AppPath);
 
 			xw.WriteEndElement();
 
@@ -801,7 +773,7 @@ sealed partial class XlsbDataWriter : ExcelDataWriter
 	{
 		// core.xml isn't needed.
 		//WriteCoreProps();
-		WriteAppProps();
+		OpenPackaging.WriteAppProps(this.zipArchive);
 		WriteSharedStrings();
 		WriteStyles();
 		WriteWorkbook();
@@ -815,6 +787,5 @@ sealed partial class XlsbDataWriter : ExcelDataWriter
 		base.Dispose();
 	}
 }
-
 
 #endif
