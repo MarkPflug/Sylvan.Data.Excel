@@ -11,7 +11,7 @@ enum CellType
 	Date,
 }
 
-enum RecordType
+internal enum RecordType
 {
 	Row = 0,
 	CellBlank = 1,
@@ -40,6 +40,17 @@ enum RecordType
 	StyleEnd = 279,
 	CellXFStart = 617,
 	CellXFEnd = 618,
+	FontsStart = 611,
+	FontsEnd = 612,
+	Font = 43,
+	FillsStart = 603,
+	FillsEnd = 604,
+	Fill = 45,
+	BordersStart = 613,
+	BordersEnd = 614,
+	Border = 46,
+	StyleXFsStart = 626,
+	StyleXFsEnd = 627,
 	FmtStart = 615,
 	FmtEnd = 616,
 	SheetStart = 129,

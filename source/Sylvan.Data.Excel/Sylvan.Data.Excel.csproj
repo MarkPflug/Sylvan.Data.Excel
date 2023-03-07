@@ -20,14 +20,7 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-	  <None Remove="styles.bin" />
-	</ItemGroup>
-
-	<ItemGroup>
-	  <EmbeddedResource Include="styles.bin" LogicalName="styles" />
-	</ItemGroup>
-
-	<ItemGroup>
 		<InternalsVisibleTo Include="Sylvan.Data.Excel.Tests" />
+		<InternalsVisibleTo Condition="$(Configuration) == 'Debug'" Include="XlsbTester" />
 	</ItemGroup>
 </Project>

@@ -137,14 +137,14 @@ partial class XlsbDataWriter
 		{
 			var val = (value - Epoch).TotalDays + 2;
 			//TODO: format
-			c.bw.WriteNumber(col, val);
+			c.bw.WriteNumber(col, val, 1);
 		}
 
 		public static void WriteTimeSpan(Context c, int col, TimeSpan value)
 		{
 			var val = value.TotalDays;
 			//TODO: format
-			c.bw.WriteNumber(col, val);
+			c.bw.WriteNumber(col, val, 3);
 		}
 
 #if DATE_ONLY
@@ -155,14 +155,14 @@ partial class XlsbDataWriter
 		{
 			var w = c.bw;
 			var val = (value.ToDateTime(Midnight) - Epoch).TotalDays + 2;
-			w.WriteNumber(col, val);
+			w.WriteNumber(col, val, 2);
 		}
 
 		public static void WriteTimeOnly(Context c, int col, TimeOnly value)
 		{
 			var w = c.bw;
 			var val = value.ToTimeSpan().TotalDays;
-			w.WriteNumber(col, val);
+			w.WriteNumber(col, val, 3);
 		}
 #endif
 

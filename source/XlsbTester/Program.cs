@@ -1,11 +1,12 @@
 ﻿using Sylvan.Data.Excel;
+using Sylvan.Data.Excel.Xlsb;
 using System.IO.Compression;
 
 //var name = "C:\\Users\\Mark\\source\\Sylvan.Data.Excel\\bin\\Debug\\net6.0\\simple.xlsb";
 //var name = "/data/excel/input.xlsb";
-var name = "/data/excel/numbers.xlsb";
+var name = "/data/excel/fmt.xlsb";
 
-Dump(name);
+//Dump(name);
 
 var fs = File.OpenRead(name);
 
@@ -15,36 +16,53 @@ foreach (var e in a.Entries)
 {
 	if (e.Name.EndsWith(".bin"))
 	{
+		if (e.Name.Contains("printer")) continue;
+
 		Console.WriteLine(new string('-', 80));
 		Console.WriteLine(e.Name);
 		var s = e.Open();
 		var r = new XlsbReader(s);
 		while (r.ReadRecord())
 		{
-			Console.WriteLine(r.Type + " " + r.Length);
+			Console.WriteLine(r.Type + " " + r.Length + " " + (RecordType)r.Type);
 			if (r.Type == 0)
 			{
 				var dat = r.DataSpan;
 			}
 
-			switch (r.Type)
+			if (r.Length > 0)
 			{
-				case 2: //RK
-				case 5: // Real
-					var data = r.DataSpan;
-					foreach (var b in data)
-					{
-						Console.Write(b.ToString("x2"));
-						Console.Write(' ');
-					}
-					Console.WriteLine();
-					break;
+				Console.Write("  ");
+				switch (r.Type)
+				{
+					case 2: //RK
+					case 5: // Real
+					default:
+						var data = r.DataSpan;
+						int i = 0;
+						// format the data so it aligns with
+						// the documentation tables.
+						foreach (var b in data)
+						{
+							Console.Write(b.ToString("x2"));
+							Console.Write(' ');
+							if(++i == 4)
+							{
+								i = 0;
+								Console.WriteLine();
+								Console.Write("  ");
+							}
+						}
+						Console.WriteLine();
+						break;
+				}
 			}
 		}
 	}
 }
 
-void Dump(string file)
+#pragma warning disable CS8321 // Local function is declared but never used
+static void Dump(string file)
 {
 	var r = ExcelDataReader.Create(file, new ExcelDataReaderOptions { Schema = ExcelSchema.NoHeaders });
 	while (r.Read())
@@ -56,6 +74,7 @@ void Dump(string file)
 		Console.WriteLine();
 	}
 }
+#pragma warning restore CS8321 // Local function is declared but never used
 
 sealed class XlsbReader
 {

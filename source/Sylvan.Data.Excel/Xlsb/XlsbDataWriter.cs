@@ -5,7 +5,6 @@ using System.Collections.Generic;
 using System.Data.Common;
 using System.IO;
 using System.IO.Compression;
-using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -15,7 +14,6 @@ namespace Sylvan.Data.Excel.Xlsb;
 
 static class XlsbWriterExtensions
 {
-
 	internal static double GetRKVal(int rk)
 	{
 		bool mult = (rk & 0x01) != 0;
@@ -60,6 +58,19 @@ static class XlsbWriterExtensions
 			bw.Write((byte)(0x80 | val & 0x7f));
 			bw.Write((byte)(val >> 7));
 		}
+	}
+
+	public static void WriteXF(this BinaryWriter bw, int fmtId)
+	{
+		bw.WriteType(RecordType.XF);
+		bw.Write7BitEncodedInt(16);
+		bw.Write((short)0);//parent
+		bw.Write((short)fmtId);//fmt
+		bw.Write(0); // font, fill
+		bw.Write(0); // border, rotation, indent
+		bw.Write((short)0); // flags
+		bw.Write((byte)1); // flag to apply format
+		bw.Write((byte)0); //unused
 	}
 
 	public static void WriteRow(this BinaryWriter bw, int idx, int fieldCount)
@@ -110,7 +121,7 @@ static class XlsbWriterExtensions
 		bw.Write(ssIdx);
 	}
 
-	public static void WriteNumber(this BinaryWriter bw, int col, int val)
+	public static void WriteNumber(this BinaryWriter bw, int col, int val, int fmt = 0)
 	{
 		var rkv = val & ~0xc0000000;
 		if (rkv == val)
@@ -122,7 +133,7 @@ static class XlsbWriterExtensions
 			// row
 			bw.Write(col);
 			// sf
-			bw.Write(0);
+			bw.Write(fmt);
 			var rk = 0x0000002 | (uint)(rkv << 2);
 			bw.Write(rk);
 		}
@@ -132,7 +143,7 @@ static class XlsbWriterExtensions
 		}
 	}
 
-	public static void WriteNumber(this BinaryWriter bw, int col, double value)
+	public static void WriteNumber(this BinaryWriter bw, int col, double value, int fmt = 0)
 	{
 		var l = BitConverter.DoubleToInt64Bits(value);
 		// write the value as an RK value if it can be done losslessly.
@@ -145,7 +156,7 @@ static class XlsbWriterExtensions
 			// row
 			bw.Write(col);
 			// sf
-			bw.Write(0);
+			bw.Write(fmt);
 			var rk = (uint)(l >> 32) & 0xfffffffc;
 			bw.Write(rk);
 		}
@@ -158,12 +169,12 @@ static class XlsbWriterExtensions
 			// row
 			bw.Write(col);
 			// sf
-			bw.Write(0);
+			bw.Write(fmt);
 			bw.Write(value);
 		}
 	}
 
-	public static void WriteNumber(this BinaryWriter bw, int col, decimal val)
+	public static void WriteNumber(this BinaryWriter bw, int col, decimal val, int fmt = 0)
 	{
 		var mul = val * 100;
 		var imul = (int)mul;
@@ -173,7 +184,8 @@ static class XlsbWriterExtensions
 			bw.WriteType(RecordType.CellRK);
 			bw.Write7BitEncodedInt(12);
 			bw.Write(col);
-			bw.Write(0);
+			//sf
+			bw.Write(fmt);
 			var rk = 0x0000003 | (uint)(imul << 2);
 			bw.Write(rk);
 		}
@@ -186,7 +198,7 @@ static class XlsbWriterExtensions
 			// row
 			bw.Write(col);
 			// sf
-			bw.Write(0);
+			bw.Write(fmt);
 
 			var rk = GetRK((double)val);
 			bw.Write(rk);
@@ -206,8 +218,6 @@ static class XlsbWriterExtensions
 
 		bw.Write(value ? (byte)1 : (byte)0);
 	}
-
-
 
 	public static void WriteWorksheetStart(this BinaryWriter bw)
 	{
@@ -269,6 +279,25 @@ static class XlsbWriterExtensions
 	{
 		bw.WriteType(type);
 		bw.Write((byte)0);
+	}
+
+	public static void WriteFont(this BinaryWriter bw, string name)
+	{
+		bw.WriteType(RecordType.Font);
+
+		var len = 21 + (4 + 2 * name.Length);
+		bw.Write7BitEncodedInt(len);
+		bw.Write((short)0xdc);// height
+		bw.Write((short)0); //grbit
+		bw.Write((short)0x190);// weight
+		bw.Write((short)0); //sss
+		bw.Write((byte)0);// underline
+		bw.Write((byte)2);// style = swiss
+		bw.Write((byte)0);// charset
+		bw.Write((byte)0);// unused
+		bw.Write((long)0);// color = auto
+		bw.Write((byte)0);// scheme
+		bw.WriteString(name);
 	}
 }
 
@@ -491,7 +520,7 @@ sealed partial class XlsbDataWriter : ExcelDataWriter
 
 
 	const string WorkbookPath = "xl/workbook.bin";
-	
+
 	void WriteSharedStrings()
 	{
 		var e = this.zipArchive.CreateEntry("xl/sharedStrings.bin", Compression);
@@ -673,106 +702,107 @@ sealed partial class XlsbDataWriter : ExcelDataWriter
 	{
 		var styleEntry = zipArchive.CreateEntry("xl/styles.bin", Compression);
 		using var styleStream = styleEntry.Open();
-		using var s = typeof(XlsbDataWriter).Assembly.GetManifestResourceStream("styles");
-		s!.CopyTo(styleStream);
-		//using var bw = new BinaryWriter(appStream);
+		using var bw = new BinaryWriter(styleStream);
 
-		//bw.WriteType(RecordType.StyleBegin);
-		//bw.Write7BitEncodedInt(0);//len
+		bw.WriteMarker(RecordType.StyleBegin);
 
-		//bw.WriteType(RecordType.CellXFStart);
-		//bw.Write7BitEncodedInt(4);
-		//bw.write
+		bw.WriteType(RecordType.FmtStart);
+		bw.Write7BitEncodedInt(4); // len
+		bw.Write(Formats.Length);
 
-		//for (int i = 0; i < Formats.Length; i++)
-		//{
-		//	wx.WriteStartElement("numFmt", NS);
+		var idx = FormatOffset;
+		foreach (var fmt in Formats)
+		{
+			bw.WriteType(RecordType.Fmt);
+			var len = 2 + (4 + 2 * fmt.Length);
+			bw.Write7BitEncodedInt(len);
+			bw.Write((short)idx++);
+			bw.WriteString(fmt);
+		}
 
-		//	wx.WriteStartAttribute("numFmtId");
-		//	wx.WriteValue(FormatOffset + i);
-		//	wx.WriteEndAttribute();
+		bw.WriteMarker(RecordType.FmtEnd);
 
-		//	wx.WriteStartAttribute("formatCode");
-		//	wx.WriteValue(Formats[i]);
-		//	wx.WriteEndAttribute();
-		//	wx.WriteEndElement();
-		//}
+		bw.WriteType(RecordType.FontsStart);
+		bw.Write7BitEncodedInt(4); // len
+		bw.Write(1); // only 1 font
+		bw.WriteFont("Calibri");
+		bw.WriteMarker(RecordType.FontsEnd);
 
-		//wx.WriteEndElement();
+		bw.WriteType(RecordType.FillsStart);
+		bw.Write7BitEncodedInt(4);
+		bw.Write(1);
 
-		//wx.WriteStartElement("fonts", NS);
-		//wx.WriteStartElement("font", NS);
-		//wx.WriteStartElement("name", NS);
-		//wx.WriteAttributeString("val", "Calibri");
-		//wx.WriteEndElement();
-		//wx.WriteEndElement();
-		//wx.WriteEndElement();
+		bw.WriteType(RecordType.Fill);
+		bw.Write7BitEncodedInt(68);
+		bw.Write(new byte[] {
+		  0x00, 0x00, 0x00, 0x00,
+		  0x03, 0x40, 0x00, 0x00,
+		  0x00, 0x00, 0x00, 0xff,
+		  0x03, 0x41, 0x00, 0x00,
+		  0xff, 0xff, 0xff, 0xff,
+		  0x00, 0x00, 0x00, 0x00,
+		  0x00, 0x00, 0x00, 0x00,
+		  0x00, 0x00, 0x00, 0x00,
+		  0x00, 0x00, 0x00, 0x00,
+		  0x00, 0x00, 0x00, 0x00,
+		  0x00, 0x00, 0x00, 0x00,
+		  0x00, 0x00, 0x00, 0x00,
+		  0x00, 0x00, 0x00, 0x00,
+		  0x00, 0x00, 0x00, 0x00,
+		  0x00, 0x00, 0x00, 0x00,
+		  0x00, 0x00, 0x00, 0x00,
+		  0x00, 0x00, 0x00, 0x00,
+		});
 
-		//wx.WriteStartElement("fills");
-		//wx.WriteStartElement("fill");
-		//wx.WriteEndElement();
-		//wx.WriteEndElement();
+		bw.WriteMarker(RecordType.FillsEnd);
 
-		//wx.WriteStartElement("borders");
-		//wx.WriteStartElement("border");
-		//wx.WriteEndElement();
-		//wx.WriteEndElement();
+		bw.WriteType(RecordType.BordersStart);
+		bw.Write7BitEncodedInt(4);
+		bw.Write(1);
+		bw.WriteType(RecordType.Border);
+		bw.Write7BitEncodedInt(51);
+		bw.Write(new byte[]
+		{
+			  0x00, 0x00, 0x00, 0x01,
+			  0x00, 0x00, 0x00, 0x00,
+			  0x00, 0x00, 0x00, 0x00,
+			  0x00, 0x01, 0x00, 0x00,
+			  0x00, 0x00, 0x00, 0x00,
+			  0x00, 0x00, 0x00, 0x01,
+			  0x00, 0x00, 0x00, 0x00,
+			  0x00, 0x00, 0x00, 0x00,
+			  0x00, 0x01, 0x00, 0x00,
+			  0x00, 0x00, 0x00, 0x00,
+			  0x00, 0x00, 0x00, 0x01,
+			  0x00, 0x00, 0x00, 0x00,
+			  0x00, 0x00, 0x00,
+		});
 
-		//wx.WriteStartElement("cellStyleXfs");
-		//wx.WriteStartElement("xf");
-		//wx.WriteEndElement();
-		//wx.WriteEndElement();
+		bw.WriteMarker(RecordType.BordersEnd);
 
-		//wx.WriteStartElement("cellXfs", NS);
-		////appX.WriteStartAttribute("count");
-		////appX.WriteValue(formats.Count + 1);
-		////appX.WriteEndAttribute();
+		bw.WriteType(RecordType.StyleXFsStart);
+		bw.Write7BitEncodedInt(4);
+		bw.Write(0);
+		bw.WriteMarker(RecordType.StyleXFsEnd);
 
-		//{
-		//	wx.WriteStartElement("xf", NS);
+		bw.WriteType(RecordType.CellXFStart);
+		bw.Write7BitEncodedInt(4);
+		bw.Write(Formats.Length + 1);
 
-		//	wx.WriteStartAttribute("numFmtId");
-		//	wx.WriteValue(0);
-		//	wx.WriteEndAttribute();
+		bw.WriteXF(0);
 
-		//	wx.WriteStartAttribute("xfId");
-		//	wx.WriteValue(0);
-		//	wx.WriteEndAttribute();
+		for (int i = 0; i < Formats.Length; i++)
+		{
+			bw.WriteXF(FormatOffset + i);
+		}
 
-		//	wx.WriteEndElement();
-		//}
+		bw.WriteMarker(RecordType.CellXFEnd);
 
-		//for (int i = 0; i < Formats.Length; i++)
-		//{
-		//	wx.WriteStartElement("xf", NS);
-
-		//	wx.WriteStartAttribute("numFmtId");
-		//	wx.WriteValue(FormatOffset + i);
-		//	wx.WriteEndAttribute();
-
-		//	wx.WriteStartAttribute("xfId");
-		//	wx.WriteValue(0);
-		//	wx.WriteEndAttribute();
-
-		//	wx.WriteEndElement();
-		//}
-
-		//wx.WriteEndElement();
-
-		//wx.WriteStartElement("cellStyles");
-		//wx.WriteStartElement("cellStyle");
-		//wx.WriteAttributeString("name", "Normal");
-		//wx.WriteAttributeString("xfId", "0");
-		//wx.WriteEndElement();
-		//wx.WriteEndElement();
-
-		//wx.WriteEndElement();
+		bw.WriteMarker(RecordType.StyleEnd);
 	}
 
 	void Close()
 	{
-		// core.xml isn't needed.
-		//WriteCoreProps();
 		OpenPackaging.WriteAppProps(this.zipArchive);
 		WriteSharedStrings();
 		WriteStyles();
