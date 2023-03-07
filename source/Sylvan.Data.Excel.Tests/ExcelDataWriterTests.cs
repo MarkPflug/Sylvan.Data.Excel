@@ -76,7 +76,7 @@ public abstract class ExcelDataWriterTests
 					Name = "Name" + i, //string
 					ValueInt = r.Next(), // another, bigger int
 					ValueDouble = Math.PI * i, // double
-					F = 1.25m * i,
+					Decimal = 1.25m * i,
 					Date = DateTime.Today.AddHours(i),
 				}
 			);

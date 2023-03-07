@@ -48,17 +48,12 @@ static class XlsbWriterExtensions
 		return (uint)(ul >> 32) & 0xfffffffc;
 	}
 
-	static uint GetRK(int value)
-	{
-		if (((uint)value & 0xc0000000) != 0)
-			throw new ArgumentOutOfRangeException(nameof(value));
-		return 0x0000002 | (uint)(value << 2);
-	}
-
-	static uint GetRK(decimal value)
-	{
-		throw new NotImplementedException();
-	}
+	//static uint GetRK(int value)
+	//{
+	//	if (((uint)value & 0xc0000000) != 0)
+	//		throw new ArgumentOutOfRangeException(nameof(value));
+	//	return 0x0000002 | (uint)(value << 2);
+	//}
 
 	public static void WriteType(this BinaryWriter bw, RecordType type)
 	{
@@ -94,7 +89,6 @@ static class XlsbWriterExtensions
 		bw.Write(0);
 		// last cell
 		bw.Write(fieldCount);
-
 	}
 
 	public static void WriteBlankCell(this BinaryWriter bw, int col)
@@ -178,17 +172,32 @@ static class XlsbWriterExtensions
 
 	public static void WriteNumber(this BinaryWriter bw, int col, decimal val)
 	{
-		// Write ROW
-		bw.WriteType(RecordType.CellRK);
-		// len
-		bw.Write7BitEncodedInt(12);
-		// row
-		bw.Write(col);
-		// sf
-		bw.Write(0);
+		var mul = val * 100;
+		var imul = (int)mul;
+		if (mul == imul && ((uint)imul & ~0xc0000000) == imul)
+		{
+			// Write ROW
+			bw.WriteType(RecordType.CellRK);
+			bw.Write7BitEncodedInt(12);
+			bw.Write(col);
+			bw.Write(0);
+			var rk = 0x0000003 | (uint)(imul << 2);
+			bw.Write(rk);
+		}
+		else
+		{
+			// Write ROW
+			bw.WriteType(RecordType.CellRK);
+			// len
+			bw.Write7BitEncodedInt(12);
+			// row
+			bw.Write(col);
+			// sf
+			bw.Write(0);
 
-		var rk = GetRK((double)val);
-		bw.Write(rk);
+			var rk = GetRK((double)val);
+			bw.Write(rk);
+		}
 	}
 
 	public static void WriteBool(this BinaryWriter bw, int col, bool value)
