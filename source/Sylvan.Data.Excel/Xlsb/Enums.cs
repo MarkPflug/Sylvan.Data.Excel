@@ -57,4 +57,11 @@ internal enum RecordType
 	SheetEnd = 130,
 	DataStart = 145,
 	DataEnd = 146,
+
+	WsViewsStart = 133,
+	WsViewsEnd = 134,
+	WsViewStart = 137,
+	WsViewEnd = 138,
+	Pane = 151,
+	Selection = 152,
 }

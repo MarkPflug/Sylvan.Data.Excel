@@ -40,12 +40,6 @@ static class XlsbWriterExtensions
 		return d;
 	}
 
-	static uint GetRK(double value)
-	{
-		var ul = BitConverter.DoubleToUInt64Bits(value);
-		return (uint)(ul >> 32) & 0xfffffffc;
-	}
-
 	public static void WriteType(this BinaryWriter bw, RecordType type)
 	{
 		var val = (int)type;
@@ -123,24 +117,7 @@ static class XlsbWriterExtensions
 
 	public static void WriteNumber(this BinaryWriter bw, int col, int val, int fmt = 0)
 	{
-		var rkv = val & ~0xc0000000;
-		if (rkv == val)
-		{
-			// Write ROW
-			bw.WriteType(RecordType.CellRK);
-			// len
-			bw.Write7BitEncodedInt(12);
-			// row
-			bw.Write(col);
-			// sf
-			bw.Write(fmt);
-			var rk = 0x0000002 | (uint)(rkv << 2);
-			bw.Write(rk);
-		}
-		else
-		{
-			WriteNumber(bw, col, (double)val);
-		}
+		WriteNumber(bw, col, (double)val, fmt);
 	}
 
 	public static void WriteNumber(this BinaryWriter bw, int col, double value, int fmt = 0)
@@ -174,35 +151,13 @@ static class XlsbWriterExtensions
 		}
 	}
 
+
 	public static void WriteNumber(this BinaryWriter bw, int col, decimal val, int fmt = 0)
 	{
-		var mul = val * 100;
-		var imul = (int)mul;
-		if (mul == imul && ((uint)imul & ~0xc0000000) == imul)
-		{
-			// Write ROW
-			bw.WriteType(RecordType.CellRK);
-			bw.Write7BitEncodedInt(12);
-			bw.Write(col);
-			//sf
-			bw.Write(fmt);
-			var rk = 0x0000003 | (uint)(imul << 2);
-			bw.Write(rk);
-		}
-		else
-		{
-			// Write ROW
-			bw.WriteType(RecordType.CellRK);
-			// len
-			bw.Write7BitEncodedInt(12);
-			// row
-			bw.Write(col);
-			// sf
-			bw.Write(fmt);
-
-			var rk = GetRK((double)val);
-			bw.Write(rk);
-		}
+		// TODO: I worry there is loss of precision with this cast.
+		// Some common currency (2 decimal position) values should be storable
+		// as integer RK with scaling. But, I don't see Excel writing those.
+		bw.WriteNumber(col, (double)val, fmt);
 	}
 
 	public static void WriteBool(this BinaryWriter bw, int col, bool value)
@@ -442,6 +397,8 @@ sealed partial class XlsbDataWriter : ExcelDataWriter
 		}
 
 		bw.WriteWorksheetStart();
+
+		bw.WriteMarker(RecordType.DataStart);
 		// TODO: handle column widths based on fieldwriters.
 		var row = 0;
 		// headers
@@ -491,9 +448,6 @@ sealed partial class XlsbDataWriter : ExcelDataWriter
 				}
 				else
 				{
-					//var str = data.GetValue(i)?.ToString() ?? string.Empty;
-					//var ssIdx = this.sharedStrings.GetString(str);
-					//bw.WriteSharedString(i, ssIdx);
 					var fw = i < fieldWriters.Length ? fieldWriters[i] : FieldWriter.Object;
 					fw.WriteField(context, i);
 				}
@@ -507,14 +461,12 @@ sealed partial class XlsbDataWriter : ExcelDataWriter
 				break;
 			}
 		}
-
+		bw.WriteMarker(RecordType.DataEnd);
 		bw.WriteWorksheetEnd();
 		return new WriteResult(row, complete);
 	}
 
-	const string NS = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
 	const string PkgRelNS = "http://schemas.openxmlformats.org/package/2006/relationships";
-	const string ODRelNS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
 	const string CoreNS = "http://schemas.openxmlformats.org/package/2006/metadata/core-properties";
 	const string ContentTypeNS = "http://schemas.openxmlformats.org/package/2006/content-types";
 

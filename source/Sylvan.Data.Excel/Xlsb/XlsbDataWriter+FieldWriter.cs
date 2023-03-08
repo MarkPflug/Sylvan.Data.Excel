@@ -28,12 +28,12 @@ partial class XlsbDataWriter
 
 		public char[] GetCharBuffer()
 		{
-			return charBuffer ?? (charBuffer = new char[64]);
+			return charBuffer ??= new char[64];
 		}
 
 		public byte[] GetByteBuffer()
 		{
-			return byteBuffer ?? (byteBuffer = new byte[48]);
+			return byteBuffer ??= new byte[48];
 		}
 	}
 
@@ -42,7 +42,6 @@ partial class XlsbDataWriter
 		static readonly char[] HexMap = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
 
 		const string StringTooLongMessage = "String exceeds the maximum allowed length.";
-
 
 		public static void WriteString(Context c, int col, string value)
 		{
@@ -64,67 +63,57 @@ partial class XlsbDataWriter
 
 		public static void WriteChar(Context c, int col, char value)
 		{
-			var w = c.bw;
 			var idx = c.dw.sharedStrings.GetString(value.ToString());
-			w.WriteSharedString(col, idx);
+			c.bw.WriteSharedString(col, idx);
 		}
 
 		public static void WriteByte(Context c, int col, byte value)
 		{
-			var w = c.bw;
-			w.WriteNumber(col, value);
+			c.bw.WriteNumber(col, value);
 		}
 
 		public static void WriteInt16(Context c, int col, short value)
 		{
-			var w = c.bw;
-			w.WriteNumber(col, value);
+			c.bw.WriteNumber(col, value);
 		}
 
 		public static void WriteInt32(Context c, int col, int value)
 		{
-			var w = c.bw;
-			w.WriteNumber(col, value);
+			c.bw.WriteNumber(col, value);
 		}
 
 		public static void WriteInt64(Context c, int col, long value)
 		{
-			var w = c.bw;
 			if (value == (int)value)
 			{
-				w.WriteNumber(col, (int)value);
+				c.bw.WriteNumber(col, (int)value);
 			}
 			else
 			{
-				w.WriteNumber(col, (double)value);
+				c.bw.WriteNumber(col, (double)value);
 			}
 		}
 
 		public static void WriteSingle(Context c, int col, float value)
 		{
-
-			var w = c.bw;
-			w.WriteNumber(col, value);
+			c.bw.WriteNumber(col, value);
 		}
 
 		public static void WriteDouble(Context c, int col, double value)
 		{
-			var w = c.bw;
-			w.WriteNumber(col, value);
+			c.bw.WriteNumber(col, value);
 		}
 
 		public static void WriteDecimal(Context c, int col, decimal value)
 		{
-			var w = c.bw;
-			w.WriteNumber(col, value);
+			c.bw.WriteNumber(col, value);
 		}
 
 		public static void WriteGuid(Context c, int col, Guid value)
 		{
-			var w = c.bw;
 			var str = value.ToString();
 			var idx = c.dw.sharedStrings.GetString(str);
-			w.WriteSharedString(col, idx);
+			c.bw.WriteSharedString(col, idx);
 
 		}
 
@@ -153,16 +142,14 @@ partial class XlsbDataWriter
 
 		public static void WriteDateOnly(Context c, int col, DateOnly value)
 		{
-			var w = c.bw;
 			var val = (value.ToDateTime(Midnight) - Epoch).TotalDays + 2;
-			w.WriteNumber(col, val, 2);
+			c.bw.WriteNumber(col, val, 2);
 		}
 
 		public static void WriteTimeOnly(Context c, int col, TimeOnly value)
 		{
-			var w = c.bw;
 			var val = value.ToTimeSpan().TotalDays;
-			w.WriteNumber(col, val, 3);
+			c.bw.WriteNumber(col, val, 3);
 		}
 #endif
 
