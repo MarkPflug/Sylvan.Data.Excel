@@ -2,7 +2,6 @@
 using System.IO.Compression;
 
 var file = args.Length > 0 ? args[0] : "Test.xlsb";
-
 Dump(file);
 
 static void Dump(string file)

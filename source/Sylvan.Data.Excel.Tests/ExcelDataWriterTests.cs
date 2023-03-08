@@ -98,14 +98,14 @@ public abstract class ExcelDataWriterTests
 		var data =
 			new[]
 			{
-				//decimal.MinValue,
-				//decimal.MaxValue,
-				//(decimal)int.MinValue,
-				//(decimal)int.MaxValue,
-				//-(decimal)(1 << 24),
-				//(decimal)(1 << 24),
-				//-1m,
-				//1m,
+				decimal.MinValue,
+				decimal.MaxValue,
+				(decimal)int.MinValue,
+				(decimal)int.MaxValue,
+				-(decimal)(1 << 24),
+				(decimal)(1 << 24),
+				-1m,
+				1m,
 				6266593.83m,
 			}.Select(v => new { Decimal = v });
 

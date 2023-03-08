@@ -1,21 +1,54 @@
-﻿using Xunit;
+﻿using System;
+using Xunit;
 
 namespace Sylvan.Data.Excel;
 
 public class RKTests
 {
+	static int ToRk(int val)
+	{
+		return val << 2 | 0x2;
+	}
 
 	[Fact]
-	public void Test1()
+	public  void Test1()
 	{
 		unchecked
-		{			
-			//var d1 = ExcelDataReader.GetRKVal((int)0xc1e00000);
-			
-			//var d2 = ExcelDataReader.GetRKVal((int)0x40000001);
-			//var d3 = ExcelDataReader.GetRKVal((int)0x29a023ca);
-			var d4 = ExcelDataReader.GetRKVal((int)0xd65fdc3a);
+		{
+			if (!Test(0x1fffffff))
+			{
 
+			}
+			var v = (int)0xefffffff;
+			if (!Test(v))
+			{
+
+			}
+			v = (int)0x9fffffff;
+			if (!Test(v))
+			{
+
+			}
+
+			for (int i = 0; i < 32; i++)
+			{
+				var x = 1 << i;
+				if (!Test(x))
+				{
+
+				}
+				if (!Test(-x + 1))
+				{
+
+				}
+			}
 		}
+	}
+
+	bool Test(int val)
+	{
+		var rk = ToRk(val);
+		var result = ExcelDataReader.GetRKVal(rk);
+		return val == result;
 	}
 }

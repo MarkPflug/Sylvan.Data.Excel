@@ -14,32 +14,6 @@ namespace Sylvan.Data.Excel.Xlsb;
 
 static class XlsbWriterExtensions
 {
-	internal static double GetRKVal(int rk)
-	{
-		bool mult = (rk & 0x01) != 0;
-		bool isFloat = (rk & 0x02) == 0;
-		double d;
-
-		if (isFloat)
-		{
-			long v = rk & 0xfffffffc;
-			v = v << 32;
-			d = BitConverter.Int64BitsToDouble(v);
-		}
-		else
-		{
-			// TODO: this seems wrong.
-			d = rk >> 2;
-		}
-
-		if (mult)
-		{
-			d = d / 100;
-		}
-
-		return d;
-	}
-
 	public static void WriteType(this BinaryWriter bw, RecordType type)
 	{
 		var val = (int)type;
@@ -117,7 +91,23 @@ static class XlsbWriterExtensions
 
 	public static void WriteNumber(this BinaryWriter bw, int col, int val, int fmt = 0)
 	{
-		WriteNumber(bw, col, (double)val, fmt);
+		if (val >= 0 && val < 0x1fffffff)
+		{
+			// Write ROW
+			bw.WriteType(RecordType.CellRK);
+			// len
+			bw.Write7BitEncodedInt(12);
+			// row
+			bw.Write(col);
+			// sf
+			bw.Write(fmt);
+			var rk = (uint)(val << 2) | 0x2;
+			bw.Write(rk);
+		}
+		else
+		{
+			WriteNumber(bw, col, (double)val, fmt);
+		}
 	}
 
 	public static void WriteNumber(this BinaryWriter bw, int col, double value, int fmt = 0)
@@ -151,12 +141,46 @@ static class XlsbWriterExtensions
 		}
 	}
 
+	const int MaxRKInt = 0x1fffffff;
+	const decimal MaxRKDec = MaxRKInt;
 
 	public static void WriteNumber(this BinaryWriter bw, int col, decimal val, int fmt = 0)
 	{
+		if (val >= 0m && val <= MaxRKDec)
+		{
+			var i = (int)val;
+			if (i == val)
+			{
+				// the value can be written as an integer
+				bw.WriteNumber(col, i, fmt);
+				return;
+			}
+			else
+			{
+				var mul = val * 100m;
+				if (mul <= MaxRKDec)
+				{
+					var imul = (int)mul;
+					if (mul == imul && imul >= 0 && imul <= MaxRKInt)
+					{
+						// the value can be written as a 100 scaled rk int
+						// Write ROW
+						bw.WriteType(RecordType.CellRK);
+						// len
+						bw.Write7BitEncodedInt(12);
+						// row
+						bw.Write(col);
+						// sf
+						bw.Write(fmt);
+						var rk = (uint)(imul << 2) | 0x3;
+						bw.Write(rk);
+						return;
+					}
+				}
+			}
+		}
 		// TODO: I worry there is loss of precision with this cast.
-		// Some common currency (2 decimal position) values should be storable
-		// as integer RK with scaling. But, I don't see Excel writing those.
+		// should there be an option to throw when the double value doesn't roundtrip?
 		bw.WriteNumber(col, (double)val, fmt);
 	}
 
@@ -385,7 +409,7 @@ sealed partial class XlsbDataWriter : ExcelDataWriter
 		var entryName = "xl/worksheets/sheet" + idx + ".bin";
 		var entry = zipArchive.CreateEntry(entryName, Compression);
 		using var es = entry.Open();
-		using var bs = new BufferedStream(es, 0x4000);
+		using var bs = new BufferedStream(es, 0x8000);
 		using var bw = new BinaryWriter(bs);
 
 		var context = new Context(this, bw, data);
@@ -654,7 +678,8 @@ sealed partial class XlsbDataWriter : ExcelDataWriter
 	{
 		var styleEntry = zipArchive.CreateEntry("xl/styles.bin", Compression);
 		using var styleStream = styleEntry.Open();
-		using var bw = new BinaryWriter(styleStream);
+		using var bs = new BufferedStream(styleStream, 0x4000);
+		using var bw = new BinaryWriter(bs);
 
 		bw.WriteMarker(RecordType.StyleBegin);
 
