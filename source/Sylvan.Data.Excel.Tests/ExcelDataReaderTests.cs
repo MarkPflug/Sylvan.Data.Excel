@@ -519,6 +519,36 @@ public class XlsxTests
 	}
 
 	[Fact]
+	public void SkipRowsBasic()
+	{
+		var file = GetFile("SkipHeaders");
+		using var edr = ExcelDataReader.Create(file);
+
+		Assert.True(edr.TryOpenWorksheet("Annual Report 2022"));
+
+		// look for the row containing headers.
+		while (edr.Read())
+		{
+			if (edr.GetString(0) == "CustomerId")
+			{
+				break;
+			}
+		}
+
+		// initialize the sheet using the first row of data.
+		edr.Initialize();
+
+		var table = new DataTable();
+		table.Load(edr);
+
+		Assert.Equal(12, table.Rows.Count);
+		Assert.Equal(6, table.Columns.Count);
+
+		Assert.Equal(typeof(string), table.Columns[0].DataType);
+		Assert.Equal(typeof(string), table.Columns[3].DataType);
+	}
+
+	[Fact]
 	public void SkipRowsNoHeadersNoSchema()
 	{
 		// tests when data doesn't start on the first row
@@ -529,11 +559,7 @@ public class XlsxTests
 		var opts = new ExcelDataReaderOptions { Schema = ExcelSchema.NoHeaders };
 		using var edr = ExcelDataReader.Create(file, opts);
 
-		// locate the sheet
-		while (edr.WorksheetName != "Annual Report 2022")
-		{
-			Assert.True(edr.NextResult());
-		}
+		Assert.True(edr.TryOpenWorksheet("Annual Report 2022"));
 
 		// look for the row containing headers.
 		while (edr.Read())
@@ -550,22 +576,14 @@ public class XlsxTests
 		edr.Initialize();
 
 		var table = new DataTable();
-		try
-		{
-			table.Load(edr);
+		table.Load(edr);
 
-			Assert.Equal(12, table.Rows.Count);
-			// the 6th column is not seen here, because it has no header
-			Assert.Equal(5, table.Columns.Count);
+		Assert.Equal(12, table.Rows.Count);
+		// the 6th column is not seen here, because it has no header
+		Assert.Equal(5, table.Columns.Count);
 
-			Assert.Equal(typeof(string), table.Columns[0].DataType);
-			Assert.Equal(typeof(string), table.Columns[3].DataType);
-		}
-		catch
-		{
-			var err = table.GetErrors();
-			throw;
-		}
+		Assert.Equal(typeof(string), table.Columns[0].DataType);
+		Assert.Equal(typeof(string), table.Columns[3].DataType);
 	}
 
 	[Fact]
@@ -578,11 +596,7 @@ public class XlsxTests
 
 		Assert.Equal(1, edr.RowNumber);
 
-		// locate the sheet
-		while (edr.WorksheetName != "Annual Report 2022")
-		{
-			Assert.True(edr.NextResult());
-		}
+		edr.TryOpenWorksheet("Annual Report 2022");
 
 		Assert.Equal(1, edr.RowNumber);
 		// look for the row containing headers.
@@ -600,21 +614,14 @@ public class XlsxTests
 		edr.Initialize();
 
 		var table = new DataTable();
-		try
-		{
-			table.Load(edr);
+		
+		table.Load(edr);
 
-			Assert.Equal(12, table.Rows.Count);
-			Assert.Equal(6, table.Columns.Count);
+		Assert.Equal(12, table.Rows.Count);
+		Assert.Equal(6, table.Columns.Count);
 
-			Assert.Equal(typeof(int), table.Columns[0].DataType);
-			Assert.Equal(typeof(DateTime), table.Columns[3].DataType);
-		}
-		catch
-		{
-			var err = table.GetErrors();
-			throw;
-		}
+		Assert.Equal(typeof(int), table.Columns[0].DataType);
+		Assert.Equal(typeof(DateTime), table.Columns[3].DataType);		
 	}
 
 	[Fact]
