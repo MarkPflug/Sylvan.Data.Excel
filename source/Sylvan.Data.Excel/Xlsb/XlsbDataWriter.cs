@@ -28,11 +28,11 @@ static class XlsbWriterExtensions
 		}
 	}
 
-	public static void WriteXF(this BinaryWriter bw, int fmtId)
+	public static void WriteXF(this BinaryWriter bw, int fmtId, bool style = false)
 	{
 		bw.WriteType(RecordType.XF);
 		bw.Write7BitEncodedInt(16);
-		bw.Write((short)0);//parent
+		bw.Write((short)(style ? 0xffff : 0));//parent
 		bw.Write((short)fmtId);//fmt
 		bw.Write(0); // font, fill
 		bw.Write(0); // border, rotation, indent
@@ -196,6 +196,66 @@ static class XlsbWriterExtensions
 		bw.Write(0);
 
 		bw.Write(value ? (byte)1 : (byte)0);
+	}
+
+
+	public static void WriteFrozenPane(this BinaryWriter bw)
+	{
+		// Write ROW
+		bw.WriteType(RecordType.Pane);
+		// len
+		bw.Write7BitEncodedInt(29);
+
+		bw.Write((double)0);
+
+		bw.Write((double)1);
+
+		// B1 active cell
+		bw.Write(1);
+		bw.Write(0);
+		// bottom-left pane active
+		bw.Write(2);
+
+		bw.Write((byte)1);
+	}
+
+	public static void WriteViewStart(this BinaryWriter bw)
+	{
+		// Write ROW
+		bw.WriteType(RecordType.WsViewStart);
+		// len
+		bw.Write7BitEncodedInt(30);
+
+		bw.Write((short)0x03dc); // flags
+		bw.Write(0); // normal view
+		bw.Write(0); // top
+		bw.Write(0); // left
+
+		bw.Write((byte)4); // blue lines?
+		bw.Write((byte)0);
+		bw.Write((short)0);
+		bw.Write((short)100); //scale
+		bw.Write((short)0); //scale norm
+		bw.Write((short)0); //scale SLV
+		bw.Write((short)0); //scale PLV
+
+		bw.Write(0); // wbk view
+	}
+
+	public static void WriteColWidth(this BinaryWriter bw, int col, double width)
+	{
+		// Write ROW
+		bw.WriteType(RecordType.ColInfo);
+		// len
+		bw.Write7BitEncodedInt(18);
+
+		bw.Write(col); // first
+		bw.Write(col); // last
+		var wx = (int)(width * 255);
+		wx = Math.Min(wx, ushort.MaxValue);
+		bw.Write(wx);
+		bw.Write(0); //ixfe = default
+		bw.Write((short)0x0002); // flags = user-width
 	}
 
 	public static void WriteWorksheetStart(this BinaryWriter bw)
@@ -421,6 +481,25 @@ sealed partial class XlsbDataWriter : ExcelDataWriter
 		}
 
 		bw.WriteWorksheetStart();
+
+		bw.WriteMarker(RecordType.WsViewsStart);
+
+		bw.WriteViewStart();
+
+		bw.WriteFrozenPane();
+
+		bw.WriteMarker(RecordType.WsViewEnd);
+		bw.WriteMarker(RecordType.WsViewsEnd);
+
+		bw.WriteMarker(RecordType.ColInfoStart);
+
+		for (int i = 0; i < fieldWriters.Length; i++)
+		{
+			var d = fieldWriters[i].GetWidth(data, i);
+			bw.WriteColWidth(i, d);
+		}
+
+		bw.WriteMarker(RecordType.ColInfoEnd);
 
 		bw.WriteMarker(RecordType.DataStart);
 		// TODO: handle column widths based on fieldwriters.
@@ -759,7 +838,9 @@ sealed partial class XlsbDataWriter : ExcelDataWriter
 
 		bw.WriteType(RecordType.StyleXFsStart);
 		bw.Write7BitEncodedInt(4);
-		bw.Write(0);
+		bw.Write(1);
+
+		bw.WriteXF(0, true);
 		bw.WriteMarker(RecordType.StyleXFsEnd);
 
 		bw.WriteType(RecordType.CellXFStart);

@@ -64,4 +64,8 @@ internal enum RecordType
 	WsViewEnd = 138,
 	Pane = 151,
 	Selection = 152,
+
+	ColInfoStart = 390,
+	ColInfoEnd = 391,
+	ColInfo = 60,
 }
