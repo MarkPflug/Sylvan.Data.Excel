@@ -68,4 +68,7 @@ internal enum RecordType
 	ColInfoStart = 390,
 	ColInfoEnd = 391,
 	ColInfo = 60,
+
+	FilterStart = 161,
+	FilterEnd = 162,
 }

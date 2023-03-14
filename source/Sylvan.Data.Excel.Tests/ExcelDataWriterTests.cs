@@ -68,7 +68,7 @@ public abstract class ExcelDataWriterTests
 		// tests the most common types.
 		Random r = new Random();
 		var data =
-			Enumerable.Range(1, 2)
+			Enumerable.Range(1, 4096)
 			.Select(
 				i => new
 				{
@@ -87,7 +87,7 @@ public abstract class ExcelDataWriterTests
 		{
 			w.Write(reader);
 		}
-		Open(f);
+		//Open(f);
 	}
 
 	[Fact]
@@ -115,7 +115,7 @@ public abstract class ExcelDataWriterTests
 		{
 			w.Write(reader);
 		}
-		Open(f);
+		//Open(f);
 	}
 
 	[Fact]
@@ -141,7 +141,7 @@ public abstract class ExcelDataWriterTests
 		{
 			w.Write(reader);
 		}
-		Open(f);
+		//Open(f);
 	}
 
 	[Fact]

@@ -472,9 +472,11 @@ sealed partial class XlsbDataWriter : ExcelDataWriter
 		using var bs = new BufferedStream(es, 0x8000);
 		using var bw = new BinaryWriter(bs);
 
+		var fieldCount = data.FieldCount;
+
 		var context = new Context(this, bw, data);
 
-		var fieldWriters = new FieldWriter[data.FieldCount];
+		var fieldWriters = new FieldWriter[fieldCount];
 		for (int i = 0; i < fieldWriters.Length; i++)
 		{
 			fieldWriters[i] = FieldWriter.Get(data.GetFieldType(i));
@@ -506,9 +508,9 @@ sealed partial class XlsbDataWriter : ExcelDataWriter
 		var row = 0;
 		// headers
 		{
-			var fc = data.FieldCount;
-			bw.WriteRow(row, fc);
-			for (int i = 0; i < data.FieldCount; i++)
+			
+			bw.WriteRow(row, fieldCount);
+			for (int i = 0; i < fieldCount; i++)
 			{
 				var colName = data.GetName(i);
 				if (string.IsNullOrEmpty(colName))
@@ -541,6 +543,8 @@ sealed partial class XlsbDataWriter : ExcelDataWriter
 				}
 			}
 
+			// use data.FieldCount here instead of local to
+			// allow a data reader to present "jagged" data.
 			var c = data.FieldCount;
 			bw.WriteRow(row, c);
 			for (int i = 0; i < c; i++)
@@ -565,6 +569,16 @@ sealed partial class XlsbDataWriter : ExcelDataWriter
 			}
 		}
 		bw.WriteMarker(RecordType.DataEnd);
+
+		bw.WriteType(RecordType.FilterStart);
+		bw.Write7BitEncodedInt(16);
+		bw.Write(0);
+		bw.Write(0);
+		bw.Write(0);
+		bw.Write(fieldCount);
+
+		bw.WriteMarker(RecordType.FilterEnd);
+
 		bw.WriteWorksheetEnd();
 		return new WriteResult(row, complete);
 	}
@@ -602,21 +616,6 @@ sealed partial class XlsbDataWriter : ExcelDataWriter
 		bw.WriteMarker(RecordType.SSTEnd);
 	}
 
-	static bool HasWhiteSpace(string str)
-	{
-		char c;
-		if (str.Length > 0)
-		{
-			c = str[0];
-			if (char.IsWhiteSpace(c))
-				return true;
-			c = str[str.Length - 1];
-			if (char.IsWhiteSpace(c))
-				return true;
-		}
-		return false;
-	}
-
 	void WriteWorkbook()
 	{
 		var wbName = WorkbookPath;
@@ -635,19 +634,6 @@ sealed partial class XlsbDataWriter : ExcelDataWriter
 		}
 		bw.WriteBundleEnd();
 		bw.WriteWorkbookEnd();
-	}
-
-	void WriteCoreProps()
-	{
-		var appEntry = zipArchive.CreateEntry("docProps/core.xml", Compression);
-		using var appStream = appEntry.Open();
-		using var xw = XmlWriter.Create(appStream, XmlSettings);
-		xw.WriteStartElement("coreProperties", CoreNS);
-
-		xw.WriteStartElement("lastModifiedBy", CoreNS);
-		xw.WriteValue(Environment.UserName);
-		xw.WriteEndElement();
-		xw.WriteEndElement();
 	}
 
 	void WritePkgMeta()
