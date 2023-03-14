@@ -214,7 +214,6 @@ public abstract class ExcelDataWriterTests
 			reader = data.AsDataReader();
 			w.Write(reader);
 		}
-		Unpack(f);
 	}
 
 	[Fact]

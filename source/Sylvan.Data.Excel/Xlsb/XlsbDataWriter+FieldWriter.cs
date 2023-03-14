@@ -3,6 +3,7 @@
 using System;
 using System.Data.Common;
 using System.IO;
+using System.Text;
 
 namespace Sylvan.Data.Excel.Xlsb;
 
@@ -39,8 +40,7 @@ partial class XlsbDataWriter
 
 	static class XlsbValueWriter
 	{
-		static readonly char[] HexMap = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
-
+		
 		const string StringTooLongMessage = "String exceeds the maximum allowed length.";
 
 		public static void WriteString(Context c, int col, string value)
@@ -155,49 +155,37 @@ partial class XlsbDataWriter
 
 		public static void WriteBinaryHex(Context c, int col, byte[] value)
 		{
-			throw new NotImplementedException();
-			//var w = c.bw;
-			//w.Write("<c t=\"str\"><v>");
-			//var charBuffer = c.GetCharBuffer();
-			//var idx = 0;
-			//w.Write("0x");
-			//while (idx < value.Length)
-			//{
-			//	var l = ToHexCharArray(value, idx, 48, charBuffer, 0);
-			//	w.Write(charBuffer, 0, l);
-			//	idx += 48;
-			//}
+			var sb = new StringBuilder();
+			sb.Append("0x");
 
-			//w.Write("</v></c>");
-		}
+			var charBuffer = c.GetCharBuffer();
+			var idx = 0;
+			while (idx < value.Length)
+			{
+				var l = HexCodec.ToHexCharArray(value, idx, 48, charBuffer, 0);
+				sb.Append(charBuffer.AsSpan(0, l));
+				idx += 48;
+			}
 
-		public static int ToHexCharArray(byte[] dataBuffer, int offset, int length, char[] outputBuffer, int outputOffset)
-		{
-			throw new NotImplementedException();
-			//if (length * 2 > outputBuffer.Length - outputOffset)
-			//	throw new ArgumentException();
-
-			//var idx = offset;
-			//var end = offset + length;
-			//for (; idx < end; idx++)
-			//{
-			//	var b = dataBuffer[idx];
-			//	var lo = HexMap[b & 0xf];
-			//	var hi = HexMap[b >> 4];
-			//	outputBuffer[outputOffset++] = hi;
-			//	outputBuffer[outputOffset++] = lo;
-			//}
-			//return length * 2;
+			var ssIdx = c.dw.sharedStrings.GetString(sb.ToString());
+			c.bw.WriteSharedString(col, ssIdx);			
 		}
 
 		public static void WriteCharArray(Context c, int col, char[] value)
 		{
-			throw new NotImplementedException();
-			//var w = c.bw;
-			//w.Write("<c t=\"str\"><v>");
-			//// TODO: limit length...
-			//w.Write(value);
-			//w.Write("</v></c>");
+			var sb = new StringBuilder();
+			var idx = 0;
+			var dataBuffer = c.GetCharBuffer();
+			int len;
+			var reader = c.dr;
+			while ((len = (int)reader.GetChars(col, idx, dataBuffer, 0, dataBuffer.Length)) != 0)
+			{
+				sb.Append(dataBuffer.AsSpan(0, len));
+				idx += len;
+			}
+			var str = sb.ToString();
+			var ssIdx = c.dw.sharedStrings.GetString(str);
+			c.bw.WriteSharedString(col, ssIdx);
 		}
 	}
 
@@ -541,25 +529,24 @@ partial class XlsbDataWriter
 
 	sealed class BinaryHexFieldWriter : FieldWriter
 	{
-		public override void WriteField(Context context, int ordinal)
+		public override void WriteField(Context c, int ordinal)
 		{
-			throw new NotImplementedException();
-			//var w = context.bw;
-			//w.Write("<c t=\"str\"><v>");
-			//var idx = 0;
-			//var dataBuffer = context.GetByteBuffer();
-			//var charBuffer = context.GetCharBuffer();
-			//int len;
-			//var reader = context.dr;
-			//w.Write("0x");
-			//while ((len = (int)reader.GetBytes(ordinal, idx, dataBuffer, 0, dataBuffer.Length)) != 0)
-			//{
-			//	var c = XlsbValueWriter.ToHexCharArray(dataBuffer, 0, len, charBuffer, 0);
-			//	w.Write(charBuffer, 0, c);
-			//	idx += len;
-			//}
+			var sb = new StringBuilder();
+			sb.Append("0x");
+			var idx = 0;
+			var dataBuffer = c.GetByteBuffer();
+			var charBuffer = c.GetCharBuffer();
+			int len;
+			var reader = c.dr;
+			while ((len = (int)reader.GetBytes(ordinal, idx, dataBuffer, 0, dataBuffer.Length)) != 0)
+			{
+				var l = HexCodec.ToHexCharArray(dataBuffer, 0, len, charBuffer, 0);
+				sb.Append(charBuffer.AsSpan(0, l));
+				idx += len;
+			}
 
-			//w.Write("</v></c>");
+			var ssIdx = c.dw.sharedStrings.GetString(sb.ToString());
+			c.bw.WriteSharedString(ordinal, ssIdx);
 		}
 	}
 
@@ -567,24 +554,21 @@ partial class XlsbDataWriter
 	{
 		public override void WriteField(Context context, int ordinal)
 		{
-
-			throw new NotImplementedException();
-			//var w = context.bw;
-			//w.Write("<c t=\"str\"><v>");
-			//var idx = 0;
-			//var dataBuffer = context.GetCharBuffer();
-			//int len;
-			//var reader = context.dr;
-			//while ((len = (int)reader.GetChars(ordinal, idx, dataBuffer, 0, dataBuffer.Length)) != 0)
-			//{
-			//	w.Write(dataBuffer, 0, len);
-			//	idx += len;
-			//}
-
-			//w.Write("</v></c>");
+			var sb = new StringBuilder();
+			var idx = 0;
+			var dataBuffer = context.GetCharBuffer();
+			int len;
+			var reader = context.dr;
+			while ((len = (int)reader.GetChars(ordinal, idx, dataBuffer, 0, dataBuffer.Length)) != 0)
+			{
+				sb.Append(dataBuffer.AsSpan(0, len));
+				idx += len;
+			}
+			var str = sb.ToString();
+			var ssIdx = context.dw.sharedStrings.GetString(str);
+			context.bw.WriteSharedString(ordinal, ssIdx);
 		}
 	}
-
 }
 
 #endif

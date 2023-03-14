@@ -353,6 +353,12 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 				}
 			}
 
+			static void EnsureCols(ref FieldInfo[] values, int c)
+			{
+				if (values.Length <= c)
+					Array.Resize(ref values, c + 8);
+			}
+
 			//reader.DebugInfo("data");
 			switch (reader.RecordType)
 			{
@@ -363,7 +369,7 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 						var rk = reader.GetInt32(8);
 
 						var d = GetRKVal(rk);
-
+						EnsureCols(ref values, col);
 						ref var fi = ref values[col];
 
 						fi.type = ExcelDataType.Numeric;
@@ -378,7 +384,7 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 						var col = reader.GetInt32(0);
 						var sf = reader.GetInt32(4) & 0xffffff;
 						double d = reader.GetDouble(8);
-
+						EnsureCols(ref values, col);
 						ref var fi = ref values[col];
 						fi.type = ExcelDataType.Numeric;
 						fi.numValue = d;
@@ -399,6 +405,8 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 					{
 						var col = reader.GetInt32(0);
 						var sf = reader.GetInt32(4) & 0xffffff;
+
+						EnsureCols(ref values, col);
 						ref var fi = ref values[col];
 
 						switch (reader.RecordType)
