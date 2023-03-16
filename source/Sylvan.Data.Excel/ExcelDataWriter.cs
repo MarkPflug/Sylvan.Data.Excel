@@ -26,7 +26,9 @@ public abstract class ExcelDataWriter : IDisposable
 		options = options ?? ExcelDataWriterOptions.Default;
 		var type = ExcelDataReader.GetWorkbookType(file);
 		var stream = File.Create(file);
-		return Create(stream, type, options);
+		var w = Create(stream, type, options);
+		w.ownsStream = true;
+		return w;
 	}
 
 	/// <summary>
@@ -40,14 +42,12 @@ public abstract class ExcelDataWriter : IDisposable
 			case ExcelWorkbookType.ExcelXml:
 				{
 					var w = new XlsxDataWriter(stream, options);
-					w.ownsStream = true;
 					return w;
 				}
 #if NET6_0_OR_GREATER
 			case ExcelWorkbookType.ExcelBinary:
 				{
 					var w = new Xlsb.XlsbDataWriter(stream, options);
-					w.ownsStream = true;
 					return w;
 				}
 #endif
