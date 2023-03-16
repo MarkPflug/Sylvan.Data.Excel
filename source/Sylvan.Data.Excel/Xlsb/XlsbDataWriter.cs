@@ -484,23 +484,20 @@ sealed partial class XlsbDataWriter : ExcelDataWriter
 
 		bw.WriteWorksheetStart();
 
+		// freeze the header row
 		bw.WriteMarker(RecordType.WsViewsStart);
-
 		bw.WriteViewStart();
-
 		bw.WriteFrozenPane();
-
 		bw.WriteMarker(RecordType.WsViewEnd);
 		bw.WriteMarker(RecordType.WsViewsEnd);
 
+		// set the column widths
 		bw.WriteMarker(RecordType.ColInfoStart);
-
 		for (int i = 0; i < fieldWriters.Length; i++)
 		{
 			var d = fieldWriters[i].GetWidth(data, i);
 			bw.WriteColWidth(i, d);
 		}
-
 		bw.WriteMarker(RecordType.ColInfoEnd);
 
 		bw.WriteMarker(RecordType.DataStart);
@@ -570,23 +567,22 @@ sealed partial class XlsbDataWriter : ExcelDataWriter
 		}
 		bw.WriteMarker(RecordType.DataEnd);
 
+		// apply filtering to the header row.
 		bw.WriteType(RecordType.FilterStart);
 		bw.Write7BitEncodedInt(16);
 		bw.Write(0);
 		bw.Write(0);
 		bw.Write(0);
 		bw.Write(fieldCount);
-
 		bw.WriteMarker(RecordType.FilterEnd);
+
 
 		bw.WriteWorksheetEnd();
 		return new WriteResult(row, complete);
 	}
 
 	const string PkgRelNS = "http://schemas.openxmlformats.org/package/2006/relationships";
-	const string CoreNS = "http://schemas.openxmlformats.org/package/2006/metadata/core-properties";
 	const string ContentTypeNS = "http://schemas.openxmlformats.org/package/2006/content-types";
-
 
 	const string WorkbookPath = "xl/workbook.bin";
 
@@ -595,7 +591,6 @@ sealed partial class XlsbDataWriter : ExcelDataWriter
 		var e = this.zipArchive.CreateEntry("xl/sharedStrings.bin", Compression);
 		using var s = e.Open();
 		using var bw = new BinaryWriter(s);
-
 
 		var c = this.sharedStrings.UniqueCount;
 		bw.WriteType(RecordType.SSTBegin);

@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Data.Common;
 using System.IO;
 using System.IO.Compression;
-using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -481,9 +480,6 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 		wx.WriteEndElement();
 
 		wx.WriteStartElement("cellXfs", NS);
-		//appX.WriteStartAttribute("count");
-		//appX.WriteValue(formats.Count + 1);
-		//appX.WriteEndAttribute();
 
 		{
 			wx.WriteStartElement("xf", NS);
@@ -528,8 +524,6 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 
 	void Close()
 	{
-		// core.xml isn't needed.
-		//WriteCoreProps();
 		OpenPackaging.WriteAppProps(this.zipArchive);
 		WriteSharedStrings();
 		WriteStyles();
