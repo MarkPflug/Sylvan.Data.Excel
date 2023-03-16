@@ -43,24 +43,13 @@ static class XlsbWriterExtensions
 
 	public static void WriteRow(this BinaryWriter bw, int idx, int fieldCount)
 	{
-		// Write ROW
-		bw.WriteType(RecordType.Row);
-		// len
-		bw.Write7BitEncodedInt(25);
-		// row
-		bw.Write(idx);
-		// ifx
-		bw.Write(0);
-		// flags n stuff
-		bw.Write(0);
-		// flags n stuff
-		bw.Write((byte)0);
-		// ccolspan
-		bw.Write(1);
-		// first cell
-		bw.Write(0);
-		// last cell
-		bw.Write(fieldCount);
+		Span<byte> data = stackalloc byte[27];
+		data[0] = (byte)RecordType.Row;
+		data[1] = 25; // len
+		BitConverter.TryWriteBytes(data.Slice(2), idx);
+		BitConverter.TryWriteBytes(data.Slice(15), 1);
+		BitConverter.TryWriteBytes(data.Slice(23), fieldCount);
+		bw.Write(data);
 	}
 
 	public static void WriteBlankCell(this BinaryWriter bw, int col)
@@ -77,32 +66,31 @@ static class XlsbWriterExtensions
 
 	public static void WriteSharedString(this BinaryWriter bw, int col, int ssIdx)
 	{
-		// Write ROW
-		bw.WriteType(RecordType.CellIsst);
-		// len
-		bw.Write7BitEncodedInt(12);
-		// row
-		bw.Write(col);
-		// sf
-		bw.Write(0);
+		Span<byte> data = stackalloc byte[14];
+		data[0] = (byte)RecordType.CellIsst;
+		data[1] = 12; //len
+		BitConverter.TryWriteBytes(data.Slice(2), col);
+		BitConverter.TryWriteBytes(data.Slice(10), ssIdx);
+		bw.Write(data);
+	}
 
-		bw.Write(ssIdx);
+	static void WriteRK(this BinaryWriter bw, int col, uint rk, int fmt)
+	{
+		Span<byte> data = stackalloc byte[14];
+		data[0] = (byte)RecordType.CellRK;
+		data[1] = 12; //len
+		BitConverter.TryWriteBytes(data.Slice(2), col);
+		BitConverter.TryWriteBytes(data.Slice(6), fmt);
+		BitConverter.TryWriteBytes(data.Slice(10), rk);
+		bw.Write(data);
 	}
 
 	public static void WriteNumber(this BinaryWriter bw, int col, int val, int fmt = 0)
 	{
 		if (val >= 0 && val < 0x1fffffff)
 		{
-			// Write ROW
-			bw.WriteType(RecordType.CellRK);
-			// len
-			bw.Write7BitEncodedInt(12);
-			// row
-			bw.Write(col);
-			// sf
-			bw.Write(fmt);
 			var rk = (uint)(val << 2) | 0x2;
-			bw.Write(rk);
+			WriteRK(bw, col, rk, fmt);
 		}
 		else
 		{
@@ -116,28 +104,18 @@ static class XlsbWriterExtensions
 		// write the value as an RK value if it can be done losslessly.
 		if (((uint)l & 0xffffffff) == 0)
 		{
-			// Write ROW
-			bw.WriteType(RecordType.CellRK);
-			// len
-			bw.Write7BitEncodedInt(12);
-			// row
-			bw.Write(col);
-			// sf
-			bw.Write(fmt);
 			var rk = (uint)(l >> 32) & 0xfffffffc;
-			bw.Write(rk);
+			WriteRK(bw, col, rk, fmt);
 		}
 		else
 		{
-			// Write ROW
-			bw.WriteType(RecordType.CellReal);
-			// len
-			bw.Write7BitEncodedInt(16);
-			// row
-			bw.Write(col);
-			// sf
-			bw.Write(fmt);
-			bw.Write(value);
+			Span<byte> data = stackalloc byte[18];
+			data[0] = (byte)RecordType.CellReal;
+			data[1] = 16; //len
+			BitConverter.TryWriteBytes(data.Slice(2), col);
+			BitConverter.TryWriteBytes(data.Slice(6), fmt);
+			BitConverter.TryWriteBytes(data.Slice(10), value);
+			bw.Write(data);
 		}
 	}
 
@@ -164,16 +142,8 @@ static class XlsbWriterExtensions
 					if (mul == imul && imul >= 0 && imul <= MaxRKInt)
 					{
 						// the value can be written as a 100 scaled rk int
-						// Write ROW
-						bw.WriteType(RecordType.CellRK);
-						// len
-						bw.Write7BitEncodedInt(12);
-						// row
-						bw.Write(col);
-						// sf
-						bw.Write(fmt);
 						var rk = (uint)(imul << 2) | 0x3;
-						bw.Write(rk);
+						WriteRK(bw, col, rk, fmt);
 						return;
 					}
 				}
@@ -505,7 +475,7 @@ sealed partial class XlsbDataWriter : ExcelDataWriter
 		var row = 0;
 		// headers
 		{
-			
+
 			bw.WriteRow(row, fieldCount);
 			for (int i = 0; i < fieldCount; i++)
 			{
