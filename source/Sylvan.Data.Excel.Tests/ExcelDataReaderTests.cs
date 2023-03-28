@@ -1083,6 +1083,16 @@ public class XlsxTests
 		Assert.Equal(" c ", edr.GetString(2));
 
 	}
+
+	[Fact]
+	public void Read()
+	{
+		var file = GetFile("Schema");
+		using var edr = ExcelDataReader.Create(file);
+		while (edr.Read()) ;
+
+		Assert.False(edr.Read());
+	}
 }
 
 public sealed class XlsTests : XlsxTests

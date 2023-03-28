@@ -428,7 +428,10 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 		{
 			if (pendingRow == -1)
 			{
-				await reader.NextRecordAsync().ConfigureAwait(false);
+				if (!await reader.NextRecordAsync().ConfigureAwait(false))
+				{
+					return false;
+				}
 			}
 
 			if (rowIndex < pendingRow)

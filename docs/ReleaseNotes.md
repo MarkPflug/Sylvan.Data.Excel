@@ -1,5 +1,9 @@
 # Sylvan.Data.Excel Release Notes
 
+_0.4.10_
+ - Fixes a bug where calling `ExcelDataReader.Read` again after it has already returned `false` could 
+   result in the reader spinning in a tight loop.
+
 _0.4.9_
  - Reading of .xlsx and .xlsb files is fixed to correctly use open packaging specifications.
    This should allow more third-party sourced files to be read.
