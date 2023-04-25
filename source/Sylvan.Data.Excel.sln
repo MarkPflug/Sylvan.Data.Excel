@@ -27,6 +27,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Build", "Build", "{77F0BAEB
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MinimalXlsx", "MinimalXlsx\MinimalXlsx.csproj", "{10607897-287F-4B66-A31B-C65FD08D1D9C}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XlsbTester", "XlsbTester\XlsbTester.csproj", "{605EE269-0629-4B8C-90F4-B03FB880C82F}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -73,6 +75,18 @@ Global
 		{10607897-287F-4B66-A31B-C65FD08D1D9C}.Release|x64.Build.0 = Release|Any CPU
 		{10607897-287F-4B66-A31B-C65FD08D1D9C}.Release|x86.ActiveCfg = Release|Any CPU
 		{10607897-287F-4B66-A31B-C65FD08D1D9C}.Release|x86.Build.0 = Release|Any CPU
+		{605EE269-0629-4B8C-90F4-B03FB880C82F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{605EE269-0629-4B8C-90F4-B03FB880C82F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{605EE269-0629-4B8C-90F4-B03FB880C82F}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{605EE269-0629-4B8C-90F4-B03FB880C82F}.Debug|x64.Build.0 = Debug|Any CPU
+		{605EE269-0629-4B8C-90F4-B03FB880C82F}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{605EE269-0629-4B8C-90F4-B03FB880C82F}.Debug|x86.Build.0 = Debug|Any CPU
+		{605EE269-0629-4B8C-90F4-B03FB880C82F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{605EE269-0629-4B8C-90F4-B03FB880C82F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{605EE269-0629-4B8C-90F4-B03FB880C82F}.Release|x64.ActiveCfg = Release|Any CPU
+		{605EE269-0629-4B8C-90F4-B03FB880C82F}.Release|x64.Build.0 = Release|Any CPU
+		{605EE269-0629-4B8C-90F4-B03FB880C82F}.Release|x86.ActiveCfg = Release|Any CPU
+		{605EE269-0629-4B8C-90F4-B03FB880C82F}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

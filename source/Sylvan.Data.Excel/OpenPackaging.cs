@@ -1,7 +1,9 @@
 ﻿using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
+using System.Reflection;
 using System.Xml;
+using System.Xml.Xsl;
 
 namespace Sylvan.Data.Excel;
 
@@ -17,6 +19,16 @@ static class OpenPackaging
 	const string WorksheetRelType = RelationBase + "/worksheet";
 	const string StylesRelType = RelationBase + "/styles";
 	const string SharedStringsRelType = RelationBase + "/sharedStrings";
+	
+	const string PropNS = "http://schemas.openxmlformats.org/officeDocument/2006/extended-properties";
+	internal const string AppPath = "docProps/app.xml";
+
+	internal static readonly XmlWriterSettings XmlSettings =
+		new XmlWriterSettings
+		{
+			OmitXmlDeclaration = true,
+			CheckCharacters = false,
+		};
 
 	internal static string? GetWorkbookPart(ZipArchive package)
 	{
@@ -101,5 +113,24 @@ static class OpenPackaging
 			}
 		}
 		return sheetRelMap;
+	}
+
+	internal static void WriteAppProps(ZipArchive zipArchive)
+	{
+		var appEntry = zipArchive.CreateEntry(AppPath, CompressionLevel.Optimal);
+		using var appStream = appEntry.Open();
+		using var xw = XmlWriter.Create(appStream, XmlSettings);
+		xw.WriteStartElement("Properties", PropNS);
+		var asmName = Assembly.GetExecutingAssembly().GetName();
+		xw.WriteStartElement("Application", PropNS);
+		xw.WriteValue(asmName.Name);
+		xw.WriteEndElement();
+		xw.WriteStartElement("AppVersion", PropNS);
+		var v = asmName.Version!;
+		// AppVersion must be of the format XX.YYYY
+		var ver = $"{v.Major:00}.{v.Minor:00}{v.Build:00}";
+		xw.WriteValue(ver);
+		xw.WriteEndElement();
+		xw.WriteEndElement();
 	}
 }

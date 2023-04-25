@@ -4,7 +4,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Sylvan.Data.Excel;
+namespace Sylvan.Data.Excel.Xls;
 
 sealed partial class XlsWorkbookReader : ExcelDataReader
 {

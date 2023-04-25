@@ -6,7 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using static Sylvan.Data.Excel.Ole2Package;
 
-namespace Sylvan.Data.Excel;
+namespace Sylvan.Data.Excel.Xls;
 
 sealed partial class XlsWorkbookReader
 {

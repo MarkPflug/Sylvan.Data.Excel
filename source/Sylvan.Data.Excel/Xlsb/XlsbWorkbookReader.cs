@@ -8,7 +8,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Sylvan.Data.Excel;
+namespace Sylvan.Data.Excel.Xlsb;
 
 sealed class XlsbWorkbookReader : ExcelDataReader
 {
@@ -353,6 +353,12 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 				}
 			}
 
+			static void EnsureCols(ref FieldInfo[] values, int c)
+			{
+				if (values.Length <= c)
+					Array.Resize(ref values, c + 8);
+			}
+
 			//reader.DebugInfo("data");
 			switch (reader.RecordType)
 			{
@@ -363,7 +369,7 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 						var rk = reader.GetInt32(8);
 
 						var d = GetRKVal(rk);
-
+						EnsureCols(ref values, col);
 						ref var fi = ref values[col];
 
 						fi.type = ExcelDataType.Numeric;
@@ -373,12 +379,12 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 						count = col + 1;
 					}
 					break;
-				case RecordType.CellNum:
+				case RecordType.CellReal:
 					{
 						var col = reader.GetInt32(0);
 						var sf = reader.GetInt32(4) & 0xffffff;
 						double d = reader.GetDouble(8);
-
+						EnsureCols(ref values, col);
 						ref var fi = ref values[col];
 						fi.type = ExcelDataType.Numeric;
 						fi.numValue = d;
@@ -399,6 +405,8 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 					{
 						var col = reader.GetInt32(0);
 						var sf = reader.GetInt32(4) & 0xffffff;
+
+						EnsureCols(ref values, col);
 						ref var fi = ref values[col];
 
 						switch (reader.RecordType)
@@ -692,52 +700,6 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 
 			return true;
 		}
-	}
-
-	enum CellType
-	{
-		Numeric,
-		String,
-		SharedString,
-		Boolean,
-		Error,
-		Date,
-	}
-
-	enum RecordType
-	{
-		Row = 0,
-		CellBlank = 1,
-		CellRK = 2,
-		CellError = 3,
-		CellBool = 4,
-		CellNum = 5,
-		CellSt = 6,
-		CellIsst = 7,
-		CellFmlaString = 8,
-		CellFmlaNum = 9,
-		CellFmlaBool = 10,
-		CellFmlaError = 11,
-		SSTItem = 19,
-		Fmt = 44,
-		XF = 47,
-		BundleBegin = 143,
-		BundleEnd = 144,
-		BundleSheet = 156,
-		BookBegin = 131,
-		BookEnd = 132,
-		Dimension = 148,
-		SSTBegin = 159,
-		StyleBegin = 278,
-		StyleEnd = 279,
-		CellXFStart = 617,
-		CellXFEnd = 618,
-		FmtStart = 615,
-		FmtEnd = 616,
-		SheetStart = 129,
-		SheetEnd = 130,
-		DataStart = 145,
-		DataEnd = 146,
 	}
 }
 

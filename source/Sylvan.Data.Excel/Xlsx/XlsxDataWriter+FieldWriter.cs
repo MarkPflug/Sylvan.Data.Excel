@@ -37,8 +37,6 @@ partial class XlsxDataWriter
 
 	static class XlsxValueWriter
 	{
-		static readonly char[] HexMap = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
-
 		const string StringTooLongMessage = "String exceeds the maximum allowed length.";
 
 
@@ -327,30 +325,12 @@ partial class XlsxDataWriter
 			w.Write("0x");
 			while (idx < value.Length)
 			{
-				var l = ToHexCharArray(value, idx, 48, charBuffer, 0);
+				var l = HexCodec.ToHexCharArray(value, idx, 48, charBuffer, 0);
 				w.Write(charBuffer, 0, l);
 				idx += 48;
 			}
 
 			w.Write("</v></c>");
-		}
-
-		public static int ToHexCharArray(byte[] dataBuffer, int offset, int length, char[] outputBuffer, int outputOffset)
-		{
-			if (length * 2 > outputBuffer.Length - outputOffset)
-				throw new ArgumentException();
-
-			var idx = offset;
-			var end = offset + length;
-			for (; idx < end; idx++)
-			{
-				var b = dataBuffer[idx];
-				var lo = HexMap[b & 0xf];
-				var hi = HexMap[b >> 4];
-				outputBuffer[outputOffset++] = hi;
-				outputBuffer[outputOffset++] = lo;
-			}
-			return length * 2;
 		}
 
 		public static void WriteCharArray(Context c, char[] value)
@@ -740,7 +720,7 @@ partial class XlsxDataWriter
 			w.Write("0x");
 			while ((len = (int)reader.GetBytes(ordinal, idx, dataBuffer, 0, dataBuffer.Length)) != 0)
 			{
-				var c = XlsxValueWriter.ToHexCharArray(dataBuffer, 0, len, charBuffer, 0);
+				var c = HexCodec.ToHexCharArray(dataBuffer, 0, len, charBuffer, 0);
 				w.Write(charBuffer, 0, c);
 				idx += len;
 			}
