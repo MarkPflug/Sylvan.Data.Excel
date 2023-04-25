@@ -152,11 +152,11 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 		switch (fileType)
 		{
 			case ExcelWorkbookType.Excel:
-				return XlsWorkbookReader.CreateAsync(stream, options).GetAwaiter().GetResult();
+				return Xls.XlsWorkbookReader.CreateAsync(stream, options).GetAwaiter().GetResult();
 			case ExcelWorkbookType.ExcelXml:
 				return new XlsxWorkbookReader(stream, options);
 			case ExcelWorkbookType.ExcelBinary:
-				return new XlsbWorkbookReader(stream, options);
+				return new Xlsb.XlsbWorkbookReader(stream, options);
 			default:
 				throw new ArgumentException(nameof(fileType));
 		}

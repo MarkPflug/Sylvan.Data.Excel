@@ -21,5 +21,6 @@
 
 	<ItemGroup>
 		<InternalsVisibleTo Include="Sylvan.Data.Excel.Tests" />
+		<InternalsVisibleTo Condition="$(Configuration) == 'Debug'" Include="XlsbTester" />
 	</ItemGroup>
 </Project>

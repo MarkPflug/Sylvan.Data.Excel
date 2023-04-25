@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Data.Common;
 using System.IO;
 using System.IO.Compression;
-using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -13,16 +12,62 @@ namespace Sylvan.Data.Excel.Xlsx;
 
 sealed partial class XlsxDataWriter : ExcelDataWriter
 {
-	static readonly XmlWriterSettings XmlSettings =
-		new XmlWriterSettings
+	sealed class SharedStringTable
+	{
+		readonly Dictionary<SharedStringEntry, string> dict;
+		readonly List<SharedStringEntry> entries;
+
+		public int UniqueCount => entries.Count;
+
+		public string this[int idx] => entries[idx].str;
+
+		public SharedStringTable()
 		{
-			//IndentChars = " ",
-			//Indent = true,
-			//NewLineChars = "\n",
-			OmitXmlDeclaration = true,
-			// We are handling this ourselves in the shared string handling.
-			CheckCharacters = false,
-		};
+			const int InitialSize = 128;
+			this.dict = new Dictionary<SharedStringEntry, string>(InitialSize);
+			this.entries = new List<SharedStringEntry>(InitialSize);
+		}
+
+		struct SharedStringEntry : IEquatable<SharedStringEntry>
+		{
+			public string str;
+			public string idxStr;
+
+			public SharedStringEntry(string str)
+			{
+				this.str = str;
+				this.idxStr = "";
+			}
+
+			public override int GetHashCode()
+			{
+				return str.GetHashCode();
+			}
+
+			public override bool Equals(object? obj)
+			{
+				return obj is SharedStringEntry e && this.Equals(e);
+			}
+
+			public bool Equals(SharedStringEntry other)
+			{
+				return this.str.Equals(other.str);
+			}
+		}
+
+		public string GetString(string str)
+		{
+			var entry = new SharedStringEntry(str);
+			string? idxStr;
+			if (!dict.TryGetValue(entry, out idxStr))
+			{
+				idxStr = this.entries.Count.ToString();
+				this.entries.Add(entry);
+				this.dict.Add(entry, idxStr);
+			}
+			return idxStr;
+		}
+	}
 
 	const int FormatOffset = 165;
 	const int StringLimit = short.MaxValue;
@@ -30,6 +75,9 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 
     readonly ZipArchive zipArchive;
 	readonly List<string> worksheets;
+
+	readonly SharedStringTable sharedStrings;
+
 
 	static string[] Formats = new[]
 	{
@@ -45,6 +93,7 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 
 	public XlsxDataWriter(Stream stream, ExcelDataWriterOptions options) : base(stream, options)
 	{
+		this.sharedStrings = new SharedStringTable();
 		this.zipArchive = new ZipArchive(stream, ZipArchiveMode.Create, true);
 		this.worksheets = new List<string>();
 	}
@@ -153,13 +202,13 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 			var c = data.FieldCount;
 			for (int i = 0; i < c; i++)
 			{
-				var fw = i < fieldWriters.Length ? fieldWriters[i] : FieldWriter.Object;
 				if (data.IsDBNull(i))
 				{
 					xw.Write("<c/>");
 				}
 				else
 				{
+					var fw = i < fieldWriters.Length ? fieldWriters[i] : FieldWriter.Object;
 					fw.WriteField(context, i);
 				}
 			}
@@ -186,7 +235,7 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 	const string NS = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
 	const string PkgRelNS = "http://schemas.openxmlformats.org/package/2006/relationships";
 	const string ODRelNS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
-	const string PropNS = "http://schemas.openxmlformats.org/officeDocument/2006/extended-properties";
+	
 	const string CoreNS = "http://schemas.openxmlformats.org/package/2006/metadata/core-properties";
 	const string ContentTypeNS = "http://schemas.openxmlformats.org/package/2006/content-types";
 
@@ -198,7 +247,7 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 	{
 		var e = this.zipArchive.CreateEntry("xl/sharedStrings.xml", Compression);
 		using var s = e.Open();
-		using var xw = XmlWriter.Create(s, XmlSettings);
+		using var xw = XmlWriter.Create(s, OpenPackaging.XmlSettings);
 		xw.WriteStartElement("sst", NS);
 		xw.WriteStartAttribute("uniqueCount");
 		var c = this.sharedStrings.UniqueCount;
@@ -244,7 +293,7 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 		var e = this.zipArchive.CreateEntry(wbName, Compression);
 
 		using var s = e.Open();
-		using var xw = XmlWriter.Create(s, XmlSettings);
+		using var xw = XmlWriter.Create(s, OpenPackaging.XmlSettings);
 
 		xw.WriteStartElement("workbook", ns);
 		xw.WriteAttributeString("xmlns", "r", null, ODRelNS);
@@ -273,30 +322,11 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 		xw.WriteEndElement();
 	}
 
-	void WriteAppProps()
-	{
-		var appEntry = zipArchive.CreateEntry("docProps/app.xml", Compression);
-		using var appStream = appEntry.Open();
-		using var xw = XmlWriter.Create(appStream, XmlSettings);
-		xw.WriteStartElement("Properties", PropNS);
-		var asmName = Assembly.GetExecutingAssembly().GetName();
-		xw.WriteStartElement("Application", PropNS);
-		xw.WriteValue(asmName.Name);
-		xw.WriteEndElement();
-		xw.WriteStartElement("AppVersion", PropNS);
-		var v = asmName.Version!;
-		// AppVersion must be of the format XX.YYYY
-		var ver = $"{v.Major:00}.{v.Minor:00}{v.Build:00}";
-		xw.WriteValue(ver);
-		xw.WriteEndElement();
-		xw.WriteEndElement();
-	}
-
 	void WriteCoreProps()
 	{
 		var appEntry = zipArchive.CreateEntry("docProps/core.xml", Compression);
 		using var appStream = appEntry.Open();
-		using var xw = XmlWriter.Create(appStream, XmlSettings);
+		using var xw = XmlWriter.Create(appStream, OpenPackaging.XmlSettings);
 		xw.WriteStartElement("coreProperties", CoreNS);
 
 		xw.WriteStartElement("lastModifiedBy", CoreNS);
@@ -311,18 +341,18 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 		{
 			var entry = zipArchive.CreateEntry("_rels/.rels", Compression);
 			using var appStream = entry.Open();
-			using var xw = XmlWriter.Create(appStream, XmlSettings);
+			using var xw = XmlWriter.Create(appStream, OpenPackaging.XmlSettings);
 			xw.WriteStartElement("Relationships", PkgRelNS);
 
 			xw.WriteStartElement("Relationship", PkgRelNS);
-			xw.WriteAttributeString("Id", "wb");
+			xw.WriteAttributeString("Id", "app");
 			xw.WriteAttributeString("Type", "http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties");
 			xw.WriteAttributeString("Target", AppPath);
 
 			xw.WriteEndElement();
 
 			xw.WriteStartElement("Relationship", PkgRelNS);
-			xw.WriteAttributeString("Id", "app");
+			xw.WriteAttributeString("Id", "wb");
 			xw.WriteAttributeString("Type", "http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument");
 			xw.WriteAttributeString("Target", WorkbookPath);
 
@@ -335,7 +365,7 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 		{
 			var entry = zipArchive.CreateEntry("xl/_rels/workbook.xml.rels", Compression);
 			using var appStream = entry.Open();
-			using var xw = XmlWriter.Create(appStream, XmlSettings);
+			using var xw = XmlWriter.Create(appStream, OpenPackaging.XmlSettings);
 			xw.WriteStartElement("Relationships", PkgRelNS);
 
 			xw.WriteStartElement("Relationship", PkgRelNS);
@@ -367,7 +397,7 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 		{
 			var entry = zipArchive.CreateEntry("[Content_Types].xml", Compression);
 			using var appStream = entry.Open();
-			using var xw = XmlWriter.Create(appStream, XmlSettings);
+			using var xw = XmlWriter.Create(appStream, OpenPackaging.XmlSettings);
 			xw.WriteStartElement("Types", ContentTypeNS);
 
 			xw.WriteStartElement("Default", ContentTypeNS);
@@ -406,7 +436,7 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 	{
 		var appEntry = zipArchive.CreateEntry("xl/styles.xml", Compression);
 		using var appStream = appEntry.Open();
-		using var wx = XmlWriter.Create(appStream, XmlSettings);
+		using var wx = XmlWriter.Create(appStream, OpenPackaging.XmlSettings);
 		wx.WriteStartElement("styleSheet", NS);
 
 		wx.WriteStartElement("numFmts", NS);
@@ -450,9 +480,6 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 		wx.WriteEndElement();
 
 		wx.WriteStartElement("cellXfs", NS);
-		//appX.WriteStartAttribute("count");
-		//appX.WriteValue(formats.Count + 1);
-		//appX.WriteEndAttribute();
 
 		{
 			wx.WriteStartElement("xf", NS);
@@ -497,9 +524,7 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 
 	void Close()
 	{
-		// core.xml isn't needed.
-		//WriteCoreProps();
-		WriteAppProps();
+		OpenPackaging.WriteAppProps(this.zipArchive);
 		WriteSharedStrings();
 		WriteStyles();
 		WriteWorkbook();

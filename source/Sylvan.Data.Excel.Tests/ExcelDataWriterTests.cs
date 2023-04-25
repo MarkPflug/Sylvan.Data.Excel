@@ -23,6 +23,18 @@ public class XlsxDataWriterTests : ExcelDataWriterTests
 	}
 }
 
+public class XlsbDataWriterTests : ExcelDataWriterTests
+{
+	const string FileFormat = "{0}.xlsb";
+
+	public override ExcelWorkbookType WorkbookType => ExcelWorkbookType.ExcelBinary;
+
+	protected override string GetFile(string name)
+	{
+		return string.Format(FileFormat, name);
+	}
+}
+
 public abstract class ExcelDataWriterTests
 {
 	protected abstract string GetFile([CallerMemberName] string name = null);
@@ -48,6 +60,88 @@ public abstract class ExcelDataWriterTests
 			UseShellExecute = true,
 		};
 		Process.Start(psi);
+	}
+
+	[Fact]
+	public void Simple()
+	{
+		// tests the most common types.
+		Random r = new Random();
+		var data =
+			Enumerable.Range(1, 4096)
+			.Select(
+				i => new
+				{
+					Id = i, //int32
+					Name = "Name" + i, //string
+					ValueInt = r.Next(), // another, bigger int
+					ValueDouble = Math.PI * i, // double
+					Decimal = 1.25m * i,
+					Date = DateTime.Today.AddHours(i),
+				}
+			);
+
+		var f = GetFile();
+		var reader = data.AsDataReader();
+		using (var w = ExcelDataWriter.Create(f))
+		{
+			w.Write(reader);
+		}
+		//Open(f);
+	}
+
+	[Fact]
+	public void Decimal()
+	{
+		// tests the most common types.
+		Random r = new Random();
+		var data =
+			new[]
+			{
+				decimal.MinValue,
+				decimal.MaxValue,
+				(decimal)int.MinValue,
+				(decimal)int.MaxValue,
+				-(decimal)(1 << 24),
+				(decimal)(1 << 24),
+				-1m,
+				1m,
+				6266593.83m,
+			}.Select(v => new { Decimal = v });
+
+		var f = GetFile();
+		var reader = data.AsDataReader();
+		using (var w = ExcelDataWriter.Create(f))
+		{
+			w.Write(reader);
+		}
+		//Open(f);
+	}
+
+	[Fact]
+	public void Ints()
+	{
+		// tests the most common types.
+		Random r = new Random();
+		var data =
+			new[]
+			{
+				int.MinValue,
+				(int) short.MinValue,
+				-1,
+				0,
+				1,
+				(int) short.MaxValue,
+				int.MaxValue,
+			}.Select(v => new { Value = v });
+
+		var f = GetFile();
+		var reader = data.AsDataReader();
+		using (var w = ExcelDataWriter.Create(f))
+		{
+			w.Write(reader);
+		}
+		//Open(f);
 	}
 
 	[Fact]
@@ -120,7 +214,6 @@ public abstract class ExcelDataWriterTests
 			reader = data.AsDataReader();
 			w.Write(reader);
 		}
-		Unpack(f);
 	}
 
 	[Fact]
@@ -449,7 +542,7 @@ class CharTestDataReader : DbDataReader
 
 	public CharTestDataReader()
 	{
-		this.names = new[] { "Name", "Data" }; 
+		this.names = new[] { "Name", "Data" };
 		this.col0 =
 			new[] {
 				"a",
@@ -488,8 +581,8 @@ class CharTestDataReader : DbDataReader
 	public override long GetChars(int ordinal, long dataOffset, char[] buffer, int bufferOffset, int length)
 	{
 		var dat = col1[row];
-		var count = Math.Min(length, dat.Length - (int) dataOffset);
-		
+		var count = Math.Min(length, dat.Length - (int)dataOffset);
+
 		dat.AsSpan((int)dataOffset, count).CopyTo(buffer.AsSpan(bufferOffset));
 		return count;
 	}
