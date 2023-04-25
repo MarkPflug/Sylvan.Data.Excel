@@ -268,10 +268,10 @@ partial class XlsxDataWriter
 			where T : struct, Enum
 		{
 			var w = c.xw;
-			string str;
+			string str =
 
-#if SPAN
-			str = Enum.GetName(value) ?? value.ToString();
+#if NET6_0_OR_GREATER
+			Enum.GetName<T>(value) ?? value.ToString();
 #else
 			value.ToString();
 #endif

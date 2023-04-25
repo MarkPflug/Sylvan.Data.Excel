@@ -194,7 +194,9 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 			CheckCharacters = false,
 			ValidationType = ValidationType.None,
 			ValidationFlags = System.Xml.Schema.XmlSchemaValidationFlags.None,
+#if SPAN
 			NameTable = new SheetNameTable(),
+#endif
 		};
 
 		this.reader = XmlReader.Create(tr, settings);
@@ -776,7 +778,10 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 		var settings = new XmlReaderSettings
 		{
 			CheckCharacters = false,
+#if SPAN
+			// name table optimization requires ROS
 			NameTable = new SharedStringsNameTable(),
+#endif
 		};
 
 		using var reader = XmlReader.Create(ssStream, settings);

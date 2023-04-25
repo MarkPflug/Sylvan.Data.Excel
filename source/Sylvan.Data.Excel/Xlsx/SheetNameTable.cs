@@ -1,4 +1,5 @@
-﻿using System;
+﻿#if SPAN
+using System;
 using System.Xml;
 
 namespace Sylvan.Data.Excel.Xlsx;
@@ -106,3 +107,4 @@ sealed class SharedStringsNameTable : NameTable
 		return null;
 	}
 }
+#endif
