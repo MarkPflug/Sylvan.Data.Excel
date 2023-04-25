@@ -1,5 +1,10 @@
 # Sylvan.Data.Excel Release Notes
 
+_0.4.11_
+ - Adds support for writing .xlsb files.
+ - Small optimization for .xlsx reading in some scenarios.
+ - Add support for writing enum typed columns.
+
 _0.4.10_
  - Fixes a bug where calling `ExcelDataReader.Read` again after it has already returned `false` could 
    result in the reader spinning in a tight loop.

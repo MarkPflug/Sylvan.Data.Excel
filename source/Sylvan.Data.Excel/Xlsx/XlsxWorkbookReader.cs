@@ -9,6 +9,7 @@ using System.Text;
 using System.Xml;
 using System.Threading.Tasks;
 using System.Threading;
+using Sylvan.Data.Excel.Xlsx;
 
 #if !SPAN
 using ReadonlyCharSpan = System.String;
@@ -31,14 +32,6 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 	bool hasRows;
 	//bool skipEmptyRows = true; // TODO: make this an option?
 
-	string refName;
-	string typeName;
-	string styleName;
-	string rowName;
-	string valueName;
-	string inlineStringName;
-	string cellName;
-
 	char[] valueBuffer = new char[64];
 
 	int rowIndex;
@@ -58,8 +51,6 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 	{
 		this.rowCount = -1;
 		this.sheetStream = Stream.Null;
-
-		this.rowName = this.cellName = this.valueName = this.refName = this.styleName = this.typeName = this.inlineStringName = string.Empty;
 
 		package = new ZipArchive(iStream, ZipArchiveMode.Read, true);
 
@@ -184,13 +175,6 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 		return ref base.GetFieldValue(ordinal);
 	}
 
-	static readonly XmlReaderSettings Settings = new XmlReaderSettings()
-	{
-		CheckCharacters = false,
-		ValidationType = ValidationType.None,
-		ValidationFlags = System.Xml.Schema.XmlSchemaValidationFlags.None,
-	};
-
 	private protected override Task<bool> OpenWorksheetAsync(int sheetIdx, CancellationToken cancel)
 	{
 		var sheetName = sheetInfos[sheetIdx].Part;
@@ -205,14 +189,17 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 
 		var tr = new StreamReader(this.sheetStream, Encoding.UTF8, true, 0x10000);
 
-		this.reader = XmlReader.Create(tr, Settings);
-		refName = this.reader.NameTable.Add("r");
-		typeName = this.reader.NameTable.Add("t");
-		styleName = this.reader.NameTable.Add("s");
-		rowName = this.reader.NameTable.Add("row");
-		valueName = this.reader.NameTable.Add("v");
-		inlineStringName = this.reader.NameTable.Add("is");
-		cellName = this.reader.NameTable.Add("c");
+		var settings = new XmlReaderSettings
+		{
+			CheckCharacters = false,
+			ValidationType = ValidationType.None,
+			ValidationFlags = System.Xml.Schema.XmlSchemaValidationFlags.None,
+#if SPAN
+			NameTable = new SheetNameTable(),
+#endif
+		};
+
+		this.reader = XmlReader.Create(tr, settings);
 
 		// worksheet
 		while (reader.Read())
@@ -308,9 +295,9 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 	bool NextRow()
 	{
 		var ci = NumberFormatInfo.InvariantInfo;
-		if (ReadToFollowing(reader!, rowName))
+		if (ReadToFollowing(reader!, "row"))
 		{
-			if (reader!.MoveToAttribute(refName))
+			if (reader!.MoveToAttribute("r"))
 			{
 				int row;
 #if SPAN
@@ -434,7 +421,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 		int len;
 
 		Array.Clear(this.values, 0, this.values.Length);
-		if (!ReadToDescendant(reader, cellName))
+		if (!ReadToDescendant(reader, "c"))
 		{
 			return 0;
 		}
@@ -450,7 +437,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 			while (reader.MoveToNextAttribute())
 			{
 				var n = reader.Name;
-				if (ReferenceEquals(n, refName))
+				if (ReferenceEquals(n, "r"))
 				{
 					len = reader.ReadValueChunk(valueBuffer, 0, valueBuffer.Length);
 					if (CellPosition.TryParse(valueBuffer.AsSpan().ToParsable(0, len), out var pos))
@@ -459,13 +446,13 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 					}
 				}
 				else
-				if (ReferenceEquals(n, typeName))
+				if (ReferenceEquals(n, "t"))
 				{
 					len = reader.ReadValueChunk(valueBuffer, 0, valueBuffer.Length);
 					type = GetCellType(valueBuffer, len);
 				}
 				else
-				if (ReferenceEquals(n, styleName))
+				if (ReferenceEquals(n, "s"))
 				{
 					len = reader.ReadValueChunk(valueBuffer, 0, valueBuffer.Length);
 					if (!TryParse(valueBuffer.AsSpan().ToParsable(0, len), out xfIdx))
@@ -528,7 +515,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 
 			if (type == CellType.InlineString)
 			{
-				if (ReadToDescendant(reader, inlineStringName))
+				if (ReadToDescendant(reader, "is"))
 				{
 					fi.strValue = ReadString(reader);
 					fi.type = ExcelDataType.String;
@@ -542,7 +529,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 				}
 			}
 			else
-			if (ReadToDescendant(reader, valueName))
+			if (ReadToDescendant(reader, "v"))
 			{
 
 				if (!reader.IsEmptyElement)
@@ -653,7 +640,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 				reader.Read();
 			}
 
-		} while (ReadToNextSibling(reader, cellName));
+		} while (ReadToNextSibling(reader, "c"));
 		return valueCount == 0 ? 0 : col + 1;
 	}
 
@@ -690,7 +677,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 	{
 		while (reader.Read())
 		{
-			if (reader.NodeType == XmlNodeType.Element && object.ReferenceEquals(localName, reader.LocalName))
+			if (reader.NodeType == XmlNodeType.Element && ReferenceEquals(localName, reader.LocalName))
 			{
 				return true;
 			}
@@ -703,7 +690,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 		while (SkipSubtree(reader))
 		{
 			XmlNodeType nodeType = reader.NodeType;
-			if (nodeType == XmlNodeType.Element && object.ReferenceEquals(localName, reader.LocalName))
+			if (nodeType == XmlNodeType.Element && ReferenceEquals(localName, reader.LocalName))
 			{
 				return true;
 			}
@@ -732,7 +719,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 		}
 		while (reader.Read() && reader.Depth > num)
 		{
-			if (reader.NodeType == XmlNodeType.Element && object.ReferenceEquals(localName, reader.LocalName))
+			if (reader.NodeType == XmlNodeType.Element && ReferenceEquals(localName, reader.LocalName))
 			{
 				return true;
 			}
@@ -787,7 +774,17 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 			return;
 		}
 		using Stream ssStream = entry.Open();
-		using var reader = XmlReader.Create(ssStream);
+
+		var settings = new XmlReaderSettings
+		{
+			CheckCharacters = false,
+#if SPAN
+			// name table optimization requires ROS
+			NameTable = new SharedStringsNameTable(),
+#endif
+		};
+
+		using var reader = XmlReader.Create(ssStream, settings);
 
 		while (reader.Read())
 		{
@@ -816,7 +813,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 
 		while (reader.Read())
 		{
-			if (reader.NodeType == XmlNodeType.Element && reader.LocalName == "si")
+			if (reader.NodeType == XmlNodeType.Element && ReferenceEquals(reader.LocalName, "si"))
 			{
 				var str = ReadString(reader);
 				sstList.Add(str);

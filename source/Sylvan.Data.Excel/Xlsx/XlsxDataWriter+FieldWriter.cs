@@ -38,7 +38,7 @@ partial class XlsxDataWriter
 	static class XlsxValueWriter
 	{
 		const string StringTooLongMessage = "String exceeds the maximum allowed length.";
-		
+
 
 		public static void WriteString(Context c, string value)
 		{
@@ -262,6 +262,23 @@ partial class XlsxDataWriter
 			w.Write("</v></c>");
 		}
 
+		public static void WriteEnum<T>(Context c, T value)
+			where T : struct, Enum
+		{
+			var w = c.xw;
+			string str =
+
+#if NET6_0_OR_GREATER
+			Enum.GetName<T>(value) ?? value.ToString();
+#else
+			value.ToString();
+#endif
+			w.Write("<c t=\"s\"><v>");
+			var ssIdx = c.dw.sharedStrings.GetString(str);
+			w.Write(ssIdx);
+			w.Write("</v></c>");
+		}
+
 #if DATE_ONLY
 
 		static readonly TimeOnly Midnight = new TimeOnly(0);
@@ -310,7 +327,7 @@ partial class XlsxDataWriter
 			{
 				var l = HexCodec.ToHexCharArray(value, idx, 48, charBuffer, 0);
 				w.Write(charBuffer, 0, l);
-				idx += 48;				
+				idx += 48;
 			}
 
 			w.Write("</v></c>");
@@ -319,7 +336,7 @@ partial class XlsxDataWriter
 		public static void WriteCharArray(Context c, char[] value)
 		{
 			var w = c.xw;
-			w.Write("<c t=\"str\"><v>");			
+			w.Write("<c t=\"str\"><v>");
 			// TODO: limit length...
 			w.Write(value);
 			w.Write("</v></c>");
@@ -351,6 +368,11 @@ partial class XlsxDataWriter
 
 		public static FieldWriter Get(Type type)
 		{
+			if (type.IsEnum)
+			{
+				return EnumFieldWriter.Get(type);
+			}
+
 			var code = Type.GetTypeCode(type);
 
 			switch (code)
@@ -416,6 +438,26 @@ partial class XlsxDataWriter
 		public virtual double GetWidth(DbDataReader data, int ordinal)
 		{
 			return 12;
+		}
+	}
+
+	sealed class EnumFieldWriter
+	{
+		public static FieldWriter Get(Type enumType)
+		{
+			// TODO: cache the reflection
+			var type = typeof(EnumFieldWriter<>).MakeGenericType(enumType);
+			return (FieldWriter)Activator.CreateInstance(type)!;
+		}
+	}
+
+	sealed class EnumFieldWriter<T> : FieldWriter
+		where T : struct, Enum
+	{
+		public override void WriteField(Context c, int ordinal)
+		{
+			var value = c.dr.GetFieldValue<T>(ordinal);
+			XlsxValueWriter.WriteEnum(c, value);
 		}
 	}
 
