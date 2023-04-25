@@ -675,7 +675,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 	{
 		while (reader.Read())
 		{
-			if (reader.NodeType == XmlNodeType.Element && object.ReferenceEquals(localName, reader.LocalName))
+			if (reader.NodeType == XmlNodeType.Element && ReferenceEquals(localName, reader.LocalName))
 			{
 				return true;
 			}
@@ -688,7 +688,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 		while (SkipSubtree(reader))
 		{
 			XmlNodeType nodeType = reader.NodeType;
-			if (nodeType == XmlNodeType.Element && object.ReferenceEquals(localName, reader.LocalName))
+			if (nodeType == XmlNodeType.Element && ReferenceEquals(localName, reader.LocalName))
 			{
 				return true;
 			}
@@ -717,7 +717,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 		}
 		while (reader.Read() && reader.Depth > num)
 		{
-			if (reader.NodeType == XmlNodeType.Element && object.ReferenceEquals(localName, reader.LocalName))
+			if (reader.NodeType == XmlNodeType.Element && ReferenceEquals(localName, reader.LocalName))
 			{
 				return true;
 			}
@@ -808,7 +808,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 
 		while (reader.Read())
 		{
-			if (reader.NodeType == XmlNodeType.Element && reader.LocalName == "si")
+			if (reader.NodeType == XmlNodeType.Element && ReferenceEquals(reader.LocalName, "si"))
 			{
 				var str = ReadString(reader);
 				sstList.Add(str);
