@@ -22,7 +22,7 @@ static void Dump(string file)
 			var r = new XlsbReader(s);
 			while (r.ReadRecord())
 			{
-				Console.WriteLine(r.Type + " " + r.Length + " " + (RecordType)r.Type);
+				Console.WriteLine(r.Type + " " + r.Length);
 				if (r.Type == 0)
 				{
 					var dat = r.DataSpan;
