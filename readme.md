@@ -1,10 +1,10 @@
 # Sylvan.Data.Excel
 
-A cross-platform .NET library for reading and writing Excel data files. The most commonly used formats: .xlsx, .xlsb and .xls, are supported for reading, while only .xlsx is supported for writing.
+A cross-platform .NET library for reading and writing Excel data files. The most commonly used formats: .xlsx, .xlsb and .xls, are supported for reading, while .xlsx and .xlsb formats are supported for writing.
 
 ExcelDataReader provides readonly, row by row, forward-only access to the data. It provides a familiar API via `DbDataReader`, which is ideal for accessing rectangular, tabular data sets. It exposes a single, unified API for accessing all supported file formats.
 
-ExcelDataWriter supports writing data from a `DbDataReader` to an Excel worksheet in .xlsx format. ExcelDataWriter can only write a new Excel, it cannot be used to edit or append to existing files.
+ExcelDataWriter supports writing data from a `DbDataReader` to an Excel worksheet in .xlsx and .xlsb formats. ExcelDataWriter can only write a new Excel, it cannot be used to edit or append to existing files. It does not support custom formatting, charts, or other common features. It is meant only to export raw, flat data to Excel.
 
 The library is a purely managed implementation with no external dependencies.
 
