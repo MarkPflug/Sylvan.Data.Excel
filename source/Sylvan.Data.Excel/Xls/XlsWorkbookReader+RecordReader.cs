@@ -63,10 +63,12 @@ sealed partial class XlsWorkbookReader
 			Assert();
 			int c = 0;
 
-			while (c < required) {
+			while (c < required)
+			{
 				var l = await stream.ReadAsync(buffer, len, BufferSize - len, default).ConfigureAwait(false);
 				c += l;
-				if(l == 0) {
+				if (l == 0)
+				{
 					break;
 				}
 				this.bufferLen = len + c;
@@ -289,7 +291,7 @@ sealed partial class XlsWorkbookReader
 
 			if (bufferPos + 4 >= bufferLen)
 			{
-				if(!await FillBufferAsync(4).ConfigureAwait(false))
+				if (!await FillBufferAsync(4).ConfigureAwait(false))
 				{
 					return false;
 				}
@@ -309,7 +311,7 @@ sealed partial class XlsWorkbookReader
 				var req = (recordOff + recordLen) - bufferLen;
 				Debug.Assert(req >= 1);
 
-				if(!await FillBufferAsync(req).ConfigureAwait(false))
+				if (!await FillBufferAsync(req).ConfigureAwait(false))
 				{
 					return false;
 				}

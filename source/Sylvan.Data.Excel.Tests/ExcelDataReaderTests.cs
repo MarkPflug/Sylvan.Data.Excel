@@ -1093,6 +1093,145 @@ public class XlsxTests
 
 		Assert.False(edr.Read());
 	}
+
+	[Fact]
+	public void Date1904()
+	{
+		var file = GetFile();
+		using var edr = ExcelDataReader.Create(file);
+		// Excel doesn't know what to do with negative date values.
+		// In some cases, it will display nonsense, and in any case
+
+		// Excel in 1904 date mode renders negative numerical values
+		// as negative dates. So, we'll throw
+		Assert.True(edr.Read());
+		Assert.Equal(ExcelDataType.Numeric, edr.GetExcelDataType(0));
+		Assert.Equal(-1000d, edr.GetDouble(0));
+		Assert.Throws<InvalidCastException>(() => edr.GetDateTime(0));
+
+		Assert.True(edr.Read());
+		Assert.Equal(ExcelDataType.Numeric, edr.GetExcelDataType(0));
+		Assert.Equal(-1.5, edr.GetDouble(0));
+		Assert.Throws<InvalidCastException>(() => edr.GetDateTime(0));
+
+		Assert.True(edr.Read());
+		Assert.Equal(ExcelDataType.Numeric, edr.GetExcelDataType(0));
+		Assert.Equal(-1d, edr.GetDouble(0));
+		Assert.Throws<InvalidCastException>(() => edr.GetDateTime(0));
+
+		Assert.True(edr.Read());
+		Assert.Equal(ExcelDataType.Numeric, edr.GetExcelDataType(0));
+		Assert.Equal(-0.5d, edr.GetDouble(0));
+		Assert.Throws<InvalidCastException>(() => edr.GetDateTime(0));
+
+		// Positive values, are all very normal, using 1904 as the epoch
+		Assert.True(edr.Read());
+		Assert.Equal(ExcelDataType.Numeric, edr.GetExcelDataType(0));
+		Assert.Equal(0, edr.GetDouble(0));
+		Assert.Equal(new DateTime(1904, 1, 1), edr.GetDateTime(0));
+
+		Assert.True(edr.Read());
+		Assert.Equal(ExcelDataType.Numeric, edr.GetExcelDataType(0));
+		Assert.Equal(0.5, edr.GetDouble(0));
+		Assert.Equal(new DateTime(1904, 1, 1, 12, 0, 0), edr.GetDateTime(0));
+
+		// 1900-01-01 is the earliest date that renders correctly.
+		Assert.True(edr.Read());
+		Assert.Equal(ExcelDataType.Numeric, edr.GetExcelDataType(0));
+		Assert.Equal(1d, edr.GetDouble(0));
+		Assert.Equal(new DateTime(1904, 1, 2), edr.GetDateTime(0));
+
+		// 1904 was a leapyear
+		Assert.True(edr.Read());
+		Assert.Equal(ExcelDataType.Numeric, edr.GetExcelDataType(0));
+		Assert.Equal(59d, edr.GetDouble(0));
+		Assert.Equal(new DateTime(1904, 2, 29), edr.GetDateTime(0));
+		
+		Assert.True(edr.Read());
+		Assert.Equal(ExcelDataType.Numeric, edr.GetExcelDataType(0));
+		Assert.Equal(60d, edr.GetDouble(0));
+		Assert.Equal(new DateTime(1904, 3, 1), edr.GetDateTime(0));
+
+		Assert.True(edr.Read());
+		Assert.Equal(ExcelDataType.Numeric, edr.GetExcelDataType(0));
+		Assert.Equal(61d, edr.GetDouble(0));
+		Assert.Equal(new DateTime(1904, 3, 2), edr.GetDateTime(0));
+
+		Assert.True(edr.Read());
+		Assert.Equal(ExcelDataType.Numeric, edr.GetExcelDataType(0));
+		Assert.Equal(45678d, edr.GetDouble(0));
+		Assert.Equal(new DateTime(2029, 1, 22), edr.GetDateTime(0));
+	}
+
+	[Fact]
+	public void Date1900()
+	{
+		var file = GetFile();
+		using var edr = ExcelDataReader.Create(file);
+		// Excel doesn't know what to do with negative date values.
+		// In some cases, it will display nonsense, and in any case
+
+		// Excel renders negative values as as string of hash chars '#'
+		Assert.True(edr.Read());
+		Assert.Equal(ExcelDataType.Numeric, edr.GetExcelDataType(0));
+		Assert.Equal(-1000d, edr.GetDouble(0));
+		Assert.Throws<InvalidCastException>(() => edr.GetDateTime(0));
+
+		Assert.True(edr.Read());
+		Assert.Equal(ExcelDataType.Numeric, edr.GetExcelDataType(0));
+		Assert.Equal(-1.5, edr.GetDouble(0));
+		Assert.Throws<InvalidCastException>(() => edr.GetDateTime(0));
+		
+		Assert.True(edr.Read());
+		Assert.Equal(ExcelDataType.Numeric, edr.GetExcelDataType(0));
+		Assert.Equal(-1d, edr.GetDouble(0));
+		Assert.Throws<InvalidCastException>(() => edr.GetDateTime(0));
+
+		Assert.True(edr.Read());
+		Assert.Equal(ExcelDataType.Numeric, edr.GetExcelDataType(0));
+		Assert.Equal(-0.5d, edr.GetDouble(0));
+		Assert.Throws<InvalidCastException>(() => edr.GetDateTime(0));
+
+		// The range [0, 1) renders in excel as 1900-01-00, which is nonsense.
+		Assert.True(edr.Read());
+		Assert.Equal(ExcelDataType.Numeric, edr.GetExcelDataType(0));
+		Assert.Equal(0, edr.GetDouble(0));
+		Assert.Throws<InvalidCastException>(() => edr.GetDateTime(0));
+
+		Assert.True(edr.Read());
+		Assert.Equal(ExcelDataType.Numeric, edr.GetExcelDataType(0));
+		Assert.Equal(0.5, edr.GetDouble(0));
+		Assert.Throws<InvalidCastException>(() => edr.GetDateTime(0));
+
+		// 1900-01-01 is the earliest date that renders correctly.
+		Assert.True(edr.Read());
+		Assert.Equal(ExcelDataType.Numeric, edr.GetExcelDataType(0));
+		Assert.Equal(1d, edr.GetDouble(0));
+		Assert.Equal(new DateTime(1900, 1, 1), edr.GetDateTime(0));
+
+		// Also valid.
+		Assert.True(edr.Read());
+		Assert.Equal(ExcelDataType.Numeric, edr.GetExcelDataType(0));
+		Assert.Equal(59d, edr.GetDouble(0));
+		Assert.Equal(new DateTime(1900, 2, 28), edr.GetDateTime(0));
+
+		// 1900 was not a leapyear, and [60, 61) will render as Feb 29.
+		Assert.True(edr.Read());
+		Assert.Equal(ExcelDataType.Numeric, edr.GetExcelDataType(0));
+		Assert.Equal(60d, edr.GetDouble(0));
+		Assert.Throws<InvalidCastException>(() => edr.GetDateTime(0));
+
+		// There is essentially a gap day in the logic for the incorrect leapyear
+		Assert.True(edr.Read());
+		Assert.Equal(ExcelDataType.Numeric, edr.GetExcelDataType(0));
+		Assert.Equal(61d, edr.GetDouble(0));
+		Assert.Equal(new DateTime(1900, 3, 1), edr.GetDateTime(0));
+
+		Assert.True(edr.Read());
+		Assert.Equal(ExcelDataType.Numeric, edr.GetExcelDataType(0));
+		Assert.Equal(45678d, edr.GetDouble(0));
+		Assert.Equal(new DateTime(2025, 1, 21), edr.GetDateTime(0));
+	}
 }
 
 public sealed class XlsTests : XlsxTests

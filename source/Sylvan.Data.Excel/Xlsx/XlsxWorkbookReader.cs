@@ -86,6 +86,12 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 			var ns = doc.DocumentElement.NamespaceURI;
 			nsm.AddNamespace("x", ns);
 			var nodes = doc.SelectNodes("/x:workbook/x:sheets/x:sheet", nsm);
+			var prNode = doc.SelectSingleNode("/x:workbook/x:workbookPr", nsm);
+			if (prNode?.Attributes?["date1904"]?.Value == "1")
+			{
+				this.dateMode = DateMode.Mode1904;
+			}
+
 			var sheets = new List<SheetInfo>();
 			if (nodes != null)
 			{
@@ -762,8 +768,6 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 	}
 
 	public override int MaxFieldCount => 16384;
-
-	internal override int DateEpochYear => 1900;
 
 	public override int RowNumber => rowIndex + 1;
 
