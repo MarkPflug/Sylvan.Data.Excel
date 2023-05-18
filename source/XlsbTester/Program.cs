@@ -1,7 +1,7 @@
 ﻿using Sylvan.Data.Excel.Xlsb;
 using System.IO.Compression;
 
-var file = args.Length > 0 ? args[0] : "Test.xlsb";
+var file = args.Length > 0 ? args[0] : "Date1904.xlsb";
 Dump(file);
 
 static void Dump(string file)
@@ -14,7 +14,7 @@ static void Dump(string file)
 	{
 		if (e.Name.EndsWith(".bin"))
 		{
-			if (!e.Name.Contains("sheet")) continue;
+			//if (!e.Name.Contains("sheet")) continue;
 
 			Console.WriteLine(new string('-', 80));
 			Console.WriteLine(e.Name);

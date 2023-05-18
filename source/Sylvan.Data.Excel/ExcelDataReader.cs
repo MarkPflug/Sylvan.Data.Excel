@@ -8,10 +8,18 @@ using System.Data.Common;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace Sylvan.Data.Excel;
+
+internal enum DateMode
+{
+	Mode1900,
+	Mode1904,
+}
+
 /// <summary>
 /// A DbDataReader implementation that reads data from an Excel file.
 /// </summary>
@@ -38,6 +46,11 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 
 	private protected int rowCount;
 	private protected int rowFieldCount;
+
+	static readonly DateTime Epoch1900 = new DateTime(1899, 12, 31);
+	static readonly DateTime Epoch1904 = new DateTime(1904, 1, 1);
+
+	private protected DateMode dateMode;
 
 	readonly string? trueString;
 	readonly string? falseString;
@@ -552,8 +565,6 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 	/// <inheritdoc/>
 	public sealed override bool HasRows => this.RowCount != 0;
 
-	internal abstract int DateEpochYear { get; }
-
 	/// <summary>
 	/// Gets the <see cref="ExcelErrorCode"/> of the error in the given cell.
 	/// </summary>
@@ -620,7 +631,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 			case ExcelDataType.Numeric:
 				var val = GetDouble(ordinal);
 				var fmt = GetFormat(ordinal) ?? ExcelFormat.Default;
-				return TryGetDate(fmt, val, DateEpochYear, out value)
+				return TryGetDate(fmt, val, out value)
 					? value
 					: throw new InvalidCastException();
 			case ExcelDataType.DateTime:
@@ -663,7 +674,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 				var fmt = GetFormat(ordinal);
 				if (fmt?.Kind == FormatKind.Time)
 				{
-					if (TryGetDate(fmt, val, DateEpochYear, out DateTime dt))
+					if (TryGetDate(fmt, val, out DateTime dt))
 					{
 						return dt.TimeOfDay;
 					}
@@ -683,36 +694,48 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 
 	internal abstract DateTime GetDateTimeValue(int ordinal);
 
-	static internal bool TryGetDate(ExcelFormat fmt, double value, int epoch, out DateTime dt)
+
+	internal bool TryGetDate(ExcelFormat fmt, double value, out DateTime dt)
+	{
+		return TryGetDate(fmt, value, this.dateMode, out dt);
+	}
+
+	static internal bool TryGetDate(ExcelFormat fmt, double value, DateMode mode, out DateTime dt)
 	{
 		dt = DateTime.MinValue;
-		if (value < 61d && epoch == 1900)
+		DateTime epoch = Epoch1904;
+		if (value < 0.0)
+			return false;
+		if (mode == DateMode.Mode1900)
 		{
-			if (value < 1)
+			epoch = Epoch1900;
+			if (value < 61d)
 			{
-				if (fmt.Kind == FormatKind.Time)
+				if (value < 1)
 				{
-					dt = DateTime.MinValue.AddDays(value);
-					return true;
+					if (fmt.Kind == FormatKind.Time)
+					{
+						dt = DateTime.MinValue.AddDays(value);
+						return true;
+					}
+
+					// 0 is rendered as 1900-1-0, which is nonsense.
+					// negative values render as "###"
+					// so we won't support accessing such values.
+					return false;
 				}
-
-				// 0 is rendered as 1900-1-0, which is nonsense.
-				// negative values render as "###"
-				// so we won't support accessing such values.
-				return false;
+				if (value >= 60d)
+				{
+					// 1900 wasn't a leapyear, but Excel thinks it was
+					return false;
+				}
 			}
-			if (value >= 60d)
+			else
 			{
-				// 1900 wasn't a leapyear, but Excel thinks it was
-				return false;
+				value -= 1;
 			}
 		}
-		else
-		{
-			value -= 1;
-		}
-
-		dt = new DateTime(epoch, 1, 1, 0, 0, 0, DateTimeKind.Unspecified).AddDays(value - 1d);
+		dt = epoch.AddDays(value);
 		return true;
 	}
 
@@ -782,7 +805,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 
 		if (formats.TryGetValue(fmtIdx, out var fmt))
 		{
-			return fmt.FormatValue(val, 1900);
+			return fmt.FormatValue(val, this.dateMode);
 		}
 		else
 		{

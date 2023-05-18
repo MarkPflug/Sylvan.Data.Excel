@@ -52,7 +52,7 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 			throw new InvalidDataException();
 
 		var sheetRelMap = OpenPackaging.LoadWorkbookRelations(package, workbookPartName, ref stylesPartName, ref sharedStringsPartName);
-		
+
 		var stylePart = package.GetEntry(stylesPartName);
 
 		sst = ReadSharedStrings(sharedStringsPartName);
@@ -61,44 +61,33 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 		using (Stream sheetsStream = workbookPart.Open())
 		{
 			var rr = new RecordReader(sheetsStream);
-			var atEnd = false;
-			while (!atEnd)
+			while (rr.NextRecord())
 			{
-				rr.NextRecord();
 				switch (rr.RecordType)
 				{
-					case RecordType.BundleBegin:
-						while (true)
-						{
-							rr.NextRecord();
-							if (rr.RecordType == RecordType.BundleSheet)
-							{
-								var hs = rr.GetInt32(0);
-								var hidden = hs != 0;
-								var id = rr.GetInt32(4);
-								var rel = rr.GetString(8, out int next);
-								var name = rr.GetString(next);
-								if (rel == null)
-								{
-									// no sheet rel means it is a macro.
-								}
-								else
-								{
-									var part = sheetRelMap[rel!];
-									var info = new SheetInfo(name, part, hidden);
-									sheetNameList.Add(info);
-								}
-							}
-							else
-							if (rr.RecordType == RecordType.BundleEnd)
-							{
-								break;
-							}
-						}
+					case RecordType.WbProp:
+						var f = rr.GetInt32();
+						this.dateMode = ((f & 1) == 1)
+							? DateMode.Mode1904
+							: DateMode.Mode1900;
 						break;
 
-					case RecordType.BookEnd:
-						atEnd = true;
+					case RecordType.BundleSheet:
+						var hs = rr.GetInt32(0);
+						var hidden = hs != 0;
+						var id = rr.GetInt32(4);
+						var rel = rr.GetString(8, out int next);
+						var name = rr.GetString(next);
+						if (rel == null)
+						{
+							// no sheet rel means it is a macro.
+						}
+						else
+						{
+							var part = sheetRelMap[rel!];
+							var info = new SheetInfo(name, part, hidden);
+							sheetNameList.Add(info);
+						}
 						break;
 				}
 				//rr.DebugInfo("sheets");
@@ -471,8 +460,6 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 
 	public override int MaxFieldCount => 16384;
 
-	internal override int DateEpochYear => 1900;
-
 	public override int RowNumber => rowIndex + 1;
 
 	void ReadStyle(ZipArchiveEntry part)
@@ -609,14 +596,13 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 			return Encoding.Unicode.GetString(data, s + offset + 4, len * 2);
 		}
 
-		void FillBuffer(int requiredLen)
+		bool FillBuffer(int requiredLen)
 		{
 			Debug.Assert(pos <= end);
 
 			if (this.data.Length < requiredLen)
 			{
 				Array.Resize(ref this.data, requiredLen);
-
 			}
 
 			if (pos != end)
@@ -631,11 +617,12 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 			{
 				var l = stream.Read(data, end, data.Length - end);
 				if (l == 0)
-					throw new EndOfStreamException();
+					return false;
 
 				end += l;
 			}
 			Debug.Assert(pos <= end);
+			return true;
 		}
 
 		RecordType ReadRecordType()
@@ -644,9 +631,10 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 
 			if (pos >= end)
 			{
-				FillBuffer(1);
-				if (pos >= end)
-					throw new EndOfStreamException();
+				if (!FillBuffer(1))
+				{
+					return RecordType.None;
+				}
 			}
 
 			var b = data[pos++];
@@ -657,9 +645,11 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 
 			if (pos >= end)
 			{
-				FillBuffer(1);
-				if (pos >= end)
-					throw new EndOfStreamException();
+				if (!FillBuffer(1))
+				{
+					// the second byte wasn't there.
+					throw new InvalidDataException();
+				}
 			}
 
 			var type = (RecordType)(b & 0x7f | (data[pos++] << 7));
@@ -686,8 +676,11 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 
 		public bool NextRecord()
 		{
-
 			type = ReadRecordType();
+			if (type == RecordType.None)
+			{
+				return false;
+			}
 			recordLen = ReadRecordLen();
 			if (pos + recordLen > end)
 			{
@@ -702,4 +695,3 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 		}
 	}
 }
-

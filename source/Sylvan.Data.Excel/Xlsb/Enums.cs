@@ -13,6 +13,7 @@ enum CellType
 
 internal enum RecordType
 {
+	None = -1,
 	Row = 0,
 	CellBlank = 1,
 	CellRK = 2,
@@ -64,6 +65,7 @@ internal enum RecordType
 	WsViewEnd = 138,
 	Pane = 151,
 	Selection = 152,
+	WbProp = 153,
 
 	ColInfoStart = 390,
 	ColInfoEnd = 391,

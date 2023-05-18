@@ -32,8 +32,6 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 	int curFieldCount = 0;
 	int pendingRow = -1;
 
-	int epoch;
-
 	internal static async Task<XlsWorkbookReader> CreateAsync(Stream iStream, ExcelDataReaderOptions options)
 	{
 		var reader = new XlsWorkbookReader(iStream, options);
@@ -50,14 +48,12 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 			throw new InvalidDataException();
 		var ps = part.Open();
 
-		this.epoch = 1900;
 		this.reader = new RecordReader(ps);
 		this.fieldInfos = new FieldInfo[16];
+
 	}
 
 	public override ExcelWorkbookType WorkbookType => ExcelWorkbookType.Excel;
-
-	internal override int DateEpochYear => epoch;
 
 	public override int RowNumber => rowNumber;
 
@@ -143,10 +139,9 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 			throw new InvalidDataException();//"First Stream must be workbook globals stream"
 		var sheets = new List<XlsSheetInfo>();
 		var xfs = new List<int>();
-		bool atEndOfHeader = false;
-		while (!atEndOfHeader)
+		
+		while (await reader.NextRecordAsync().ConfigureAwait(false))
 		{
-			await reader.NextRecordAsync().ConfigureAwait(false);
 			var recordType = reader.Type;
 			switch (recordType)
 			{
@@ -165,14 +160,17 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 				case RecordType.Format:
 					await ParseFormat().ConfigureAwait(false);
 					break;
-				case RecordType.EOF:
-					atEndOfHeader = true;
+				case RecordType.YearEpoch:
+					Parse1904();
 					break;
+				case RecordType.EOF:
+					goto done;
 				default:
 					//Debug.WriteLine($"Header: {recordType:x} {recordType}");
 					break;
 			}
 		}
+		done:
 		this.sheetInfos = sheets.ToArray();
 		this.xfMap = xfs.ToArray();
 	}
@@ -279,20 +277,14 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 		// ignoring styles, at least for now.
 	}
 
-
 	void Parse1904()
 	{
 		int yearOffsetValue = reader.ReadInt16();
 
-		if (yearOffsetValue == 1)
-		{
-			//this.epoch = 1904;
-			// don't have the ability to create/test such a file
-			// so this will have to remain unsupported.
-			// I doubt many such files exist anymore anyway.
-			throw new NotSupportedException();
-		}
-		this.epoch = 1900;
+		this.dateMode =
+			yearOffsetValue == 1
+			? DateMode.Mode1904
+			: DateMode.Mode1900;
 	}
 
 	void ParseMulRK()

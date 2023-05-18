@@ -250,7 +250,7 @@ public sealed class ExcelFormat
 	/// </summary>
 	public FormatKind Kind { get; private set; }
 
-	internal string FormatValue(double value, int dateOffset = 1900)
+	internal string FormatValue(double value, DateMode mode)
 	{
 		var kind = this.Kind;
 		switch (kind)
@@ -259,7 +259,7 @@ public sealed class ExcelFormat
 				return value.ToString("G");
 			case FormatKind.Date:
 			case FormatKind.Time:
-				if (ExcelDataReader.TryGetDate(this, value, dateOffset, out var dt))
+				if (ExcelDataReader.TryGetDate(this, value, mode,  out var dt))
 				{
 					if (dt.TimeOfDay == TimeSpan.Zero)
 					{
