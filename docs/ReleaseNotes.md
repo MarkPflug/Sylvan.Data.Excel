@@ -1,5 +1,8 @@
 # Sylvan.Data.Excel Release Notes
 
+_0.4.12_
+- Adds support for Excel files using 1904 (mac?) date mode.
+
 _0.4.11_
  - Adds support for writing .xlsb files.
  - Small optimization for .xlsx reading in some scenarios.
