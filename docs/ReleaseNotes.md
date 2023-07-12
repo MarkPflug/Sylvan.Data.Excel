@@ -1,5 +1,9 @@
 # Sylvan.Data.Excel Release Notes
 
+_0.4.13_
+- Fix for .xlsx/.xlsb files that contain OpenPackage relations with rooted paths.
+   Third party libraries sometimes write files in this way.
+
 _0.4.12_
 - Adds support for Excel files using 1904 (mac?) date mode.
 
