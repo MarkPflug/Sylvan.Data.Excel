@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Text;
 using System.Text.RegularExpressions;
 using Xunit;
 using Xunit.Abstractions;
@@ -17,6 +18,7 @@ public class ExternalDataTests
 	public ExternalDataTests(ITestOutputHelper o)
 	{
 		this.o = o;
+		Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 	}
 
 	public static IEnumerable<object[]> GetInputs()

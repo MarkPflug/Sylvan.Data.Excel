@@ -1,9 +1,10 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
+using System.Linq;
 using System.Reflection;
 using System.Xml;
-using System.Xml.Xsl;
 
 namespace Sylvan.Data.Excel;
 
@@ -51,7 +52,8 @@ static class OpenPackaging
 
 	internal static string GetPartRelationsName(string partName)
 	{
-		var dir = Path.GetDirectoryName(partName);
+		var dir = Path.GetDirectoryName(partName) ?? "";
+		//dir = Path.GetRelativePath("/", dir);
 		var file = Path.GetFileName(partName);
 
 		return
@@ -60,11 +62,28 @@ static class OpenPackaging
 			: dir + "/_rels/" + file + ".rels";
 	}
 
+	internal static ZipArchiveEntry? FindEntry(this ZipArchive a, string name)
+	{
+		var entry = GetEntry(a, name);
+		if (entry == null && (name.StartsWith("/") || name.StartsWith("\\")))
+		{
+			name = name.Substring(1);
+			entry = GetEntry(a, name);
+		}
+
+		return entry;
+
+		static ZipArchiveEntry? GetEntry(ZipArchive a, string name)
+		{
+			return a.Entries.FirstOrDefault(e => StringComparer.OrdinalIgnoreCase.Equals(e.FullName, name));
+		}
+	}
+
 	internal static Dictionary<string, string> LoadWorkbookRelations(ZipArchive package, string workbookPartName, ref string stylesPartName, ref string sharedStringsPartName)
 	{
 		var workbookPartRelsName = GetPartRelationsName(workbookPartName);
 
-		var part = package.GetEntry(workbookPartRelsName);
+		var part = package.FindEntry(workbookPartRelsName);
 
 		if (part == null) throw new InvalidDataException();
 
@@ -80,9 +99,18 @@ static class OpenPackaging
 		var nodes = doc.SelectNodes("/r:Relationships/r:Relationship", nsm);
 
 		var root = Path.GetDirectoryName(workbookPartName) ?? "";
+		//root = Path.GetRelativePath("/", root);
 
 		static string MakeRelative(string root, string path)
 		{
+			if (Path.IsPathRooted(path))
+			{
+				if(path.StartsWith("/") || path.StartsWith("\\"))
+				{
+					path = path.Substring(1);
+				}
+				return path;
+			}
 			return
 				root.Length == 0
 				? path

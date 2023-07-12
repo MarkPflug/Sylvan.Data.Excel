@@ -40,10 +40,6 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 
 	public override ExcelWorkbookType WorkbookType => ExcelWorkbookType.ExcelXml;
 
-	static ZipArchiveEntry? GetEntry(ZipArchive a, string name)
-	{
-		return a.Entries.FirstOrDefault(e => StringComparer.OrdinalIgnoreCase.Equals(e.FullName, name));
-	}
 
 	const string DefaultWorkbookPartName = "xl/workbook.xml";
 
@@ -56,7 +52,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 
 		var workbookPartName = OpenPackaging.GetWorkbookPart(package) ?? DefaultWorkbookPartName;
 
-		var workbookPart = GetEntry(package, workbookPartName);
+		var workbookPart = package.FindEntry(workbookPartName);
 
 		if (workbookPart == null)
 			throw new InvalidDataException();
@@ -66,8 +62,8 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 
 		var sheetRelMap = OpenPackaging.LoadWorkbookRelations(package, workbookPartName, ref stylesPartName, ref sharedStringsPartName);
 
-		var ssPart = GetEntry(package, sharedStringsPartName);
-		var stylePart = GetEntry(package, stylesPartName);
+		var ssPart = package.FindEntry(sharedStringsPartName);
+		var stylePart = package.FindEntry(stylesPartName);
 
 		LoadSharedStrings(ssPart);
 
@@ -829,8 +825,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 
 	string ReadString(XmlReader reader)
 	{
-		if (this.stringBuilder == null)
-			this.stringBuilder = new StringBuilder();
+		this.stringBuilder ??= new StringBuilder();
 
 		var empty = reader.IsEmptyElement;
 		string str = string.Empty;
