@@ -47,7 +47,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 	private protected int rowCount;
 	private protected int rowFieldCount;
 
-	static readonly DateTime Epoch1900 = new DateTime(1899, 12, 31);
+	static readonly DateTime Epoch1900 = new DateTime(1899, 12, 30);
 	static readonly DateTime Epoch1904 = new DateTime(1904, 1, 1);
 
 	private protected DateMode dateMode;
@@ -704,6 +704,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 	{
 		dt = DateTime.MinValue;
 		DateTime epoch = Epoch1904;
+		// Excel doesn't render negative values as dates.
 		if (value < 0.0)
 			return false;
 		if (mode == DateMode.Mode1900)
@@ -727,12 +728,11 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 				if (value >= 60d)
 				{
 					// 1900 wasn't a leapyear, but Excel thinks it was
+					// values in this range are in-expressible as .NET dates
+					// Excel renders it as 1900-2-29 (not a real day)
 					return false;
 				}
-			}
-			else
-			{
-				value -= 1;
+				value += 1;
 			}
 		}
 		dt = epoch.AddDays(value);

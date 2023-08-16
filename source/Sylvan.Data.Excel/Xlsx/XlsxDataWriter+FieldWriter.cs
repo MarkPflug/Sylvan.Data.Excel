@@ -7,7 +7,7 @@ namespace Sylvan.Data.Excel.Xlsx;
 
 partial class XlsxDataWriter
 {
-	static DateTime Epoch = new DateTime(1900, 1, 1, 0, 0, 0, DateTimeKind.Unspecified);
+	static DateTime Epoch = new DateTime(1899, 12, 30, 0, 0, 0, DateTimeKind.Unspecified);
 
 	sealed class Context
 	{
@@ -228,7 +228,7 @@ partial class XlsxDataWriter
 			var w = c.xw;
 			w.Write("<c s=\"1\"><v>");
 
-			var val = (value - Epoch).TotalDays + 2;
+			var val = (value - Epoch).TotalDays;
 #if SPAN
 			var scratch = c.GetCharBuffer();
 			if (val.TryFormat(scratch.AsSpan(), out var sl, default, CultureInfo.InvariantCulture))
@@ -288,7 +288,7 @@ partial class XlsxDataWriter
 			var w = c.xw;
 			w.Write("<c s=\"2\"><v>");
 
-			var val = (value.ToDateTime(Midnight) - Epoch).TotalDays + 2;
+			var val = (value.ToDateTime(Midnight) - Epoch).TotalDays;
 
 			var scratch = c.GetCharBuffer();
 			if (val.TryFormat(scratch.AsSpan(), out var sl, default, CultureInfo.InvariantCulture))
