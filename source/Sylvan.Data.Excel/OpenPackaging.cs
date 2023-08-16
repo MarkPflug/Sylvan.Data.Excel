@@ -145,7 +145,7 @@ static class OpenPackaging
 
 	internal static void WriteAppProps(ZipArchive zipArchive)
 	{
-		var appEntry = zipArchive.CreateEntry(AppPath, CompressionLevel.Optimal);
+		var appEntry = zipArchive.CreateEntry(AppPath, CompressionLevel.Fastest);
 		using var appStream = appEntry.Open();
 		using var xw = XmlWriter.Create(appStream, XmlSettings);
 		xw.WriteStartElement("Properties", PropNS);

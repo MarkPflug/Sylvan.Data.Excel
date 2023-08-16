@@ -1,5 +1,10 @@
 # Sylvan.Data.Excel Release Notes
 
+_0.4.14_
+- Add `CompressionLevel` as a configuration option for ExcelDataWriter.
+    Changes the default compression level to `Fastest`, which produces 
+    *slightly* larger files, but takes significantly less time.
+
 _0.4.13_
 - Fix for .xlsx/.xlsb files that contain OpenPackage relations with rooted paths.
    Third party libraries sometimes write files in this way.

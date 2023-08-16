@@ -89,12 +89,13 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 		"hh:mm:ss",
 	};
 
-	const CompressionLevel Compression = CompressionLevel.Optimal;
+	CompressionLevel compression;
 
 	public XlsxDataWriter(Stream stream, ExcelDataWriterOptions options) : base(stream, options)
 	{
 		this.sharedStrings = new SharedStringTable();
 		this.zipArchive = new ZipArchive(stream, ZipArchiveMode.Create, true);
+		this.compression = options.CompressionLevel;
 		this.worksheets = new List<string>();
 	}
 
@@ -136,7 +137,7 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 		this.worksheets.Add(worksheetName);
 		var idx = this.worksheets.Count;
 		var entryName = "xl/worksheets/sheet" + idx + ".xml";
-		var entry = zipArchive.CreateEntry(entryName, Compression);
+		var entry = zipArchive.CreateEntry(entryName, compression);
 		using var es = entry.Open();
 		using var xw = new StreamWriter(es, Encoding.UTF8, 0x4000);
 		xw.Write($"<worksheet xmlns=\"{NS}\">");
@@ -245,7 +246,7 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 
 	void WriteSharedStrings()
 	{
-		var e = this.zipArchive.CreateEntry("xl/sharedStrings.xml", Compression);
+		var e = this.zipArchive.CreateEntry("xl/sharedStrings.xml", compression);
 		using var s = e.Open();
 		using var xw = XmlWriter.Create(s, OpenPackaging.XmlSettings);
 		xw.WriteStartElement("sst", NS);
@@ -290,7 +291,7 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 	{
 		var ns = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
 		var wbName = "xl/workbook.xml";
-		var e = this.zipArchive.CreateEntry(wbName, Compression);
+		var e = this.zipArchive.CreateEntry(wbName, compression);
 
 		using var s = e.Open();
 		using var xw = XmlWriter.Create(s, OpenPackaging.XmlSettings);
@@ -324,7 +325,7 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 
 	void WriteCoreProps()
 	{
-		var appEntry = zipArchive.CreateEntry("docProps/core.xml", Compression);
+		var appEntry = zipArchive.CreateEntry("docProps/core.xml", compression);
 		using var appStream = appEntry.Open();
 		using var xw = XmlWriter.Create(appStream, OpenPackaging.XmlSettings);
 		xw.WriteStartElement("coreProperties", CoreNS);
@@ -339,7 +340,7 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 	{
 		// pkg rels
 		{
-			var entry = zipArchive.CreateEntry("_rels/.rels", Compression);
+			var entry = zipArchive.CreateEntry("_rels/.rels", compression);
 			using var appStream = entry.Open();
 			using var xw = XmlWriter.Create(appStream, OpenPackaging.XmlSettings);
 			xw.WriteStartElement("Relationships", PkgRelNS);
@@ -363,7 +364,7 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 
 		// workbook rels
 		{
-			var entry = zipArchive.CreateEntry("xl/_rels/workbook.xml.rels", Compression);
+			var entry = zipArchive.CreateEntry("xl/_rels/workbook.xml.rels", compression);
 			using var appStream = entry.Open();
 			using var xw = XmlWriter.Create(appStream, OpenPackaging.XmlSettings);
 			xw.WriteStartElement("Relationships", PkgRelNS);
@@ -395,7 +396,7 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 
 		// content types
 		{
-			var entry = zipArchive.CreateEntry("[Content_Types].xml", Compression);
+			var entry = zipArchive.CreateEntry("[Content_Types].xml", compression);
 			using var appStream = entry.Open();
 			using var xw = XmlWriter.Create(appStream, OpenPackaging.XmlSettings);
 			xw.WriteStartElement("Types", ContentTypeNS);
@@ -434,7 +435,7 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 
 	void WriteStyles()
 	{
-		var appEntry = zipArchive.CreateEntry("xl/styles.xml", Compression);
+		var appEntry = zipArchive.CreateEntry("xl/styles.xml", compression);
 		using var appStream = appEntry.Open();
 		using var wx = XmlWriter.Create(appStream, OpenPackaging.XmlSettings);
 		wx.WriteStartElement("styleSheet", NS);

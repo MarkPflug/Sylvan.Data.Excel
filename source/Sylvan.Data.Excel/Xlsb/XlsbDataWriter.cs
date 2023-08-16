@@ -396,12 +396,13 @@ sealed partial class XlsbDataWriter : ExcelDataWriter
 		"hh:mm:ss",
 	};
 
-	const CompressionLevel Compression = CompressionLevel.Optimal;
+	CompressionLevel compression;
 
 	public XlsbDataWriter(Stream stream, ExcelDataWriterOptions options) : base(stream, options)
 	{
 		this.sharedStrings = new SharedStringTable();
 		this.zipArchive = new ZipArchive(stream, ZipArchiveMode.Create, true);
+		this.compression = options.CompressionLevel;
 		this.worksheets = new List<string>();
 	}
 
@@ -437,7 +438,7 @@ sealed partial class XlsbDataWriter : ExcelDataWriter
 		this.worksheets.Add(worksheetName);
 		var idx = this.worksheets.Count;
 		var entryName = "xl/worksheets/sheet" + idx + ".bin";
-		var entry = zipArchive.CreateEntry(entryName, Compression);
+		var entry = zipArchive.CreateEntry(entryName, compression);
 		using var es = entry.Open();
 		using var bs = new BufferedStream(es, 0x8000);
 		using var bw = new BinaryWriter(bs);
@@ -558,7 +559,7 @@ sealed partial class XlsbDataWriter : ExcelDataWriter
 
 	void WriteSharedStrings()
 	{
-		var e = this.zipArchive.CreateEntry("xl/sharedStrings.bin", Compression);
+		var e = this.zipArchive.CreateEntry("xl/sharedStrings.bin", compression);
 		using var s = e.Open();
 		using var bw = new BinaryWriter(s);
 
@@ -584,7 +585,7 @@ sealed partial class XlsbDataWriter : ExcelDataWriter
 	void WriteWorkbook()
 	{
 		var wbName = WorkbookPath;
-		var e = this.zipArchive.CreateEntry(wbName, Compression);
+		var e = this.zipArchive.CreateEntry(wbName, compression);
 
 		using var s = e.Open();
 		using var bw = new BinaryWriter(s);
@@ -605,7 +606,7 @@ sealed partial class XlsbDataWriter : ExcelDataWriter
 	{
 		// pkg rels
 		{
-			var entry = zipArchive.CreateEntry("_rels/.rels", Compression);
+			var entry = zipArchive.CreateEntry("_rels/.rels", compression);
 			using var appStream = entry.Open();
 			using var xw = XmlWriter.Create(appStream, XmlSettings);
 			xw.WriteStartElement("Relationships", PkgRelNS);
@@ -629,7 +630,7 @@ sealed partial class XlsbDataWriter : ExcelDataWriter
 
 		// workbook rels
 		{
-			var entry = zipArchive.CreateEntry("xl/_rels/workbook.bin.rels", Compression);
+			var entry = zipArchive.CreateEntry("xl/_rels/workbook.bin.rels", compression);
 			using var appStream = entry.Open();
 			using var xw = XmlWriter.Create(appStream, XmlSettings);
 			xw.WriteStartElement("Relationships", PkgRelNS);
@@ -661,7 +662,7 @@ sealed partial class XlsbDataWriter : ExcelDataWriter
 
 		// content types
 		{
-			var entry = zipArchive.CreateEntry("[Content_Types].xml", Compression);
+			var entry = zipArchive.CreateEntry("[Content_Types].xml", compression);
 			using var appStream = entry.Open();
 			using var xw = XmlWriter.Create(appStream, XmlSettings);
 			xw.WriteStartElement("Types", ContentTypeNS);
@@ -706,7 +707,7 @@ sealed partial class XlsbDataWriter : ExcelDataWriter
 
 	void WriteStyles()
 	{
-		var styleEntry = zipArchive.CreateEntry("xl/styles.bin", Compression);
+		var styleEntry = zipArchive.CreateEntry("xl/styles.bin", compression);
 		using var styleStream = styleEntry.Open();
 		using var bs = new BufferedStream(styleStream, 0x4000);
 		using var bw = new BinaryWriter(bs);
