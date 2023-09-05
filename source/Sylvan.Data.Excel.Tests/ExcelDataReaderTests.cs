@@ -207,6 +207,27 @@ public class XlsxTests
 	}
 
 	[Fact]
+	public void GapRowFieldCount()
+	{
+		var file = GetFile("Gap");
+		using var edr = ExcelDataReader.Create(file, noHeaders);
+		for (int i = 0; i < 41; i++)
+		{
+			Assert.True(edr.Read());
+
+			if (i % 10 == 0)
+			{
+				Assert.Equal(1, edr.RowFieldCount);
+			}
+			else
+			{
+				Assert.Equal(0, edr.RowFieldCount);
+			}
+		}
+		Assert.False(edr.Read());
+	}
+
+	[Fact]
 	public void MultiSheet()
 	{
 		var opts = new ExcelDataReaderOptions { GetErrorAsNull = true };

@@ -18,7 +18,9 @@ public class ExternalDataTests
 	public ExternalDataTests(ITestOutputHelper o)
 	{
 		this.o = o;
+#if NETCOREAPP1_0_OR_GREATER
 		Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+#endif
 	}
 
 	public static IEnumerable<object[]> GetInputs()

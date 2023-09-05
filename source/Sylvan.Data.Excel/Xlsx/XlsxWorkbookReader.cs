@@ -36,10 +36,10 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 
 	int rowIndex;
 	int parsedRowIndex = -1;
+	// the number of fields in the parsedRowIndex.
 	int curFieldCount = -1;
 
 	public override ExcelWorkbookType WorkbookType => ExcelWorkbookType.ExcelXml;
-
 
 	const string DefaultWorkbookPartName = "xl/workbook.xml";
 
@@ -320,7 +320,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 			}
 			else
 			{
-				this.parsedRowIndex++;
+				this.parsedRowIndex = -1;
 			}
 			reader.MoveToElement();
 			return true;
@@ -377,7 +377,11 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 		{
 			if (rowIndex <= parsedRowIndex)
 			{
-				if (curFieldCount >= 0)
+				if (rowIndex < parsedRowIndex)
+				{
+					this.rowFieldCount = 0;
+				} 
+				else
 				{
 					this.rowFieldCount = curFieldCount;
 					this.curFieldCount = -1;
@@ -389,8 +393,15 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 				var c = ParseRowValues();
 				if (c == 0)
 				{
+					// handles trailing empty rows.
 					continue;
 				}
+				if (rowIndex < parsedRowIndex)
+				{
+					this.curFieldCount = c;
+					this.rowFieldCount = 0;
+					return true;
+				}				
 				return true;
 			}
 		}
@@ -439,7 +450,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 			while (reader.MoveToNextAttribute())
 			{
 				var n = reader.Name;
-				if (ReferenceEquals(n, "r"))
+				if (n == "r")
 				{
 					len = reader.ReadValueChunk(valueBuffer, 0, valueBuffer.Length);
 					if (CellPosition.TryParse(valueBuffer.AsSpan().ToParsable(0, len), out var pos))
@@ -448,13 +459,13 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 					}
 				}
 				else
-				if (ReferenceEquals(n, "t"))
+				if (n == "t")
 				{
 					len = reader.ReadValueChunk(valueBuffer, 0, valueBuffer.Length);
 					type = GetCellType(valueBuffer, len);
 				}
 				else
-				if (ReferenceEquals(n, "s"))
+				if (n == "s")
 				{
 					len = reader.ReadValueChunk(valueBuffer, 0, valueBuffer.Length);
 					if (!TryParse(valueBuffer.AsSpan().ToParsable(0, len), out xfIdx))
@@ -679,7 +690,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 	{
 		while (reader.Read())
 		{
-			if (reader.NodeType == XmlNodeType.Element && ReferenceEquals(localName, reader.LocalName))
+			if (reader.NodeType == XmlNodeType.Element && localName == reader.LocalName)
 			{
 				return true;
 			}
@@ -692,7 +703,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 		while (SkipSubtree(reader))
 		{
 			XmlNodeType nodeType = reader.NodeType;
-			if (nodeType == XmlNodeType.Element && ReferenceEquals(localName, reader.LocalName))
+			if (nodeType == XmlNodeType.Element && localName == reader.LocalName)
 			{
 				return true;
 			}
@@ -721,7 +732,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 		}
 		while (reader.Read() && reader.Depth > num)
 		{
-			if (reader.NodeType == XmlNodeType.Element && ReferenceEquals(localName, reader.LocalName))
+			if (reader.NodeType == XmlNodeType.Element && localName == reader.LocalName)
 			{
 				return true;
 			}
@@ -813,7 +824,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 
 		while (reader.Read())
 		{
-			if (reader.NodeType == XmlNodeType.Element && ReferenceEquals(reader.LocalName, "si"))
+			if (reader.NodeType == XmlNodeType.Element && reader.LocalName == "si")
 			{
 				var str = ReadString(reader);
 				sstList.Add(str);

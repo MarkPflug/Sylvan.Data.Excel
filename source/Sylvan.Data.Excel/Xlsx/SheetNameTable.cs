@@ -7,7 +7,8 @@ namespace Sylvan.Data.Excel.Xlsx;
 // these name tables avoid having to compute hashes on the
 // most common element names, and ensures that the strings
 // map the the const string so that equality will be ref
-// equality to the const values in our code.
+// equality to the const values in our code. NOTE: cannot use
+// ReferenceEquals however, because this doesn't apply in NET4.8
 sealed class SheetNameTable : NameTable
 {
 	public override string Add(char[] key, int start, int len)

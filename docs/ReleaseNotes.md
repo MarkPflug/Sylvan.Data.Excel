@@ -1,5 +1,9 @@
 # Sylvan.Data.Excel Release Notes
 
+_0.4.15_
+- Fix a bug that prevented .xlsx reader from working on .NET Framework versions.
+- Fix a bug where FieldRowCount would be incorrect on empty rows.
+
 _0.4.14_
 - Add `CompressionLevel` as a configuration option for ExcelDataWriter.
     Changes the default compression level to `Fastest`, which produces 

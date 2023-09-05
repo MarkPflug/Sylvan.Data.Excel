@@ -260,7 +260,11 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 		{
 			if (rowIndex <= parsedRowIndex)
 			{
-				if (curFieldCount >= 0)
+				if (rowIndex < parsedRowIndex)
+				{
+					this.rowFieldCount = 0;
+				}
+				else
 				{
 					this.rowFieldCount = curFieldCount;
 					this.curFieldCount = -1;
@@ -272,10 +276,19 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 			{
 				var c = ParseRowValues();
 				if (c < 0)
+				{
+					this.rowFieldCount = 0;
 					return false;
+				}
 				if (c == 0)
 				{
 					continue;
+				}
+				if (rowIndex < parsedRowIndex)
+				{
+					this.curFieldCount = c;
+					this.rowFieldCount = 0;
+					return true;
 				}
 				return true;
 			}
@@ -283,8 +296,6 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 		else
 		if (state == State.Initialized)
 		{
-			//this.rowFieldCount = this.curFieldCount;
-			//this.curFieldCount = 0;
 			// after initizialization, the first record would already be in the buffer
 			// if hasRows is true.
 			if (hasRows)

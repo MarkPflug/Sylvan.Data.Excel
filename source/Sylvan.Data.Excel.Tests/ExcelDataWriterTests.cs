@@ -22,7 +22,7 @@ public class XlsxDataWriterTests : ExcelDataWriterTests
 		return string.Format(FileFormat, name);
 	}
 }
-
+#if NETCOREAPP1_0_OR_GREATER
 public class XlsbDataWriterTests : ExcelDataWriterTests
 {
 	const string FileFormat = "{0}.xlsb";
@@ -34,6 +34,7 @@ public class XlsbDataWriterTests : ExcelDataWriterTests
 		return string.Format(FileFormat, name);
 	}
 }
+#endif
 
 public abstract class ExcelDataWriterTests
 {
@@ -434,7 +435,11 @@ public abstract class ExcelDataWriterTests
 				i =>
 				{
 					var b = new byte[16];
-					Array.Fill(b, (byte)(i | i << 4));
+					for (int x = 0; x < b.Length; x++)
+					{
+						b[i] = (byte)(i | i << 4);
+
+					}
 					return new
 					{
 						Name = "Id " + i,
@@ -583,7 +588,7 @@ class CharTestDataReader : DbDataReader
 		var dat = col1[row];
 		var count = Math.Min(length, dat.Length - (int)dataOffset);
 
-		dat.AsSpan((int)dataOffset, count).CopyTo(buffer.AsSpan(bufferOffset));
+		Array.Copy(dat, dataOffset, buffer, bufferOffset, count);
 		return count;
 	}
 
