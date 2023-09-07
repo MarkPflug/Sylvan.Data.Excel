@@ -8,7 +8,6 @@ using System.Data.Common;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -175,24 +174,12 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 		}
 	}
 
-	static readonly Dictionary<string, ExcelWorkbookType> FileTypeMap = new(StringComparer.OrdinalIgnoreCase)
-	{
-		{ ".xls", ExcelWorkbookType.Excel },
-		{ ".xlsx", ExcelWorkbookType.ExcelXml },
-		{ ".xlsm", ExcelWorkbookType.ExcelXml },
-		{ ".xlsb", ExcelWorkbookType.ExcelBinary },
-	};
-
 	/// <summary>
 	/// Gets the type of an Excel workbook from the file name.
 	/// </summary>
 	public static ExcelWorkbookType GetWorkbookType(string filename)
 	{
-		var ext = Path.GetExtension(filename);
-		return
-			FileTypeMap.TryGetValue(ext, out var type)
-			? type
-			: 0;
+		return ExcelFileType.FindForFilename(filename)?.WorkbookType ?? ExcelWorkbookType.Unknown;
 	}
 
 	/// <summary>
@@ -202,7 +189,9 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 	/// <returns>True if the sheet was opened, otherwise false.</returns>
 	public bool TryOpenWorksheet(string name)
 	{
+#pragma warning disable // disable obsolete warning for now.
 		return TryOpenWorksheetAsync(name).GetAwaiter().GetResult();
+#pragma warning enable
 	}
 
 	/// <summary>
@@ -211,6 +200,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 	/// <param name="name">The name of the worksheet to open.</param>
 	/// <param name="cancel">A cancellation token for the async operation.</param>
 	/// <returns>True if the sheet was opened, otherwise false.</returns>
+	[Obsolete("TryOpenWorksheetAsync will be removed in a future version. Use TryOpenWorksheet instead.")]
 	public Task<bool> TryOpenWorksheetAsync(string name, CancellationToken cancel = default)
 	{
 		var sheetIdx = -1;
