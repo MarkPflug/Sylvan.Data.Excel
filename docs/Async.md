@@ -2,8 +2,10 @@
 
 ExcelDataReader and ExcelDataWriter both support "async" operations.
 In order to ensure proper async behavior, you must use the `CreateAsync`
-method to create instances. In this mode, the entire file will be 
-asynchronously buffered into memory.
+method to create instances. In this mode, the entire file must be 
+buffered in memory, and all IO will be handled asynchronously.
+
+The CreateAsync methods are only supported on .NET Core versions.
 
 Reading:
 ```
@@ -19,6 +21,7 @@ while(await edr.ReadAsync())
 
 Writing:
 ```
+// must use async disposal
 await using var edw = ExcelDataWriter.CreateAsync("jumbo.xlsx");
 
 edw.WriteAsync(myDataReader, "MyData");

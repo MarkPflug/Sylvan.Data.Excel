@@ -8,7 +8,7 @@
 	</PropertyGroup>
 
 	<PropertyGroup Condition="$(TargetFramework) == 'net6.0'">
-		<DefineConstants>$(DefineConstants);ASYNC</DefineConstants>
+		<DefineConstants>$(DefineConstants);ASYNC;DATEONLY</DefineConstants>
 	</PropertyGroup>
 
 	<ItemGroup>

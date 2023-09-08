@@ -28,6 +28,7 @@ namespace Sylvan.Testing
 		public override void Close()
 		{
 			this.IsClosed = true;
+			stream.Close();
 			base.Close();
 		}
 

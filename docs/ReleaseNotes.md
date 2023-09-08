@@ -2,7 +2,8 @@
 
 _0.4.16_
 - Adds ExcelFileType class that exposes constants about supported Excel formats: extensions and content types.
-- Add `Obsolete` to `TryOpenWorksheetAsync`, use `TryOpenWorksheet` instead. Information about future Async strategy will be forthcoming.
+- Add `Obsolete` to `TryOpenWorksheetAsync`, use `TryOpenWorksheet` instead.
+- Add `CreateAsync` to `ExcelDataReader` and `ExcelDataWriter` to enable async operation (not supported on .NET Framework versions).
 
 _0.4.15_
 - Fix a bug that prevented .xlsx reader from working on .NET Framework versions.

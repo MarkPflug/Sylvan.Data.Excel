@@ -539,4 +539,13 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 		this.zipArchive.Dispose();
 		base.Dispose();
 	}
+
+#if ASYNC
+	public override ValueTask DisposeAsync()
+	{
+		this.Close();
+		this.zipArchive.Dispose();
+		return base.DisposeAsync();
+	}
+#endif
 }

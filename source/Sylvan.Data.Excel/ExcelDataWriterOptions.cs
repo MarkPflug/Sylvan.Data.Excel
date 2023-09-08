@@ -21,7 +21,13 @@ public sealed class ExcelDataWriterOptions
 	{
 		this.TruncateStrings = false;
 		this.CompressionLevel = CompressionLevel.Fastest;
+		this.OwnsStream = false;
 	}
+
+	/// <summary>
+	/// Indicates if the ExcelDataWriter owns the output stream and handle disposal.
+	/// </summary>
+	public bool OwnsStream { get; set; }
 
 	/// <summary>
 	/// Indicates if string values should be truncated to the limit of Excel, which allows a maximum of 32k characters.
