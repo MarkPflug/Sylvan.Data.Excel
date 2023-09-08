@@ -7,6 +7,10 @@
 		<DisableImplicitNamespaceImports>true</DisableImplicitNamespaceImports>
 	</PropertyGroup>
 
+	<PropertyGroup Condition="$(TargetFramework) == 'net6.0'">
+		<DefineConstants>$(DefineConstants);ASYNC;DATEONLY</DefineConstants>
+	</PropertyGroup>
+
 	<ItemGroup>
 		<PackageReference Include="Sylvan.BuildTools.Resources" Version="0.6.1">
 			<PrivateAssets>all</PrivateAssets>
@@ -19,6 +23,7 @@
 		<Reference Include="System.IO.Compression" Condition="$(TargetFramework) == 'net48'" />
 	</ItemGroup>
 
+	
 	<ItemGroup>
 		<StaticResourceFolder Include="TestData" />
 		<None Update="Data/**/*">

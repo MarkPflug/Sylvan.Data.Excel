@@ -12,11 +12,11 @@
 	</PropertyGroup>
 
 	<PropertyGroup Condition="$(TargetFramework) == 'netstandard2.1'">
-		<DefineConstants>$(DefineConstants);SPAN</DefineConstants>
+		<DefineConstants>$(DefineConstants);SPAN;ASYNC</DefineConstants>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="$(TargetFramework) == 'net6.0'">
-		<DefineConstants>$(DefineConstants);SPAN;DATE_ONLY</DefineConstants>
+		<DefineConstants>$(DefineConstants);SPAN;ASYNC;DATE_ONLY</DefineConstants>
 	</PropertyGroup>
 
 	<ItemGroup>

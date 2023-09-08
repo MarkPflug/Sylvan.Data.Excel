@@ -1,4 +1,5 @@
 ﻿using Sylvan.Data.Csv;
+using Sylvan.Testing;
 using System;
 using System.Collections;
 using System.Data.Common;
@@ -7,6 +8,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 using Xunit;
 
 namespace Sylvan.Data.Excel;
@@ -15,7 +17,7 @@ public class XlsxDataWriterTests : ExcelDataWriterTests
 {
 	const string FileFormat = "{0}.xlsx";
 
-	public override ExcelWorkbookType WorkbookType => ExcelWorkbookType.Excel;
+	public override ExcelWorkbookType WorkbookType => ExcelWorkbookType.ExcelXml;
 
 	protected override string GetFile(string name)
 	{
@@ -42,6 +44,19 @@ public abstract class ExcelDataWriterTests
 
 	public abstract ExcelWorkbookType WorkbookType { get; }
 	public object Enumable { get; private set; }
+
+	void Validate(string file)
+	{
+		// simple validation that we can read back what we wrote.
+		using var edr = ExcelDataReader.Create(file);
+		while (edr.Read())
+		{
+			for (int i = 0; i < edr.RowFieldCount; i++)
+			{
+				var value = edr.GetValue(i);
+			}
+		}
+	}
 
 	static void Unpack(string file, [CallerMemberName] string folder = null)
 	{
@@ -89,6 +104,7 @@ public abstract class ExcelDataWriterTests
 			w.Write(reader);
 		}
 		//Open(f);
+		Validate(f);
 	}
 
 	[Fact]
@@ -117,6 +133,7 @@ public abstract class ExcelDataWriterTests
 			w.Write(reader);
 		}
 		//Open(f);
+		Validate(f);
 	}
 
 	[Fact]
@@ -142,6 +159,7 @@ public abstract class ExcelDataWriterTests
 		{
 			w.Write(reader);
 		}
+		Validate(f);
 		//Open(f);
 	}
 
@@ -170,6 +188,7 @@ public abstract class ExcelDataWriterTests
 		{
 			w.Write(reader);
 		}
+		Validate(f);
 		//Open(f);
 	}
 
@@ -215,6 +234,7 @@ public abstract class ExcelDataWriterTests
 			reader = data.AsDataReader();
 			w.Write(reader);
 		}
+		Validate(f);
 	}
 
 	[Fact]
@@ -239,6 +259,7 @@ public abstract class ExcelDataWriterTests
 		{
 			w.Write(reader);
 		}
+		Validate(f);
 		//Open(f);
 	}
 
@@ -262,6 +283,7 @@ public abstract class ExcelDataWriterTests
 		{
 			w.Write(reader);
 		}
+		Validate(f);
 		//Open(f);
 	}
 
@@ -284,6 +306,7 @@ public abstract class ExcelDataWriterTests
 		{
 			w.Write(reader);
 		}
+		Validate(f);
 		//Open(f);
 	}
 
@@ -301,6 +324,7 @@ public abstract class ExcelDataWriterTests
 		{
 			edw.Write(dr);
 		}
+		Validate(f);
 		//Open(f);
 	}
 
@@ -317,6 +341,7 @@ public abstract class ExcelDataWriterTests
 			edw.Write(csv);
 		}
 
+		Validate(f);
 		using var edr = ExcelDataReader.Create(f);
 		Assert.Equal(" a ", edr.GetName(0));
 		Assert.Equal(" b", edr.GetName(1));
@@ -350,6 +375,7 @@ public abstract class ExcelDataWriterTests
 		{
 			edw.Write(dr);
 		}
+		Validate(f);
 		//Open(f);
 	}
 
@@ -363,6 +389,7 @@ public abstract class ExcelDataWriterTests
 			edw.Write(dr);
 		}
 
+		Validate(f);
 		// read back the created file and assert everything is as we expected
 		using (var edr = ExcelDataReader.Create(f))
 		{
@@ -399,6 +426,7 @@ public abstract class ExcelDataWriterTests
 		{
 			edw.Write(dr);
 		}
+		Validate(f);
 		//Open(f);
 	}
 
@@ -423,6 +451,7 @@ public abstract class ExcelDataWriterTests
 		{
 			edw.Write(dr);
 		}
+		Validate(f);
 		//Open(f);
 	}
 
@@ -455,6 +484,7 @@ public abstract class ExcelDataWriterTests
 		{
 			edw.Write(dr);
 		}
+		Validate(f);
 		//Open(f);
 	}
 
@@ -480,10 +510,104 @@ public abstract class ExcelDataWriterTests
 		{
 			edw.Write(dr);
 		}
+		Validate(f);
 		//Open(f);
 	}
 
-#if NET6_0_OR_GREATER
+#if ASYNC
+	[Fact]
+	public async Task Async() {
+		var f = GetFile();
+
+		var r = new Random();
+		var data =
+			Enumerable.Range(1, 4096)
+			.Select(
+				i => new
+				{
+					Id = i, //int32
+					Name = "Name" + i, //string
+					ValueInt = r.Next(), // another, bigger int
+					ValueDouble = Math.PI * i, // double
+					Decimal = 1.25m * i,
+					Date = DateTime.Today.AddHours(i),
+				}
+			).AsDataReader();
+
+		await using (var edw = await ExcelDataWriter.CreateAsync(f))
+		{
+			await edw.WriteAsync(data);
+		}
+		Validate(f);
+		//Open(f);
+	}
+
+	[Fact]
+	public async Task StreamAsync()
+	{
+		var f = GetFile();
+
+		var r = new Random();
+		var data =
+			Enumerable.Range(1, 4096)
+			.Select(
+				i => new
+				{
+					Id = i, //int32
+					Name = "Name" + i, //string
+					ValueInt = r.Next(), // another, bigger int
+					ValueDouble = Math.PI * i, // double
+					Decimal = 1.25m * i,
+					Date = DateTime.Today.AddHours(i),
+				}
+			).AsDataReader();
+		var s = File.Create(f);
+		var testStream = new TestStream(s);
+		await using (var edw = await ExcelDataWriter.CreateAsync(testStream, WorkbookType))
+		{
+			await edw.WriteAsync(data);
+		}
+		Assert.False(testStream.IsClosed);
+
+		testStream.Close();
+		Validate(f);
+		//Open(f);
+	}
+
+	[Fact]
+	public async Task OwnedStreamAsync()
+	{
+		var f = GetFile();
+
+		var r = new Random();
+		var data =
+			Enumerable.Range(1, 4096)
+			.Select(
+				i => new
+				{
+					Id = i, //int32
+					Name = "Name" + i, //string
+					ValueInt = r.Next(), // another, bigger int
+					ValueDouble = Math.PI * i, // double
+					Decimal = 1.25m * i,
+					Date = DateTime.Today.AddHours(i),
+				}
+			).AsDataReader();
+		var s = File.Create(f);
+		var testStream = new TestStream(s);
+
+		var opts = new ExcelDataWriterOptions { OwnsStream = true };
+		await using (var edw = await ExcelDataWriter.CreateAsync(testStream, WorkbookType, opts))
+		{
+			await edw.WriteAsync(data);
+		}
+		Assert.True(testStream.IsClosed);
+		Validate(f);
+		//Open(f);
+	}
+#endif
+
+#if DATEONLY
 
 	[Fact]
 	public void DateOnly()
@@ -504,6 +628,8 @@ public abstract class ExcelDataWriterTests
 		{
 			w.Write(reader);
 		}
+
+		Validate(f);
 		//Open(f);
 	}
 
@@ -526,6 +652,8 @@ public abstract class ExcelDataWriterTests
 		{
 			w.Write(reader);
 		}
+
+		Validate(f);
 		//Open(f);
 	}
 

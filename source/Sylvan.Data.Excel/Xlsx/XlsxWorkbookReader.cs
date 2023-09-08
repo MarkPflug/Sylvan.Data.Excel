@@ -7,8 +7,6 @@ using System.IO.Compression;
 using System.Linq;
 using System.Text;
 using System.Xml;
-using System.Threading.Tasks;
-using System.Threading;
 using Sylvan.Data.Excel.Xlsx;
 
 #if !SPAN
@@ -49,6 +47,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 		this.sheetStream = Stream.Null;
 
 		package = new ZipArchive(iStream, ZipArchiveMode.Read, true);
+		
 
 		var workbookPartName = OpenPackaging.GetWorkbookPart(package) ?? DefaultWorkbookPartName;
 
@@ -177,7 +176,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 		return ref base.GetFieldValue(ordinal);
 	}
 
-	private protected override Task<bool> OpenWorksheetAsync(int sheetIdx, CancellationToken cancel)
+	private protected override bool OpenWorksheet(int sheetIdx)
 	{
 		var sheetName = sheetInfos[sheetIdx].Part;
 		// the relationship is recorded as an absolute path
@@ -185,7 +184,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 		sheetName = sheetName.TrimStart('/');
 		var sheetPart = package.GetEntry(sheetName);
 		if (sheetPart == null)
-			return Task.FromResult(false);
+			return false;
 
 		this.sheetStream = sheetPart.Open();
 
@@ -237,7 +236,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 
 		this.hasRows = InitializeSheet();
 		this.sheetIdx = sheetIdx;
-		return Task.FromResult(true);
+		return true;
 	}
 
 	public override bool NextResult()
@@ -255,7 +254,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 			return false;
 		}
 
-		return OpenWorksheetAsync(sheetIdx, default).GetAwaiter().GetResult();
+		return OpenWorksheet(sheetIdx);
 	}
 
 	bool InitializeSheet()

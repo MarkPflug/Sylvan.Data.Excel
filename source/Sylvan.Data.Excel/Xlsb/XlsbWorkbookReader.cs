@@ -5,8 +5,6 @@ using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace Sylvan.Data.Excel.Xlsb;
 
@@ -115,7 +113,7 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 		return ref values[ordinal];
 	}
 
-	private protected override Task<bool> OpenWorksheetAsync(int sheetIdx, CancellationToken cancel)
+	private protected override bool OpenWorksheet(int sheetIdx)
 	{
 		var sheetName = sheetInfos[sheetIdx].Part;
 		// the relationship is recorded as an absolute path
@@ -137,7 +135,7 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 		this.rowFieldCount = 0;
 		this.curFieldCount = -1;
 		this.sheetIdx = sheetIdx;
-		return Task.FromResult(InitializeSheet());
+		return InitializeSheet();
 	}
 
 	public override bool NextResult()
@@ -153,7 +151,7 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 		if (sheetIdx >= this.sheetInfos.Length)
 			return false;
 
-		return OpenWorksheetAsync(sheetIdx, default).GetAwaiter().GetResult();
+		return OpenWorksheet(sheetIdx);
 	}
 
 	bool InitializeSheet()

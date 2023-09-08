@@ -5,6 +5,7 @@ using System.Data.Common;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Threading.Tasks;
 using Xunit;
 
 namespace Sylvan.Data.Excel;
@@ -1253,6 +1254,65 @@ public class XlsxTests
 		Assert.Equal(45678d, edr.GetDouble(0));
 		Assert.Equal(new DateTime(2025, 1, 21), edr.GetDateTime(0));
 	}
+
+#if ASYNC
+
+	[Fact]
+	public async Task BasicAsync()
+	{
+		var name = GetFile("Big");
+		await using var edr = await ExcelDataReader.CreateAsync(name);
+		while (await edr.ReadAsync())
+		{
+			for (int i = 0; i < edr.RowFieldCount; i++)
+			{
+				edr.GetValue(i);
+			}
+		}
+	}
+
+	[Fact]
+	public async Task StreamAsync()
+	{
+		var name = GetFile("Big");
+		var stream = File.OpenRead(name);
+
+		var testStream = new TestStream(stream);
+		
+		await using var edr = await ExcelDataReader.CreateAsync(testStream, this.WorkbookType);
+		while (await edr.ReadAsync())
+		{
+			for (int i = 0; i < edr.RowFieldCount; i++)
+			{
+				edr.GetValue(i);
+			}
+		}
+
+		// The stream should still be open, because we own it.
+		Assert.False(testStream.IsClosed);
+	}
+
+	[Fact]
+	public async Task OwnedStreamAsync()
+	{
+		var name = GetFile("Big");
+		var stream = File.OpenRead(name);
+
+		var testStream = new TestStream(stream);
+		var opts = new ExcelDataReaderOptions { OwnsStream = true };
+		await using var edr = await ExcelDataReader.CreateAsync(testStream, this.WorkbookType, opts);
+		while (await edr.ReadAsync())
+		{
+			for (int i = 0; i < edr.RowFieldCount; i++)
+			{
+				edr.GetValue(i);
+			}
+		}
+		// The stream should have been closed for us, due to OwnsStream = true.
+		Assert.True(testStream.IsClosed);
+	}
+
+#endif
 }
 
 public sealed class XlsTests : XlsxTests

@@ -3,7 +3,6 @@ using System.Diagnostics;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text;
-using System.Threading.Tasks;
 using static Sylvan.Data.Excel.Ole2Package;
 
 namespace Sylvan.Data.Excel.Xls;
@@ -45,7 +44,7 @@ sealed partial class XlsWorkbookReader
 			this.strBuffer = Array.Empty<char>();
 		}
 
-		async Task<bool> FillBufferAsync(int required)
+		bool FillBuffer(int required)
 		{
 			var len = bufferLen - recordOff;
 
@@ -65,7 +64,7 @@ sealed partial class XlsWorkbookReader
 
 			while (c < required)
 			{
-				var l = await stream.ReadAsync(buffer, len, BufferSize - len, default).ConfigureAwait(false);
+				var l = stream.Read(buffer, len, BufferSize - len);
 				c += l;
 				if (l == 0)
 				{
@@ -119,11 +118,11 @@ sealed partial class XlsWorkbookReader
 			return ReadByte() | ReadByte() << 8 | ReadByte() << 16 | ReadByte() << 24;
 		}
 
-		public async Task<string> ReadString16()
+		public string ReadString16()
 		{
 			if (bufferPos >= recordOff + recordLen)
 			{
-				var next = await NextRecordAsync().ConfigureAwait(false);
+				var next = NextRecord();
 				if (!next || Type != RecordType.Continue)
 					throw new InvalidDataException();
 			}
@@ -144,7 +143,7 @@ sealed partial class XlsWorkbookReader
 			if (asian)
 				asianCount = ReadInt32();
 
-			var str = await ReadStringBufferAsync(len, compressed).ConfigureAwait(false);
+			var str = ReadStringBuffer(len, compressed);
 
 			var remain = richCount * 4 + asianCount;
 
@@ -157,7 +156,7 @@ sealed partial class XlsWorkbookReader
 				Assert();
 				if (remain > 0)
 				{
-					var next = await NextRecordAsync().ConfigureAwait(false);
+					var next = NextRecord();
 					if (!next || Type != RecordType.Continue)
 						throw new InvalidDataException();
 				}
@@ -168,7 +167,7 @@ sealed partial class XlsWorkbookReader
 
 		static readonly Encoding Encoding1252 = Encoding.GetEncoding(1252);
 
-		internal async Task<string> ReadStringBufferAsync(int charCount, bool compressed)
+		internal string ReadStringBuffer(int charCount, bool compressed)
 		{
 			var strLen = charCount;
 			// stores our position in the string we are assembling.
@@ -216,7 +215,7 @@ sealed partial class XlsWorkbookReader
 
 				if (charCount > 0)
 				{
-					var next = await NextRecordAsync().ConfigureAwait(false);
+					var next = NextRecord();
 					if (!next || Type != RecordType.Continue)
 						throw new InvalidDataException();
 
@@ -232,7 +231,7 @@ sealed partial class XlsWorkbookReader
 			return new string(strBuffer, 0, strLen);
 		}
 
-		public async Task<string> ReadByteString(int lenSize)
+		public string ReadByteString(int lenSize)
 		{
 			int len;
 			if (lenSize == 1)
@@ -240,12 +239,12 @@ sealed partial class XlsWorkbookReader
 			else
 				len = ReadInt16();
 
-			await ReadStringBufferAsync(len, true).ConfigureAwait(false);
+			ReadStringBuffer(len, true);
 			var str = new string(strBuffer, 0, len);
 			return str;
 		}
 
-		public async Task<string> ReadString8()
+		public string ReadString8()
 		{
 			int len = ReadByte();
 			byte options = ReadByte();
@@ -262,7 +261,7 @@ sealed partial class XlsWorkbookReader
 			if (asian)
 				asianCount = ReadInt32();
 
-			var str = await ReadStringBufferAsync(len, compressed).ConfigureAwait(false);
+			var str = ReadStringBuffer(len, compressed);
 
 			for (int i = 0; i < richCount; i++)
 			{
@@ -277,21 +276,21 @@ sealed partial class XlsWorkbookReader
 			return str;
 		}
 
-		public async Task<string> ReadStringAsync(int length, bool compressed)
+		public string ReadString(int length, bool compressed)
 		{
-			var str = await ReadStringBufferAsync(length, compressed).ConfigureAwait(false);
+			var str = ReadStringBuffer(length, compressed);
 			return str;
 		}
 
 		// reads the next BIFF record. Ensuring the entire
 		// record bytes are in the working buffer.
-		public async Task<bool> NextRecordAsync()
+		public bool NextRecord()
 		{
 			bufferPos = recordOff + recordLen;
 
 			if (bufferPos + 4 >= bufferLen)
 			{
-				if (!await FillBufferAsync(4).ConfigureAwait(false))
+				if (!FillBuffer(4))
 				{
 					return false;
 				}
@@ -311,7 +310,7 @@ sealed partial class XlsWorkbookReader
 				var req = (recordOff + recordLen) - bufferLen;
 				Debug.Assert(req >= 1);
 
-				if (!await FillBufferAsync(req).ConfigureAwait(false))
+				if (!FillBuffer(req))
 				{
 					return false;
 				}
