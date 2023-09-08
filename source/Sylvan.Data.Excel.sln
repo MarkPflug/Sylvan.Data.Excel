@@ -9,6 +9,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Sylvan.Data.Excel.Tests", "
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Documentation", "Documentation", "{515E9519-9779-41B9-AEAE-F17DA70EFB1B}"
 	ProjectSection(SolutionItems) = preProject
+		..\docs\Async.md = ..\docs\Async.md
 		..\license.txt = ..\license.txt
 		..\readme.md = ..\readme.md
 		..\docs\Reference.md = ..\docs\Reference.md

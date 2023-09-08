@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace Sylvan.Data.Excel.Xls;
 
@@ -32,15 +30,7 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 	int curFieldCount = 0;
 	int pendingRow = -1;
 
-	internal static async Task<XlsWorkbookReader> CreateAsync(Stream iStream, ExcelDataReaderOptions options)
-	{
-		var reader = new XlsWorkbookReader(iStream, options);
-		await reader.ReadHeaderAsync().ConfigureAwait(false);
-		await reader.NextResultAsync().ConfigureAwait(false);
-		return reader;
-	}
-
-	private XlsWorkbookReader(Stream stream, ExcelDataReaderOptions options) : base(stream, options)
+	internal XlsWorkbookReader(Stream stream, ExcelDataReaderOptions options) : base(stream, options)
 	{
 		var pkg = new Ole2Package(stream);
 		var part = pkg.GetEntry("Workbook\0");
@@ -50,25 +40,26 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 
 		this.reader = new RecordReader(ps);
 		this.fieldInfos = new FieldInfo[16];
-
+		this.ReadHeader();
+		this.NextResult();
 	}
 
 	public override ExcelWorkbookType WorkbookType => ExcelWorkbookType.Excel;
 
 	public override int RowNumber => rowNumber;
 
-	private protected override async Task<bool> OpenWorksheetAsync(int sheetIdx, CancellationToken cancel)
+	private protected override bool OpenWorksheet(int sheetIdx)
 	{
 		var info = (XlsSheetInfo)this.sheetInfos[sheetIdx];
 		this.rowNumber = 0;
 		this.pendingRow = -1;
 		reader.SetPosition(info.Offset);
-		await InitSheet(cancel).ConfigureAwait(false);
+		InitSheet();
 		this.sheetIdx = sheetIdx;
 		return true;
 	}
 
-	public override async Task<bool> NextResultAsync(CancellationToken cancel)
+	public override bool NextResult()
 	{
 		sheetIdx++;
 
@@ -76,19 +67,14 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 		{
 			if (this.readHiddenSheets || this.sheetInfos[sheetIdx].Hidden == false)
 			{
-				await OpenWorksheetAsync(sheetIdx, cancel).ConfigureAwait(false);
+				OpenWorksheet(sheetIdx);
 				return true;
 			}
 		}
 		return false;
 	}
 
-	public override bool NextResult()
-	{
-		return NextResultAsync(default).GetAwaiter().GetResult();
-	}
-
-	public override async Task<bool> ReadAsync(CancellationToken cancel)
+	public override bool Read()
 	{
 		rowNumber++;
 		if (this.rowIndex >= rowCount)
@@ -105,12 +91,7 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 		}
 		rowIndex++;
 
-		return await NextRow().ConfigureAwait(false);
-	}
-
-	public override bool Read()
-	{
-		return ReadAsync(CancellationToken.None).GetAwaiter().GetResult();
+		return NextRow();
 	}
 
 	public override int MaxFieldCount => 256;
@@ -127,9 +108,9 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 		return (BOFType)type;
 	}
 
-	async Task ReadHeaderAsync()
+	void ReadHeader()
 	{
-		await reader.NextRecordAsync().ConfigureAwait(false);
+		reader.NextRecord();
 
 		if (reader.Type != RecordType.BOF)
 			throw new InvalidDataException();//"Expected BOF record"
@@ -140,16 +121,16 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 		var sheets = new List<XlsSheetInfo>();
 		var xfs = new List<int>();
 		
-		while (await reader.NextRecordAsync().ConfigureAwait(false))
+		while (reader.NextRecord())
 		{
 			var recordType = reader.Type;
 			switch (recordType)
 			{
 				case RecordType.Sst:
-					await LoadSharedStringTable().ConfigureAwait(false);
+					LoadSharedStringTable();
 					break;
 				case RecordType.Sheet:
-					sheets.Add(await LoadSheetRecord().ConfigureAwait(false));
+					sheets.Add(LoadSheetRecord());
 					break;
 				case RecordType.Style:
 					ParseStyle();
@@ -158,7 +139,7 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 					xfs.Add(ParseXF());
 					break;
 				case RecordType.Format:
-					await ParseFormat().ConfigureAwait(false);
+					ParseFormat();
 					break;
 				case RecordType.YearEpoch:
 					Parse1904();
@@ -175,12 +156,12 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 		this.xfMap = xfs.ToArray();
 	}
 
-	async Task<bool> InitSheet(CancellationToken cancel)
+	bool InitSheet()
 	{
 		rowIndex = -1;
 		this.state = State.Initializing;
 
-		while (await reader.NextRecordAsync().ConfigureAwait(false))
+		while (reader.NextRecord())
 		{
 			if (reader.Type == RecordType.BOF)
 			{
@@ -203,7 +184,7 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 	readBeginningOfSheet:
 		while (true)
 		{
-			await reader.NextRecordAsync().ConfigureAwait(false);
+			reader.NextRecord();
 
 			switch (reader.Type)
 			{
@@ -224,11 +205,11 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 			}
 		}
 	done:
-		await ReadAsync(cancel).ConfigureAwait(false);
+		Read();
 		var result = LoadSchema();
 		if (!result)
 		{
-			await ReadAsync(cancel).ConfigureAwait(false);
+			Read();
 			this.rowNumber = 1;
 		}
 		else
@@ -250,17 +231,17 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 		return ifmt;
 	}
 
-	async Task ParseFormat()
+	void ParseFormat()
 	{
 		int ifmt = reader.ReadInt16();
 		string str;
 		if (biffVersion == 0x0500)
 		{
-			str = await reader.ReadByteString(1).ConfigureAwait(false);
+			str = reader.ReadByteString(1);
 		}
 		else
 		{
-			str = await reader.ReadString16().ConfigureAwait(false);
+			str = reader.ReadString16();
 		}
 
 		if (formats.ContainsKey(ifmt))
@@ -304,12 +285,12 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 		}
 	}
 
-	async Task ParseLabel()
+	void ParseLabel()
 	{
 		int rowIdx = reader.ReadUInt16();
 		int colIdx = reader.ReadUInt16();
 		int xfIdx = reader.ReadUInt16();
-		string str = await reader.ReadByteString(2).ConfigureAwait(false);
+		string str = reader.ReadByteString(2);
 		SetRowData(colIdx, new FieldInfo(str));
 	}
 
@@ -350,7 +331,7 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 		SetRowData(colIdx, new FieldInfo(d, xfIdx));
 	}
 
-	async Task ParseFormula()
+	void ParseFormula()
 	{
 		var rowIdx = reader.ReadUInt16();
 		var colIdx = reader.ReadUInt16();
@@ -373,11 +354,11 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 			switch (rtype)
 			{
 				case 0: // string
-					var next = await reader.NextRecordAsync().ConfigureAwait(false);
+					var next = reader.NextRecord();
 					if (!next || reader.Type != RecordType.String) throw new InvalidDataException();
 					int len = reader.ReadUInt16();
 					byte kind = reader.ReadByte();
-					var str = await reader.ReadStringAsync(len, kind == 0).ConfigureAwait(false);
+					var str = reader.ReadString(len, kind == 0);
 					SetRowData(colIdx, new FieldInfo(str));
 					break;
 				case 1: // boolean
@@ -411,7 +392,7 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 	}
 
 
-	async Task<bool> NextRow()
+	bool NextRow()
 	{
 		// clear out any fields from previous row
 		Array.Clear(this.fieldInfos, 0, this.fieldInfos.Length);
@@ -420,7 +401,7 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 		{
 			if (pendingRow == -1)
 			{
-				if (!await reader.NextRecordAsync().ConfigureAwait(false))
+				if (!reader.NextRecord())
 				{
 					return false;
 				}
@@ -480,7 +461,7 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 					ParseLabelSST();
 					break;
 				case RecordType.Label:
-					await ParseLabel().ConfigureAwait(false);
+					ParseLabel();
 					break;
 				case RecordType.RK:
 					ParseRK();
@@ -492,7 +473,7 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 					ParseNumber();
 					break;
 				case RecordType.Formula:
-					await ParseFormula().ConfigureAwait(false);
+					ParseFormula();
 					break;
 				case RecordType.Blank:
 				case RecordType.BoolErr:
@@ -538,7 +519,7 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 		return rowEnd;
 	}
 
-	async Task<XlsSheetInfo> LoadSheetRecord()
+	XlsSheetInfo LoadSheetRecord()
 	{
 		int offset = reader.ReadInt32();
 		byte visibility = reader.ReadByte();
@@ -546,13 +527,13 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 
 		string name =
 			biffVersion == 0x0500
-			? await reader.ReadByteString(1).ConfigureAwait(false)
-			: await reader.ReadString8().ConfigureAwait(false);
+			? reader.ReadByteString(1)
+			: reader.ReadString8();
 
 		return new XlsSheetInfo(name, offset, visibility != 0);
 	}
 
-	async Task LoadSharedStringTable()
+	void LoadSharedStringTable()
 	{
 		int totalString = reader.ReadInt32();
 		int uniqueString = reader.ReadInt32();
@@ -561,7 +542,7 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 
 		for (int i = 0; i < uniqueString; i++)
 		{
-			var s = await reader.ReadString16().ConfigureAwait(false);
+			var s = reader.ReadString16();
 			strings[i] = s;
 		}
 

@@ -181,6 +181,7 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 			xw.Write("</row>");
 			row++;
 		}
+		
 		bool complete = true;
 		while (true)
 		{
