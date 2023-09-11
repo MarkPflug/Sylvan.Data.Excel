@@ -26,12 +26,12 @@ partial class XlsxDataWriter
 
 		public char[] GetCharBuffer()
 		{
-			return charBuffer ?? (charBuffer = new char[64]);
+			return charBuffer ??= new char[64];
 		}
 
 		public byte[] GetByteBuffer()
 		{
-			return byteBuffer ?? (byteBuffer = new byte[48]);
+			return byteBuffer ??= new byte[48];
 		}
 	}
 
@@ -65,9 +65,9 @@ partial class XlsxDataWriter
 		public static void WriteChar(Context c, char value)
 		{
 			var w = c.xw;
-			w.Write("<c t=\"str\"><v>");
+			w.Write("<c t=\"inlineStr\"><is><t>");
 			w.Write(value);
-			w.Write("</v></c>");
+			w.Write("</t></is></c>");
 		}
 
 		public static void WriteByte(Context c, byte value)
@@ -200,7 +200,7 @@ partial class XlsxDataWriter
 			var w = c.xw;
 			// TODO: currently writing these as inline string.
 			// might make sense to put in shared string table instead.
-			w.Write("<c t=\"str\"><v>");
+			w.Write("<c t=\"inlineStr\"><is><t>");
 
 #if SPAN
 			var scratch = c.GetCharBuffer();
@@ -212,7 +212,7 @@ partial class XlsxDataWriter
 			w.Write(value);
 #endif
 
-			w.Write("</v></c>");
+			w.Write("</t></is></c>");
 		}
 
 		public static void WriteBoolean(Context c, bool value)
@@ -319,7 +319,7 @@ partial class XlsxDataWriter
 		public static void WriteBinaryHex(Context c, byte[] value)
 		{
 			var w = c.xw;
-			w.Write("<c t=\"str\"><v>");
+			w.Write("<c t=\"inlineStr\"><is><t>");
 			var charBuffer = c.GetCharBuffer();
 			var idx = 0;
 			w.Write("0x");
@@ -330,16 +330,16 @@ partial class XlsxDataWriter
 				idx += 48;
 			}
 
-			w.Write("</v></c>");
+			w.Write("</t></is></c>");
 		}
 
 		public static void WriteCharArray(Context c, char[] value)
 		{
 			var w = c.xw;
-			w.Write("<c t=\"str\"><v>");
+			w.Write("<c t=\"inlineStr\"><is><t>");
 			// TODO: limit length...
 			w.Write(value);
-			w.Write("</v></c>");
+			w.Write("</t></is></c>");
 		}
 	}
 
@@ -711,7 +711,7 @@ partial class XlsxDataWriter
 		public override void WriteField(Context context, int ordinal)
 		{
 			var w = context.xw;
-			w.Write("<c t=\"str\"><v>");
+			w.Write("<c t=\"inlineStr\"><is><t>");
 			var idx = 0;
 			var dataBuffer = context.GetByteBuffer();
 			var charBuffer = context.GetCharBuffer();
@@ -725,7 +725,7 @@ partial class XlsxDataWriter
 				idx += len;
 			}
 
-			w.Write("</v></c>");
+			w.Write("</t></is></c>");
 		}
 	}
 
@@ -734,7 +734,7 @@ partial class XlsxDataWriter
 		public override void WriteField(Context context, int ordinal)
 		{
 			var w = context.xw;
-			w.Write("<c t=\"str\"><v>");
+			w.Write("<c t=\"inlineStr\"><is><t>");
 			var idx = 0;
 			var dataBuffer = context.GetCharBuffer();
 			int len;
@@ -745,7 +745,7 @@ partial class XlsxDataWriter
 				idx += len;
 			}
 
-			w.Write("</v></c>");
+			w.Write("</t></is></c>");
 		}
 	}
 }

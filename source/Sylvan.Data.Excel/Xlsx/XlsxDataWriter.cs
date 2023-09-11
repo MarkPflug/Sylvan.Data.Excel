@@ -266,6 +266,8 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 			{
 				xw.WriteAttributeString("xml", "space", null, "preserve");
 			}
+			// using XmlWriter, so escaping xml-layer characters
+			// is handled by the XmlWriter.
 			xw.WriteValue(encodedStr);
 			xw.WriteEndElement();
 			xw.WriteEndElement();

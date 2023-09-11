@@ -47,7 +47,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 		this.sheetStream = Stream.Null;
 
 		package = new ZipArchive(iStream, ZipArchiveMode.Read, true);
-		
+
 
 		var workbookPartName = OpenPackaging.GetWorkbookPart(package) ?? DefaultWorkbookPartName;
 
@@ -379,7 +379,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 				if (rowIndex < parsedRowIndex)
 				{
 					this.rowFieldCount = 0;
-				} 
+				}
 				else
 				{
 					this.rowFieldCount = curFieldCount;
@@ -400,7 +400,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 					this.curFieldCount = c;
 					this.rowFieldCount = 0;
 					return true;
-				}				
+				}
 				return true;
 			}
 		}
@@ -849,6 +849,11 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 			int c = 0;
 			while (reader.Read() && reader.Depth > depth)
 			{
+				if (reader.NodeType == XmlNodeType.Element && reader.LocalName == "rPh")
+				{
+					SkipSubtree(reader);
+				}
+				else
 				if (reader.NodeType == XmlNodeType.Element && reader.LocalName == "t")
 				{
 					string? s = string.Empty;

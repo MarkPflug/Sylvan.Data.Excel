@@ -225,4 +225,13 @@ public class CustomTests
 		// and will be interpreted as the "next" cell instead.
 		Assert.Equal(1, r.GetInt32(1));
 	}
+
+	[Fact]
+	public void Phonetic()
+	{
+		using var r = XlsxBuilder.Create(TestData.Phonetic, TestData.PhoneticSST, null, o => o.Schema = ExcelSchema.NoHeaders);
+		r.Read();
+		Assert.Equal("NAME", r.GetString(0));
+		Assert.Equal("A", r.GetString(1));
+	}
 }

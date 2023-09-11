@@ -1,0 +1,13 @@
+﻿<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" count="2" uniqueCount="2">
+	<si>
+		<t>NAME</t>
+		<phoneticPr fontId="1"/>
+	</si>
+	<si>
+		<t>A</t>
+		<rPh sb="0" eb="2">
+			<t>B</t>
+		</rPh>
+		<phoneticPr fontId="1"/>
+	</si>
+</sst>

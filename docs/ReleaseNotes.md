@@ -1,5 +1,8 @@
 # Sylvan.Data.Excel Release Notes
 
+_0.4.17_
+- Exclude phonetic component when reading string values.
+
 _0.4.16_
 - Adds ExcelFileType class that exposes constants about supported Excel formats: extensions and content types.
 - Add `Obsolete` to `TryOpenWorksheetAsync`, use `TryOpenWorksheet` instead.

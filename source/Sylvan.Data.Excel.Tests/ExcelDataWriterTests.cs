@@ -108,6 +108,32 @@ public abstract class ExcelDataWriterTests
 	}
 
 	[Fact]
+	public void Violence()
+	{
+		// tests the most common types.
+		Random r = new Random();
+		var data =
+			Enumerable.Range(1, 4096)
+			.Select(
+				i => new
+				{
+					Id = i, //int32
+					Name = "<a>" + i + "</a>",
+					ValueInt = ">>>",
+				}
+			);
+
+		var f = GetFile();
+		var reader = data.AsDataReader();
+		using (var w = ExcelDataWriter.Create(f))
+		{
+			w.Write(reader);
+		}
+		Open(f);
+		Validate(f);
+	}
+
+	[Fact]
 	public void Decimal()
 	{
 		// tests the most common types.
