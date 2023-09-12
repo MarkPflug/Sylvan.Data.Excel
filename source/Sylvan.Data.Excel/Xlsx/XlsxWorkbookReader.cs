@@ -308,13 +308,15 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 				}
 				else
 				{
-					throw new FormatException();
+					row = 0;
 				}
 #else
 				var str = reader.Value;
-				row = int.Parse(str, NumberStyles.Integer, ci);
+				if (!int.TryParse(str, NumberStyles.Integer, ci, out row))
+				{
+					row = 0;
+				}
 #endif
-
 				this.parsedRowIndex = row - 1;
 			}
 			else
@@ -335,6 +337,8 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 		public static bool TryParse(ReadonlyCharSpan str, out CellPosition pos)
 		{
 			pos = default;
+			if (str.Length == 0)
+				return false;
 
 			int col = -1;
 			int row = 0;
@@ -452,9 +456,14 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 				if (n == "r")
 				{
 					len = reader.ReadValueChunk(valueBuffer, 0, valueBuffer.Length);
+					
 					if (CellPosition.TryParse(valueBuffer.AsSpan().ToParsable(0, len), out var pos))
 					{
 						col = pos.Column;
+					} 
+					else
+					{
+						// if the cell ref is unparsable, Excel seems to treat it as missing.
 					}
 				}
 				else
