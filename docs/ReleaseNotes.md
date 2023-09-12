@@ -2,6 +2,7 @@
 
 _0.4.17_
 - Exclude phonetic component when reading string values.
+- Allow invalid ref values, which Excel appears to treat as missing. 
 
 _0.4.16_
 - Adds ExcelFileType class that exposes constants about supported Excel formats: extensions and content types.
