@@ -10,4 +10,5 @@
 		</rPh>
 		<phoneticPr fontId="1"/>
 	</si>
+	<si><t>C,D</t><rPh sb="0" eb="1"><t>E</t></rPh><rPh sb="2" eb="3"><t>F</t></rPh><phoneticPr fontId="1"/></si>
 </sst>

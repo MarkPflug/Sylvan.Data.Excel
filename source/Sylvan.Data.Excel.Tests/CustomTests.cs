@@ -233,5 +233,6 @@ public class CustomTests
 		r.Read();
 		Assert.Equal("NAME", r.GetString(0));
 		Assert.Equal("A", r.GetString(1));
+		Assert.Equal("C,D", r.GetString(2));
 	}
 }

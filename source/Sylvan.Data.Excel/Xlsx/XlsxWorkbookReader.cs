@@ -858,9 +858,13 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 			int c = 0;
 			while (reader.Read() && reader.Depth > depth)
 			{
+				start:
 				if (reader.NodeType == XmlNodeType.Element && reader.LocalName == "rPh")
 				{
 					SkipSubtree(reader);
+					// after skipping the subtree, the reader will already be positioned on the next element
+					// so we need to avoid calling Read again.
+					goto start;
 				}
 				else
 				if (reader.NodeType == XmlNodeType.Element && reader.LocalName == "t")
