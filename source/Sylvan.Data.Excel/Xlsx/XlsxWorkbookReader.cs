@@ -44,6 +44,13 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 	XmlReader? sstReader;
 	int sstIdx = -1;
 
+	public override void Close()
+	{
+		this.reader?.Close();
+		this.sstReader?.Close();
+		base.Close();
+	}
+
 	public XlsxWorkbookReader(Stream iStream, ExcelDataReaderOptions opts) : base(iStream, opts)
 	{
 		this.rowCount = -1;
@@ -194,6 +201,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 		var settings = new XmlReaderSettings
 		{
 			CheckCharacters = false,
+			CloseInput = true,
 			ValidationType = ValidationType.None,
 			ValidationFlags = System.Xml.Schema.XmlSchemaValidationFlags.None,
 #if SPAN
@@ -876,6 +884,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 			var sstStream = sstPart!.Open();
 			var settings = new XmlReaderSettings
 			{
+				CloseInput = true,
 				CheckCharacters = false,
 #if SPAN
 				// name table optimization requires ROS

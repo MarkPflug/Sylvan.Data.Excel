@@ -32,6 +32,7 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 	public override void Close()
 	{
 		this.sheetStream?.Close();
+		this.sstStream?.Close();
 		base.Close();
 	}
 
