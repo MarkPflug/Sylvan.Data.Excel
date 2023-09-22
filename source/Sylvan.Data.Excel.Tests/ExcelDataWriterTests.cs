@@ -129,7 +129,7 @@ public abstract class ExcelDataWriterTests
 		{
 			w.Write(reader);
 		}
-		Open(f);
+		//Open(f);
 		Validate(f);
 	}
 
