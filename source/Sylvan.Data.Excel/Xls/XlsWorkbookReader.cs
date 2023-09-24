@@ -94,6 +94,12 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 		return NextRow();
 	}
 
+	private protected override string GetSharedString(int idx)
+	{
+		// .xls eagerly loads the shared strings.
+		return sst[idx];
+	}
+
 	public override int MaxFieldCount => 256;
 
 	BOFType ReadBOF()

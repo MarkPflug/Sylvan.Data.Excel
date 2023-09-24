@@ -9,7 +9,9 @@ partial class ExcelDataReader
 		public static readonly FieldInfo Null = default;
 
 		public ExcelDataType type;
+		public bool isSS;
 		public string? strValue;
+		public int ssIdx;
 		public double numValue;
 		public DateTime dtValue;
 		public int xfIdx;

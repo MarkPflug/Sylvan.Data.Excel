@@ -609,13 +609,15 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 							{
 								throw new FormatException();
 							}
-							fi.strValue = GetSharedString(strIdx);
+							fi.isSS = true;
+							fi.ssIdx = strIdx;
+							//fi.strValue = GetSharedString(strIdx);
 						}
 						else
 						{
 							fi.strValue = string.Empty;
 						}
-						fi.type = fi.strValue.Length == 0 ? ExcelDataType.Null : ExcelDataType.String;
+						fi.type = ExcelDataType.String;
 						break;
 					case CellType.String:
 						if (reader.NodeType == XmlNodeType.Text)
@@ -876,7 +878,19 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 		return str;
 	}
 
-	string GetSharedString(int i)
+	private protected override string GetSharedString(int idx)
+	{
+		if (this.sstIdx < idx)
+		{
+			if (!LoadSharedString(idx))
+			{
+				throw new InvalidDataException();
+			}
+		}
+		return sst[idx];
+	}
+
+	bool LoadSharedString(int i)
 	{
 		var reader = this.sstReader;
 		if (reader == null)
@@ -941,10 +955,12 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 			{
 				// a cell with an SST value reference out of bounds.
 				// this exception type is probably wrong
-				throw new ArgumentOutOfRangeException(nameof(i));
+				//y
+				//throw new ArgumentOutOfRangeException(nameof(i));
+				return false;
 			}
 		}
 
-		return sst[i];
+		return true;
 	}
 }

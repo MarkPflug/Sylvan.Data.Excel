@@ -260,6 +260,18 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 		return true;
 	}
 
+	private protected override string GetSharedString(int idx)
+	{
+		if (this.sstIdx < idx)
+		{
+			if (!LoadSst(idx))
+			{
+				throw new InvalidDataException();
+			}
+		}
+		return sst[idx];
+	}
+
 	public override bool Read()
 	{
 		rowIndex++;
@@ -437,14 +449,10 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 							case RecordType.CellIsst:
 								type = ExcelDataType.String;
 								var sstIdx = reader.GetInt32(8);
-								if (this.sstIdx < sstIdx)
-								{
-									if (!LoadSst(sstIdx))
-									{
-										throw new InvalidDataException();
-									}
-								}
-								fi.strValue = sst[sstIdx];
+								
+								fi.isSS = true;
+								fi.ssIdx = sstIdx;
+								//fi.strValue = sst[sstIdx];
 								notNull++;
 								break;
 							case RecordType.CellSt:

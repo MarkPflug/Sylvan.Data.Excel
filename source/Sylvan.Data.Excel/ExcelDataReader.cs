@@ -856,8 +856,15 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 			case ExcelDataType.Numeric:
 				return FormatVal(fi.xfIdx, fi.numValue);
 		}
-		return fi.strValue ?? string.Empty;
+		return ProcString(in fi);
 	}
+
+	string ProcString(in FieldInfo fi)
+	{
+		return (fi.isSS ? GetSharedString(fi.ssIdx) : fi.strValue) ?? string.Empty;
+	}
+
+	private protected abstract string GetSharedString(int idx);
 
 	string FormatVal(int xfIdx, double val)
 	{
@@ -890,7 +897,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 		switch (cell.type)
 		{
 			case ExcelDataType.String:
-				return double.Parse(cell.strValue!, culture);
+				return double.Parse(ProcString(in cell), culture);
 			case ExcelDataType.Numeric:
 				return cell.numValue;
 			case ExcelDataType.Error:
@@ -923,7 +930,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 				var trueString = col?.TrueString ?? this.trueString;
 				var falseString = col?.FalseString ?? this.falseString;
 
-				var strVal = fi.strValue;
+				var strVal = ProcString(in fi);
 				var c = StringComparer.OrdinalIgnoreCase;
 
 				if (trueString != null && c.Equals(strVal, trueString))
