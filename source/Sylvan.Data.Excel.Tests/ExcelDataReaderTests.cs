@@ -1214,7 +1214,7 @@ public class XlsxTests
 		Assert.Equal(-0.5d, edr.GetDouble(0));
 		Assert.Throws<InvalidCastException>(() => edr.GetDateTime(0));
 
-		// The range [0, 1) renders in excel as 1900-01-00, which is nonsense.
+		// The range [0, 1) renders in Excel as 1900-01-00, which is nonsense.
 		Assert.True(edr.Read());
 		Assert.Equal(ExcelDataType.Numeric, edr.GetExcelDataType(0));
 		Assert.Equal(0, edr.GetDouble(0));

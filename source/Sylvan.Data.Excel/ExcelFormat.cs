@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 
 namespace Sylvan.Data.Excel;
+
 /// <summary>
 /// Indicates the kind of data the format string represents.
 /// </summary>
@@ -226,12 +227,6 @@ public sealed class ExcelFormat
 	{
 		this.Format = spec;
 		this.Kind = DetermineKind(spec);
-		//this.format = FormatKind switch
-		//{
-		//	FormatKind.Date => "o",
-		//	FormatKind.Time => "HH:mm:ss.FFFFFFF",
-		//	_ => "G",
-		//};
 	}
 
 	internal ExcelFormat(string spec, FormatKind kind, string? format = null)
@@ -250,7 +245,7 @@ public sealed class ExcelFormat
 	/// </summary>
 	public FormatKind Kind { get; private set; }
 
-	internal string FormatValue(double value, DateMode mode)
+	internal string FormatValue(double value, ExcelDataReader.DateMode mode)
 	{
 		var kind = this.Kind;
 		switch (kind)

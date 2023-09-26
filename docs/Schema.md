@@ -26,7 +26,7 @@ It is often useful to apply a strict schema to the data in an Excel file when th
 to be constrained to values of a uniform type. This allows the data to be read in a strongly-typed way
 when loading into a `DataTable` or being processed by certain schema-aware tools like `SqlBulkCopy`.
 
-Sylvan.Data.Excel allows applying a schema to excel data via the `IExcelSchemaProvider` interface.
+Sylvan.Data.Excel allows applying a schema to Excel data via the `IExcelSchemaProvider` interface.
 This interface allows providing a different schema per-sheet in a workbook. 
 
 The `ExcelSchema` class provides a concrete implementation of `IExcelSchemaProvider`, and is the easiet
@@ -52,7 +52,7 @@ using System.Data;
 // uses Sylvan.Data package to create a schema definition.
 var schema = Schema.Parse("Id:int,Name:string,Value:decimal,ReleaseDate:date,Notes:string?");
 
-// creates an excel schema that can apply the above schema to an Excel worksheet.
+// creates an Excel schema that can apply the above schema to an Excel worksheet.
 var excelSchema = new ExcelSchema(hasHeaders: true, schema);
 
 using (var data = ExcelDataReader.Create("data.xlsx", new ExcelDataReaderOptions { Schema = excelSchema })) 

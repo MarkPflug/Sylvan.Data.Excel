@@ -28,7 +28,7 @@ The `GetExcelDataType` method allows inspecting the native Excel data type of a 
 
 ### Reading Raw Data
 
-The ExcelDataReader provides a forward only, row by row access to the data in a worksheet. It allows iterating over sheets using the `NextResult()` method, and iterating over rows using the `Read()` method. Fields are accessed using standard accessors, most commonly `GetString()`. `GetString()` is designed to not throw an exception, except in the case that a cell contains a formula error.
+The ExcelDataReader provides a forward only, row by row access to the data in a worksheet. It allows iterating over sheets using the `NextResult()` method, and iterating over rows using the `Read()` method. Fields are accessed using standard accessors, most commonly `GetString()`. `GetString()` is designed to not throw an exception, except in the case that a cell contains a formula error. The `TryOpenWorksheet(string name)` method can be used to open a specific, known worksheet.
 
 ```C#
 using Sylvan.Data.Excel;

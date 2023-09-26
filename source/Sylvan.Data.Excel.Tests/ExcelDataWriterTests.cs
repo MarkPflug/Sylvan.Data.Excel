@@ -339,7 +339,7 @@ public abstract class ExcelDataWriterTests
 	[Fact]
 	public void JaggedData()
 	{
-		// tests writing jagged data to excel.
+		// tests writing jagged data to Excel.
 		var data = "a,b,c\n1,2,3\n1,2,3,4\n,1,2,3,4,5\n";
 		var r = new StringReader(data);
 		var csv = CsvDataReader.Create(r);

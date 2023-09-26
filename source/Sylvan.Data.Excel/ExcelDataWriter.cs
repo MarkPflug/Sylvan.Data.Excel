@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 namespace Sylvan.Data.Excel;
 
 /// <summary>
-/// Writes data to excel files.
+/// Writes data to Excel files.
 /// </summary>
 public abstract class ExcelDataWriter : 
 	IDisposable

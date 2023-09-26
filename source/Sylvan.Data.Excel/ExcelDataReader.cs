@@ -13,17 +13,18 @@ using System.Threading.Tasks;
 
 namespace Sylvan.Data.Excel;
 
-internal enum DateMode
-{
-	Mode1900,
-	Mode1904,
-}
-
 /// <summary>
 /// A DbDataReader implementation that reads data from an Excel file.
 /// </summary>
 public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbColumnSchemaGenerator
 {
+	// Excel supports two different date representations.
+	internal enum DateMode
+	{
+		Mode1900,
+		Mode1904,
+	}
+
 	int fieldCount;
 	bool isClosed;
 	Stream stream;
@@ -403,7 +404,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 	}
 
 	/// <summary>
-	/// Gets the value as represented in excel.
+	/// Gets the value as represented in Excel.
 	/// </summary>
 	/// <remarks>
 	/// Formula errors are returned as ExcelErrorCode values, rather than throwing an exception.
@@ -434,7 +435,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 	}
 
 	/// <summary>
-	/// Gets the column schema
+	/// Gets the column schema of the current worksheet.
 	/// </summary>
 	public ReadOnlyCollection<DbColumn> GetColumnSchema()
 	{
@@ -444,6 +445,10 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 	/// <summary>
 	/// Initializes the schema starting with the current row.
 	/// </summary>
+	/// <remarks>
+	/// This can be used when a worksheet has "header" rows with non-data content.
+	/// Read past the header, and call Initialize when the row of tabular data is found.
+	/// </remarks>
 	public void Initialize()
 	{
 		var sheet = this.WorksheetName;
@@ -571,7 +576,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 									var doubleValue = GetDouble(ordinal);
 									unchecked
 									{
-										// excel stores all values as double
+										// Excel stores all values as double
 										// but we'll try to return it as the
 										// most "intuitive" type.
 										var int32Value = (int)doubleValue;

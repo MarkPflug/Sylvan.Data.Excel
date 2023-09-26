@@ -63,7 +63,7 @@ public class CustomTests
 	[Fact]
 	public void EmptySharedStringValue()
 	{
-		// Test a degenerate case produced by AG grid export to excel.
+		// Test a degenerate case produced by AG grid export to Excel.
 		var reader = XlsxBuilder.Create(TestData.EmptyValue, TestData.SharedStringSimple);
 		Assert.True(reader.Read());
 		// <v>0</v>
