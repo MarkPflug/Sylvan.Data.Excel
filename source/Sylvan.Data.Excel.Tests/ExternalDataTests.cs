@@ -41,6 +41,47 @@ public class ExternalDataTests
 		}
 	}
 
+
+	[Fact]
+	public void AnalyzeFiles()
+	{
+		var root = Environment.GetEnvironmentVariable("SylvanExcelTestData");
+		if (string.IsNullOrEmpty(root))
+			return;
+		var files = Directory.EnumerateFiles(root, "*.xlsx");
+		foreach (var file in files)
+		{
+			AnalyzeFile(file);
+		}
+	}
+
+	void AnalyzeFile(string file)
+	{
+		try
+		{
+			//using var s = File.OpenRead(file);
+			//using var za = new ZipArchive(s, ZipArchiveMode.Read);
+			var edr = ExcelDataReader.Create(file);
+			while (edr.Read())
+			{
+				for (int i = 0; i < edr.RowFieldCount; i++)
+				{
+					if (edr.GetExcelDataType(i) == ExcelDataType.String)
+					{
+						if (edr.GetString(i) == "")
+						{
+							o.WriteLine($"{Path.GetFileName(file)} {edr.RowNumber} {i}");
+						}
+					}
+				}
+			}
+		}
+		catch (Exception e)
+		{
+			o.WriteLine($"{Path.GetFileName(file)} ERROR {e.Message}");
+		}
+	}
+
 	[Fact]
 	public void XmlCharRegex()
 	{

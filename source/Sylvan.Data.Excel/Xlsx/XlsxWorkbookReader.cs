@@ -40,6 +40,16 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 	public override ExcelWorkbookType WorkbookType => ExcelWorkbookType.ExcelXml;
 
 	const string DefaultWorkbookPartName = "xl/workbook.xml";
+	readonly ZipArchiveEntry? sstPart;
+	XmlReader? sstReader;
+	int sstIdx = -1;
+
+	public override void Close()
+	{
+		this.reader?.Close();
+		this.sstReader?.Close();
+		base.Close();
+	}
 
 	public XlsxWorkbookReader(Stream iStream, ExcelDataReaderOptions opts) : base(iStream, opts)
 	{
@@ -61,10 +71,8 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 
 		var sheetRelMap = OpenPackaging.LoadWorkbookRelations(package, workbookPartName, ref stylesPartName, ref sharedStringsPartName);
 
-		var ssPart = package.FindEntry(sharedStringsPartName);
+		sstPart = package.FindEntry(sharedStringsPartName);
 		var stylePart = package.FindEntry(stylesPartName);
-
-		LoadSharedStrings(ssPart);
 
 		using (Stream sheetsStream = workbookPart.Open())
 		{
@@ -193,6 +201,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 		var settings = new XmlReaderSettings
 		{
 			CheckCharacters = false,
+			CloseInput = true,
 			ValidationType = ValidationType.None,
 			ValidationFlags = System.Xml.Schema.XmlSchemaValidationFlags.None,
 #if SPAN
@@ -456,11 +465,11 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 				if (n == "r")
 				{
 					len = reader.ReadValueChunk(valueBuffer, 0, valueBuffer.Length);
-					
+
 					if (CellPosition.TryParse(valueBuffer.AsSpan().ToParsable(0, len), out var pos))
 					{
 						col = pos.Column;
-					} 
+					}
 					else
 					{
 						// if the cell ref is unparsable, Excel seems to treat it as missing.
@@ -600,13 +609,15 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 							{
 								throw new FormatException();
 							}
-							fi.strValue = GetSharedString(strIdx);
+							fi.isSS = true;
+							fi.ssIdx = strIdx;
+							//fi.strValue = GetSharedString(strIdx);
 						}
 						else
 						{
 							fi.strValue = string.Empty;
 						}
-						fi.type = fi.strValue.Length == 0 ? ExcelDataType.Null : ExcelDataType.String;
+						fi.type = ExcelDataType.String;
 						break;
 					case CellType.String:
 						if (reader.NodeType == XmlNodeType.Text)
@@ -786,61 +797,6 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 
 	public override int RowNumber => rowIndex + 1;
 
-	void LoadSharedStrings(ZipArchiveEntry? entry)
-	{
-		if (entry == null)
-		{
-			return;
-		}
-		using Stream ssStream = entry.Open();
-
-		var settings = new XmlReaderSettings
-		{
-			CheckCharacters = false,
-#if SPAN
-			// name table optimization requires ROS
-			NameTable = new SharedStringsNameTable(),
-#endif
-		};
-
-		using var reader = XmlReader.Create(ssStream, settings);
-
-		while (reader.Read())
-		{
-			if (reader.NodeType == XmlNodeType.Element && reader.LocalName == "sst")
-			{
-				break;
-			}
-		}
-
-		var countStr = reader.GetAttribute("uniqueCount");
-
-		var count = 0;
-		if (!string.IsNullOrEmpty(countStr) && int.TryParse(countStr, out count) && count >= 0)
-		{
-
-		}
-		else
-		{
-			// try to estimate the number of strings based on the entry size
-			// Estimate ~24 bytes per string record.
-			var estimatedCount = (int)(entry.Length / 24);
-			count = Math.Max(1, estimatedCount);
-		}
-
-		var sstList = new List<string>(count);
-
-		while (reader.Read())
-		{
-			if (reader.NodeType == XmlNodeType.Element && reader.LocalName == "si")
-			{
-				var str = ReadString(reader);
-				sstList.Add(str);
-			}
-		}
-
-		this.sst = sstList.ToArray();
-	}
 
 	string ReadString(XmlReader reader)
 	{
@@ -858,7 +814,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 			int c = 0;
 			while (reader.Read() && reader.Depth > depth)
 			{
-				start:
+			start:
 				if (reader.NodeType == XmlNodeType.Element && reader.LocalName == "rPh")
 				{
 					SkipSubtree(reader);
@@ -922,11 +878,89 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 		return str;
 	}
 
-	string GetSharedString(int i)
+	private protected override string GetSharedString(int idx)
 	{
-		if ((uint)i >= sst.Length)
-			throw new ArgumentOutOfRangeException(nameof(i));
+		if (this.sstIdx < idx)
+		{
+			if (!LoadSharedString(idx))
+			{
+				throw new InvalidDataException();
+			}
+		}
+		return sst[idx];
+	}
 
-		return sst[i];
+	bool LoadSharedString(int i)
+	{
+		var reader = this.sstReader;
+		if (reader == null)
+		{
+			var sstStream = sstPart!.Open();
+			var settings = new XmlReaderSettings
+			{
+				CloseInput = true,
+				CheckCharacters = false,
+#if SPAN
+				// name table optimization requires ROS
+				NameTable = new SharedStringsNameTable(),
+#endif
+			};
+
+			reader = this.sstReader = XmlReader.Create(sstStream, settings);
+			// advance to the content
+			while (reader.Read())
+			{
+				if (reader.NodeType == XmlNodeType.Element && reader.LocalName == "sst")
+				{
+					break;
+				}
+			}
+
+			var countStr = reader.GetAttribute("uniqueCount");
+
+			var count = 0;
+			if (!string.IsNullOrEmpty(countStr) && int.TryParse(countStr, out count) && count >= 0)
+			{
+
+			}
+			else
+			{
+				// try to estimate the number of strings based on the entry size
+				// Estimate ~24 bytes per string record.
+				var estimatedCount = (int)(sstPart.Length / 24);
+				count = Math.Max(1, estimatedCount);
+			}
+			if (count > 128)
+				count = 128;
+			this.sst = new string[count];
+		}
+
+		while (i > sstIdx)
+		{
+			if (reader.Read())
+			{
+				if (reader.NodeType == XmlNodeType.Element && reader.LocalName == "si")
+				{
+					var str = ReadString(reader);
+					sstIdx++;
+					if (sstIdx >= sst.Length)
+					{
+						Array.Resize(ref sst, sst.Length * 2);
+					}
+					sst[sstIdx] = str;
+					
+				}
+			}
+			else
+			{
+				// a cell with an SST value reference out of bounds.
+				// this exception type is probably wrong
+				//y
+				//throw new ArgumentOutOfRangeException(nameof(i));
+				return false;
+			}
+		}
+
+		return true;
 	}
 }

@@ -22,11 +22,17 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 	int parsedRowIndex = -1;
 	int curFieldCount = -1;
 
+	readonly ZipArchiveEntry? sstPart;
+	Stream? sstStream;
+	RecordReader? sstReader;
+	int sstIdx = -1;
+
 	public override ExcelWorkbookType WorkbookType => ExcelWorkbookType.ExcelXml;
 
 	public override void Close()
 	{
 		this.sheetStream?.Close();
+		this.sstStream?.Close();
 		base.Close();
 	}
 
@@ -53,7 +59,7 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 
 		var stylePart = package.GetEntry(stylesPartName);
 
-		sst = ReadSharedStrings(sharedStringsPartName);
+		this.sstPart = package.GetEntry(sharedStringsPartName);
 
 		var sheetNameList = new List<SheetInfo>();
 		using (Stream sheetsStream = workbookPart.Open())
@@ -213,17 +219,17 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 		return true;
 	}
 
-	string[] ReadSharedStrings(string sharedStringsPartName)
+	bool LoadSst(int idx)
 	{
-		var ssPart = package.GetEntry(sharedStringsPartName);
-		if (ssPart == null)
+		var reader = this.sstReader;
+		if (sstPart == null)
 		{
-			return Array.Empty<string>();
+			return false;
 		}
-		using (var stream = ssPart.Open())
+		if (reader == null)
 		{
-			var reader = new RecordReader(stream);
-
+			this.sstStream = sstPart.Open();
+			reader = this.sstReader = new RecordReader(this.sstStream);
 			reader.NextRecord();
 			if (reader.RecordType != RecordType.SSTBegin)
 				throw new InvalidDataException();
@@ -231,23 +237,39 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 			int totalCount = reader.GetInt32(0);
 			int count = reader.GetInt32(4);
 
-			var ss = new string[count];
-
-			for (int i = 0; i < count; i++)
-			{
-				reader.NextRecord();
-				if (reader.RecordType != RecordType.SSTItem)
-				{
-					reader.DebugInfo("fail");
-					throw new InvalidDataException();
-				}
-
-				var flags = reader.GetByte(0);
-				var str = reader.GetString(1);
-				ss[i] = str;
-			}
-			return ss;
+			if (count > 128)
+				count = 128;
+			this.sst = new string[count];
 		}
+		while (idx > this.sstIdx)
+		{
+			if (!reader.NextRecord() || reader.RecordType != RecordType.SSTItem)
+			{
+				throw new InvalidDataException();
+			}
+
+			var flags = reader.GetByte(0);
+			var str = reader.GetString(1);
+			this.sstIdx++;
+			if (sstIdx >= this.sst.Length)
+			{
+				Array.Resize(ref sst, sst.Length * 2);
+			}
+			sst[sstIdx] = str;
+		}
+		return true;
+	}
+
+	private protected override string GetSharedString(int idx)
+	{
+		if (this.sstIdx < idx)
+		{
+			if (!LoadSst(idx))
+			{
+				throw new InvalidDataException();
+			}
+		}
+		return sst[idx];
 	}
 
 	public override bool Read()
@@ -427,7 +449,10 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 							case RecordType.CellIsst:
 								type = ExcelDataType.String;
 								var sstIdx = reader.GetInt32(8);
-								fi.strValue = sst[sstIdx];
+								
+								fi.isSS = true;
+								fi.ssIdx = sstIdx;
+								//fi.strValue = sst[sstIdx];
 								notNull++;
 								break;
 							case RecordType.CellSt:
@@ -442,7 +467,6 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 								notNull++;
 								break;
 						}
-
 
 						fi.type = type;
 						fi.xfIdx = sf;

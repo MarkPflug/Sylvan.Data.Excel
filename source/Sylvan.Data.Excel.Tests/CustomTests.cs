@@ -143,14 +143,25 @@ public class CustomTests
 	[Fact]
 	public void EmptyTrailingRow()
 	{
-		// If the final (or trailing) row contains a shared string referencing
-		// an empty string, treat it as a null/empty value.
+		// In the case that there is a trailing row that references empty strings
+		// we will read it as a valid row. This should be uncommon enough that it won't affect anyone
+		// in practice.
 
 		var reader = XlsxBuilder.Create(TestData.EmptySSTrailingRow, TestData.SharedStringEmpty);
 		Assert.True(reader.Read());
 		Assert.Equal(3, reader.RowFieldCount);
 		Assert.Equal("a", reader.GetString(0));
 		Assert.Equal("a", reader.GetString(1));
+
+		Assert.True(reader.Read());
+
+		for (int i = 0; i < reader.RowFieldCount; i++)
+		{
+			Assert.True(reader.IsDBNull(i));
+			Assert.Equal("", reader.GetString(i));
+
+		}
+
 		Assert.False(reader.Read());
 	}
 
