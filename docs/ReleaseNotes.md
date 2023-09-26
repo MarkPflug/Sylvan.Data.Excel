@@ -4,7 +4,7 @@ _0.4.17_
 - Exclude phonetic component when reading string values.
 - Allow invalid ref values, which Excel appears to treat as missing. 
 - SharedString tables are read lazily instead of eagerly for .xlsx and .xlsb files, allowing
-   faster access to early records (in some cases).
+   faster access to early records in some cases.
 
 _0.4.16_
 - Adds ExcelFileType class that exposes constants about supported Excel formats: extensions and content types.
