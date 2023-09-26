@@ -46,6 +46,8 @@ public class ExternalDataTests
 	public void AnalyzeFiles()
 	{
 		var root = Environment.GetEnvironmentVariable("SylvanExcelTestData");
+		if (string.IsNullOrEmpty(root))
+			return;
 		var files = Directory.EnumerateFiles(root, "*.xlsx");
 		foreach (var file in files)
 		{
