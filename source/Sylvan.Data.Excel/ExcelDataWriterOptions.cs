@@ -22,6 +22,7 @@ public sealed class ExcelDataWriterOptions
 		this.TruncateStrings = false;
 		this.CompressionLevel = CompressionLevel.Fastest;
 		this.OwnsStream = false;
+		this.AutoFilterOnHeader = true;
 	}
 
 	/// <summary>
@@ -39,4 +40,11 @@ public sealed class ExcelDataWriterOptions
 	/// The compression level to use.
 	/// </summary>
 	public CompressionLevel CompressionLevel { get; set; }
+	
+	/// <summary>
+	/// Indicates whether to automatically add an auto filter property to the header row.
+	/// This can break compatibility with libraries for processing Excel files.
+	/// </summary>
+	/// <remarks>True by default.</remarks>
+	public bool AutoFilterOnHeader { get; set; }
 }

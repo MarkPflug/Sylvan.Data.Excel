@@ -25,6 +25,7 @@ public abstract class ExcelDataWriter :
 	bool ownsStream;
 	readonly Stream stream;
 	private protected readonly bool truncateStrings;
+	private protected readonly bool autoFilterOnHeader;
 
 
 #if ASYNC
@@ -164,6 +165,7 @@ public abstract class ExcelDataWriter :
 		this.ownsStream = options.OwnsStream;
 		this.stream = stream;
 		this.truncateStrings = options.TruncateStrings;
+		this.autoFilterOnHeader = options.AutoFilterOnHeader;
 	}
 
 	/// <summary>

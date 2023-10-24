@@ -538,15 +538,17 @@ sealed partial class XlsbDataWriter : ExcelDataWriter
 		}
 		bw.WriteMarker(RecordType.DataEnd);
 
-		// apply filtering to the header row.
-		bw.WriteType(RecordType.FilterStart);
-		bw.Write7BitEncodedInt(16);
-		bw.Write(0);
-		bw.Write(0);
-		bw.Write(0);
-		bw.Write(fieldCount);
-		bw.WriteMarker(RecordType.FilterEnd);
-
+		if (this.autoFilterOnHeader)
+		{
+			// apply filtering to the header row.
+			bw.WriteType(RecordType.FilterStart);
+			bw.Write7BitEncodedInt(16);
+			bw.Write(0);
+			bw.Write(0);
+			bw.Write(0);
+			bw.Write(fieldCount);
+			bw.WriteMarker(RecordType.FilterEnd);	
+		}
 
 		bw.WriteWorksheetEnd();
 		return new WriteResult(row, complete);
