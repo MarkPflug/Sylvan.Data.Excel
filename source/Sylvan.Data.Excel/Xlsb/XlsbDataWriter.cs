@@ -544,7 +544,7 @@ sealed partial class XlsbDataWriter : ExcelDataWriter
 		bw.Write(0);
 		bw.Write(0);
 		bw.Write(0);
-		bw.Write(fieldCount);
+		bw.Write(fieldCount - 1);
 		bw.WriteMarker(RecordType.FilterEnd);
 
 
