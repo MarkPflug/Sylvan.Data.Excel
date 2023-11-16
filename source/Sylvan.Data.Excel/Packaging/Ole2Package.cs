@@ -7,7 +7,7 @@ using System.IO;
 
 namespace Sylvan.Data.Excel;
 
-partial class Ole2Package
+sealed partial class Ole2Package
 {
 	const ulong magicSig = 0xe11ab1a1e011cfd0;
 	const ulong MaxSector = 0xfffffffa;
@@ -29,7 +29,7 @@ partial class Ole2Package
 	uint directorySectorStart;
 	uint directorySectorCount;
 	uint fatSectorCount;
-	uint miniSectorStart;
+	uint miniFatSectorStart;
 	uint miniFatSectorCount;
 	uint miniSectorCutoff;
 
@@ -37,6 +37,7 @@ partial class Ole2Package
 	uint fatSectorListStart;
 	uint fatSectorListCount;
 	uint[] fatSectorList;
+	uint[] miniFatSectorList;
 
 	Ole2Entry[] entryList;
 
@@ -64,6 +65,7 @@ partial class Ole2Package
 		this.stream = iStream;
 		this.reader = new BinaryReader(iStream, Encoding.Unicode);
 		this.fatSectorList = Array.Empty<uint>();
+		this.miniFatSectorList = Array.Empty<uint>();
 		this.entryList = Array.Empty<Ole2Entry>();
 		LoadHeader();
 		LoadDirectoryEntries();
@@ -131,13 +133,14 @@ partial class Ole2Package
 		this.miniSectorCutoff = reader.ReadUInt32();
 		if (miniSectorCutoff != MiniSectorCutoff) throw new InvalidDataException();// "invalid mini sector cutoff"
 
-		this.miniSectorStart = reader.ReadUInt32();
+		this.miniFatSectorStart = reader.ReadUInt32();
 		this.miniFatSectorCount = reader.ReadUInt32();
 
 		this.fatSectorListStart = reader.ReadUInt32();
 		this.fatSectorListCount = reader.ReadUInt32();
 
 		LoadFatSectorList();
+		LoadMiniFatSectorList();
 	}
 
 	void LoadDirectoryEntries()
@@ -191,6 +194,28 @@ partial class Ole2Package
 		}
 	}
 
+	void LoadMiniFatSectorList()
+	{
+		miniFatSectorList = new uint[miniFatSectorCount * (sectorSize / 4)];
+		int i = 0;
+		uint sect = miniFatSectorStart;
+
+		// load the mini FAT sectors list chained off the header
+		for (int j = 0; j < this.miniFatSectorCount; j++)
+		{
+			long sectOff = SectorOffset(sect);
+			stream.Seek(sectOff, SeekOrigin.Begin);
+
+			int diCount = sectorSize / 4 - 1;
+
+			for (int k = 0; k < diCount; k++)
+				fatSectorList[i++] = reader.ReadUInt32();
+
+			// read next difat location
+			sect = reader.ReadUInt32();
+		}
+	}
+
 	IEnumerable<uint> GetStreamSectors(uint startSector)
 	{
 		uint sector = startSector;
@@ -213,6 +238,31 @@ partial class Ole2Package
 
 		stream.Seek(SectorOffset(fatPage) + (fatSectOff * 4), SeekOrigin.Begin);
 		return reader.ReadUInt32();
+	}
+
+	IEnumerable<uint> GetMiniStreamSectors(uint startSector)
+	{
+		uint sector = startSector;
+
+		do
+		{
+			yield return sector;
+			sector = NextMiniSector(sector);
+			if (sector == startSector || sector == 0)
+				throw new InvalidDataException();
+		} while (sector != EndOfChain);
+	}
+
+	public uint NextMiniSector(uint sector)
+	{
+		throw new NotImplementedException();
+		//uint fatSectIdx = (uint)(sector / (sectorSize / 4));
+		//uint fatSectOff = (uint)(sector % (sectorSize / 4));
+
+		//uint fatPage = miniSectorCutoff[fatSectIdx];
+
+		//stream.Seek(SectorOffset(fatPage) + (fatSectOff * 4), SeekOrigin.Begin);
+		//return reader.ReadUInt32();
 	}
 
 
