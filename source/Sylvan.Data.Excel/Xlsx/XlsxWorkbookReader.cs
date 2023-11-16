@@ -425,7 +425,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 			if (hasRows)
 			{
 				this.state = State.Open;
-				if (curFieldCount >= 0)
+				if (rowIndex == parsedRowIndex && curFieldCount >= 0)
 				{
 					this.rowFieldCount = curFieldCount;
 					this.curFieldCount = -1;

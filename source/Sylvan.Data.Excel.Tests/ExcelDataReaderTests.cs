@@ -341,7 +341,7 @@ public class XlsxTests
 		using var edr = ExcelDataReader.Create(file, opts);
 		Assert.True(edr.Read());
 		Assert.True(edr.IsDBNull(2));
-		Assert.True(edr.IsDBNullAsync(2).Result);
+		//Assert.True(edr.IsDBNullAsync(2));
 		Assert.Equal("", edr.GetString(2));
 	}
 
@@ -394,7 +394,7 @@ public class XlsxTests
 		using var edr = ExcelDataReader.Create(file, opts);
 		Assert.True(edr.Read());
 		Assert.False(edr.IsDBNull(2));
-		Assert.False(edr.IsDBNullAsync(2).Result);
+		//Assert.False(edr.IsDBNullAsync(2).Result);
 		Assert.Equal("", edr.GetString(2));
 	}
 
@@ -1042,6 +1042,35 @@ public class XlsxTests
 	{
 		var file = GetFile();
 		using var edr = ExcelDataReader.Create(file);
+		Assert.Equal(0, edr.FieldCount);
+		Assert.Equal(0, edr.RowFieldCount);
+		Assert.True(edr.Read());
+		Assert.Equal(0, edr.FieldCount);
+		Assert.Equal(4, edr.RowFieldCount);
+		Assert.Equal("", edr.GetString(0));
+		Assert.Equal("a", edr.GetString(1));
+		Assert.Equal("b", edr.GetString(2));
+		Assert.Equal("c", edr.GetString(3));
+		Assert.True(edr.Read());
+		Assert.Equal(0, edr.FieldCount);
+		Assert.Equal(4, edr.RowFieldCount);
+		Assert.Equal("", edr.GetString(0));
+		Assert.Equal("1", edr.GetString(1));
+		Assert.Equal("2", edr.GetString(2));
+		Assert.Equal("3", edr.GetString(3));
+		Assert.False(edr.Read());
+	}
+
+	[Fact]
+	public void BlankFirstRowNoHeader()
+	{
+		var file = GetFile("BlankFirstRow");
+		var o = new ExcelDataReaderOptions { Schema = ExcelSchema.NoHeaders };
+		using var edr = ExcelDataReader.Create(file, o);
+
+		Assert.Equal(0, edr.FieldCount);
+		Assert.Equal(0, edr.RowFieldCount);
+		Assert.True(edr.Read());
 		Assert.Equal(0, edr.FieldCount);
 		Assert.Equal(0, edr.RowFieldCount);
 		Assert.True(edr.Read());

@@ -1,5 +1,9 @@
 # Sylvan.Data.Excel Release Notes
 
+_0.4.18_
+- Fix a bug where column filters were applied to one too many columns when writing .xlsb files.
+- Fix a bug where data would be skipped when headers were disabled and a worksheet started with blank line(s).
+
 _0.4.17_
 - Exclude phonetic component when reading string values.
 - Allow invalid ref values, which Excel appears to treat as missing. 
