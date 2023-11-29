@@ -1,5 +1,8 @@
 # Sylvan.Data.Excel Release Notes
 
+_0.4.19_
+- Fix a bug where headers might not be read properly on sheets after the first sheet.
+
 _0.4.18_
 - Fix a bug where column filters were applied to one too many columns when writing .xlsb files.
 - Fix a bug where data would be skipped when headers were disabled and a worksheet started with blank line(s).

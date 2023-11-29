@@ -210,7 +210,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 		};
 
 		this.reader = XmlReader.Create(tr, settings);
-
+		this.rowIndex = 0;
 		// worksheet
 		while (reader.Read())
 		{
@@ -262,7 +262,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 		{
 			return false;
 		}
-
+		
 		return OpenWorksheet(sheetIdx);
 	}
 

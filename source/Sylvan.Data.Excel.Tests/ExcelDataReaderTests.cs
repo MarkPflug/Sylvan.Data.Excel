@@ -1284,6 +1284,24 @@ public class XlsxTests
 		Assert.Equal(new DateTime(2025, 1, 21), edr.GetDateTime(0));
 	}
 
+	[Fact]
+	public void MultiSheetHeaders()
+	{
+		var file = GetFile("MultiSheet");
+		var edr = ExcelDataReader.Create(file);
+		var s = edr.GetColumnSchema();
+		var c = s.Count;
+		Assert.Equal(1, c);
+		Assert.Equal("a", s[0].ColumnName);
+		while (edr.Read()) ;
+		Assert.True(edr.NextResult());
+		s = edr.GetColumnSchema();
+		c = s.Count;
+		Assert.Equal(1, c);
+		Assert.Equal("d", s[0].ColumnName);
+		Assert.False(edr.NextResult());
+	}
+
 #if ASYNC
 
 	[Fact]
