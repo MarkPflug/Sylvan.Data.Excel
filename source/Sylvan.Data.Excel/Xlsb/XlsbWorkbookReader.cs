@@ -86,9 +86,8 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 						{
 							// no sheet rel means it is a macro.
 						}
-						else
+						else if (sheetRelMap.TryGetValue(rel!, out var part))
 						{
-							var part = sheetRelMap[rel!];
 							var info = new SheetInfo(name, part, hidden);
 							sheetNameList.Add(info);
 						}

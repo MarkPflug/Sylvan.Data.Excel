@@ -1301,6 +1301,15 @@ public class XlsxTests
 		Assert.Equal("d", s[0].ColumnName);
 		Assert.False(edr.NextResult());
 	}
+	
+	[Fact]
+	public void ChartSheet()
+	{
+		var file = GetFile();
+		using var edr = ExcelDataReader.Create(file);
+		
+		Assert.Equal("Sheet1", edr.WorksheetName);
+	}
 
 #if ASYNC
 
