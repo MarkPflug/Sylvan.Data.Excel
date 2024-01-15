@@ -105,8 +105,13 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 					var state = sheetElem.GetAttribute("state");
 					var refId = sheetElem.Attributes.OfType<XmlAttribute>().Single(a => a.LocalName == "id").Value;
 
+					if (!sheetRelMap.TryGetValue(refId, out var part))
+					{
+						continue;
+					}
+					
 					var hidden = StringComparer.OrdinalIgnoreCase.Equals(state, "hidden");
-					var si = new SheetInfo(name, sheetRelMap[refId], hidden);
+					var si = new SheetInfo(name, part, hidden);
 					sheets.Add(si);
 				}
 			}
