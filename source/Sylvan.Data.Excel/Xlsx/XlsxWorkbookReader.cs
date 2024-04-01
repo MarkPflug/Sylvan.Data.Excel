@@ -216,6 +216,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 
 		this.reader = XmlReader.Create(tr, settings);
 		this.rowIndex = 0;
+		this.rowFieldCount = this.curFieldCount = 0;
 		// worksheet
 		while (reader.Read())
 		{
@@ -291,6 +292,10 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 		{
 			this.curFieldCount = rowFieldCount;
 			this.rowFieldCount = 0;
+		}
+		else
+		{
+			this.curFieldCount = rowFieldCount;
 		}
 
 		if (LoadSchema())
