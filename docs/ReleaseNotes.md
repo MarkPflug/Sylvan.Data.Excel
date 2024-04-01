@@ -1,5 +1,8 @@
 # Sylvan.Data.Excel Release Notes
 
+_0.4.20_
+- Fixes a bug where advancing to the next worksheet can result in the incorrect number of columns being reported when reading xlsx files.
+
 _0.4.19_
 - Fix a bug where headers might not be read properly on sheets after the first sheet.
 
