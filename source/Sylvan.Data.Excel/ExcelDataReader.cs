@@ -49,6 +49,9 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 	private protected int rowCount;
 	private protected int rowFieldCount;
 
+
+	private protected int rowIndex;
+
 	static readonly DateTime Epoch1900 = new DateTime(1899, 12, 30);
 	static readonly DateTime Epoch1904 = new DateTime(1904, 1, 1);
 
@@ -482,7 +485,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 		var cols = new ExcelColumn[fieldCount];
 		for (int i = 0; i < fieldCount; i++)
 		{
-			string? header = hasHeaders ? GetString(i) : null;
+			string? header = hasHeaders ? GetStringRaw(i) : null;
 			var col = schema.GetColumn(sheet, header, i);
 			var ecs = new ExcelColumn(header, i, col);
 			cols[i] = ecs;
@@ -833,6 +836,12 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 		return false;
 	}
 
+	void ValidateAccess()
+	{
+		if (state != State.Open)
+			throw new InvalidOperationException();
+	}
+
 	/// <summary>
 	/// Gets the value of the column as a string.
 	/// </summary>
@@ -844,9 +853,16 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 	/// <returns>A string representing the value of the column.</returns>
 	public sealed override string GetString(int ordinal)
 	{
+		ValidateAccess();
+		return GetStringRaw(ordinal);
+	}
+
+	string GetStringRaw(int ordinal) {
 		ref readonly FieldInfo fi = ref GetFieldValue(ordinal);
 		if (ordinal >= MaxFieldCount)
+		{
 			throw new ArgumentOutOfRangeException(nameof(ordinal));
+		}
 
 		switch (fi.type)
 		{

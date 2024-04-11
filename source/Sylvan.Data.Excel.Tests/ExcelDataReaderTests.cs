@@ -1358,6 +1358,33 @@ public class XlsxTests
 		}
 	}
 
+	[Fact]
+	public void FieldAccessorsThrowWhenInvalid()
+	{
+		var file = GetFile("Init");
+		using var edr = ExcelDataReader.Create(file);
+		Assert.Equal("a", edr.GetName(0));
+		Assert.Equal("b", edr.GetName(1));
+		Assert.Equal("c", edr.GetName(2));
+		// invalid before calling Read
+		Assert.Throws<InvalidOperationException>(() => edr.GetString(0));
+		Assert.Throws<InvalidOperationException>(() => edr.GetString(1));
+		Assert.Throws<InvalidOperationException>(() => edr.GetString(2));
+
+		Assert.True(edr.Read());
+		Assert.True(edr.Read());
+
+		Assert.Equal("1", edr.GetString(0));
+		Assert.Equal("2", edr.GetString(1));
+		Assert.Equal("3", edr.GetString(2));
+
+		Assert.False(edr.Read());
+		// invalid after Read has returned false
+		Assert.Throws<InvalidOperationException>(() => edr.GetString(0));
+		Assert.Throws<InvalidOperationException>(() => edr.GetString(1));
+		Assert.Throws<InvalidOperationException>(() => edr.GetString(2));
+	}
+
 #if ASYNC
 
 	[Fact]
