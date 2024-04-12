@@ -49,6 +49,9 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 	private protected int rowCount;
 	private protected int rowFieldCount;
 
+
+	private protected int rowIndex;
+
 	static readonly DateTime Epoch1900 = new DateTime(1899, 12, 30);
 	static readonly DateTime Epoch1904 = new DateTime(1904, 1, 1);
 
@@ -63,7 +66,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 	/// <inheritdoc/>
 	public sealed override Type GetFieldType(int ordinal)
 	{
-		AssertRange(ordinal);
+		ValidateSheetRange(ordinal);
 		if (ordinal < fieldCount)
 		{
 			return this.columnSchema[ordinal].DataType ?? typeof(object);
@@ -263,6 +266,20 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 	/// </summary>
 	public abstract int MaxFieldCount { get; }
 
+	void ValidateSheetRange(int ordinal)
+	{
+		if ((uint)ordinal >= this.MaxFieldCount)
+		{
+			throw new ArgumentOutOfRangeException(nameof(ordinal));
+		}
+	}
+
+	void ValidateAccess()
+	{
+		if (state != State.Open)
+			throw new InvalidOperationException();
+	}
+
 	/// <summary>
 	/// Gets the type of an Excel workbook from the file name.
 	/// </summary>
@@ -390,17 +407,10 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 	/// <returns>An ExcelDataType.</returns>
 	public ExcelDataType GetExcelDataType(int ordinal)
 	{
+		ValidateAccess();
 		ValidateSheetRange(ordinal);
 		ref readonly var cell = ref GetFieldValue(ordinal);
 		return cell.type;
-	}
-
-	void ValidateSheetRange(int ordinal)
-	{
-		if ((uint)ordinal >= this.MaxFieldCount)
-		{
-			throw new ArgumentOutOfRangeException(nameof(ordinal));
-		}
 	}
 
 	/// <summary>
@@ -413,6 +423,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 	/// <returns>The value.</returns>
 	public object GetExcelValue(int ordinal)
 	{
+		ValidateAccess();
 		var type = GetExcelDataType(ordinal);
 		switch (type)
 		{
@@ -482,7 +493,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 		var cols = new ExcelColumn[fieldCount];
 		for (int i = 0; i < fieldCount; i++)
 		{
-			string? header = hasHeaders ? GetString(i) : null;
+			string? header = hasHeaders ? GetStringRaw(i) : null;
 			var col = schema.GetColumn(sheet, header, i);
 			var ecs = new ExcelColumn(header, i, col);
 			cols[i] = ecs;
@@ -499,6 +510,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 	/// <inheritdoc/>
 	public sealed override int GetValues(object[] values)
 	{
+		ValidateAccess();
 		var c = Math.Min(values.Length, this.FieldCount);
 
 		for (int i = 0; i < c; i++)
@@ -508,18 +520,13 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 		return c;
 	}
 
-	internal void AssertRange(int ordinal)
-	{
-		if ((uint)ordinal >= MaxFieldCount)
-		{
-			throw new ArgumentOutOfRangeException(nameof(ordinal));
-		}
-	}
+
 
 	/// <inheritdoc/>
 	public sealed override object GetValue(int ordinal)
 	{
-		AssertRange(ordinal);
+		ValidateAccess();
+		ValidateSheetRange(ordinal);
 		if (IsDBNull(ordinal))
 			return DBNull.Value;
 
@@ -639,6 +646,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 	/// </summary>
 	public ExcelErrorCode GetFormulaError(int ordinal)
 	{
+		ValidateAccess();
 		var cell = GetFieldValue(ordinal);
 		if (cell.type == ExcelDataType.Error)
 			return cell.ErrorCode;
@@ -655,6 +663,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 	/// </summary>
 	public ExcelFormat? GetFormat(int ordinal)
 	{
+		ValidateAccess();
 		var fi = GetFieldValue(ordinal);
 		var idx = fi.xfIdx;
 
@@ -688,6 +697,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 	/// </remarks>
 	public override DateTime GetDateTime(int ordinal)
 	{
+		ValidateAccess();
 		var type = this.GetExcelDataType(ordinal);
 		DateTime value;
 		switch (type)
@@ -733,6 +743,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 	/// </remarks>
 	public TimeSpan GetTimeSpan(int ordinal)
 	{
+		ValidateAccess();
 		var type = this.GetExcelDataType(ordinal);
 		switch (type)
 		{
@@ -811,6 +822,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 	/// <inheritdoc/>
 	public sealed override bool IsDBNull(int ordinal)
 	{
+		ValidateAccess();
 		if (ordinal < this.columnSchema.Length && this.columnSchema[ordinal].AllowDBNull == false)
 		{
 			return false;
@@ -833,6 +845,8 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 		return false;
 	}
 
+
+
 	/// <summary>
 	/// Gets the value of the column as a string.
 	/// </summary>
@@ -844,9 +858,16 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 	/// <returns>A string representing the value of the column.</returns>
 	public sealed override string GetString(int ordinal)
 	{
+		ValidateAccess();
+		return GetStringRaw(ordinal);
+	}
+
+	string GetStringRaw(int ordinal) {
 		ref readonly FieldInfo fi = ref GetFieldValue(ordinal);
 		if (ordinal >= MaxFieldCount)
+		{
 			throw new ArgumentOutOfRangeException(nameof(ordinal));
+		}
 
 		switch (fi.type)
 		{
@@ -892,12 +913,14 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 	/// <inheritdoc/>
 	public sealed override float GetFloat(int ordinal)
 	{
+		ValidateAccess();
 		return (float)GetDouble(ordinal);
 	}
 
 	/// <inheritdoc/>
 	public sealed override double GetDouble(int ordinal)
 	{
+		ValidateAccess();
 		ref readonly var cell = ref GetFieldValue(ordinal);
 		switch (cell.type)
 		{
@@ -921,6 +944,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 	/// <inheritdoc/>
 	public sealed override bool GetBoolean(int ordinal)
 	{
+		ValidateAccess();
 		ref readonly var fi = ref this.GetFieldValue(ordinal);
 		switch (fi.type)
 		{
@@ -972,6 +996,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 	/// <inheritdoc/>
 	public override short GetInt16(int ordinal)
 	{
+		ValidateAccess();
 		var i = GetInt32(ordinal);
 		var s = (short)i;
 		return s == i
@@ -982,6 +1007,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 	/// <inheritdoc/>
 	public override int GetInt32(int ordinal)
 	{
+		ValidateAccess();
 		var type = GetExcelDataType(ordinal);
 		switch (type)
 		{
@@ -1001,6 +1027,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 	/// <inheritdoc/>
 	public override long GetInt64(int ordinal)
 	{
+		ValidateAccess();
 		var type = GetExcelDataType(ordinal);
 		switch (type)
 		{
@@ -1020,6 +1047,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 	/// <inheritdoc/>
 	public override decimal GetDecimal(int ordinal)
 	{
+		ValidateAccess();
 		try
 		{
 			return (decimal)GetDouble(ordinal);
@@ -1033,6 +1061,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 	/// <inheritdoc/>
 	public sealed override Guid GetGuid(int ordinal)
 	{
+		ValidateAccess();
 		var val = this.GetString(ordinal);
 		return Guid.TryParse(val, out var g)
 			? g
@@ -1042,6 +1071,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 	/// <inheritdoc/>
 	public sealed override byte GetByte(int ordinal)
 	{
+		ValidateAccess();
 		var value = this.GetInt32(ordinal);
 		var b = (byte)value;
 		if (b == value)
@@ -1057,12 +1087,14 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 	/// <inheritdoc/>
 	public sealed override long GetBytes(int ordinal, long dataOffset, byte[]? buffer, int bufferOffset, int length)
 	{
+		ValidateAccess();
 		throw new NotSupportedException();
 	}
 
 	/// <inheritdoc/>
 	public sealed override char GetChar(int ordinal)
 	{
+		ValidateAccess();
 		var str = GetString(ordinal);
 		if (str.Length == 1)
 		{
@@ -1074,24 +1106,28 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 	/// <inheritdoc/>
 	public sealed override long GetChars(int ordinal, long dataOffset, char[]? buffer, int bufferOffset, int length)
 	{
+		ValidateAccess();
 		throw new NotSupportedException();
 	}
 
 	/// <inheritdoc/>
 	public sealed override Stream GetStream(int ordinal)
 	{
+		ValidateAccess();
 		throw new NotSupportedException();
 	}
 
 	/// <inheritdoc/>
 	public sealed override TextReader GetTextReader(int ordinal)
 	{
+		ValidateAccess();
 		throw new NotSupportedException();
 	}
 
 	/// <inheritdoc/>
 	public override T GetFieldValue<T>(int ordinal)
 	{
+		ValidateAccess();
 		var acc = Accessor<T>.Instance;
 		return acc.GetValue(this, ordinal);
 	}
