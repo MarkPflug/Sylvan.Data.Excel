@@ -419,10 +419,10 @@ sealed partial class XlsbDataWriter : ExcelDataWriter
 	async Task<WriteResult> WriteInternal(DbDataReader data, string? worksheetName, bool async, CancellationToken cancel)
 	{
 		if (worksheetName != null && worksheetName.Length > MaxWorksheetNameLength)
-			throw new ArgumentException(nameof(worksheetName));
+			throw new ArgumentException($"{nameof(worksheetName)}: must be under {MaxWorksheetNameLength} characters. ('{worksheetName}')");
 
 		if (worksheetName != null && this.worksheets.Contains(worksheetName))
-			throw new ArgumentException(nameof(worksheetName));
+			throw new ArgumentException($"{nameof(worksheetName)}: worksheet '{worksheetName}' already exists.");
 
 		if (worksheetName == null)
 		{

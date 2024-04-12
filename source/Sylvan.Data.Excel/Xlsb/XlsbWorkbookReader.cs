@@ -16,11 +16,9 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 	RecordReader? reader;
 
 	bool hasRows = false;
-	//bool skipEmptyRows = true; // TODO: make this an option?
 
-	int rowIndex;
-	int parsedRowIndex = -1;
 	int curFieldCount = -1;
+	int parsedRowIndex = -1;
 
 	readonly ZipArchiveEntry? sstPart;
 	Stream? sstStream;
@@ -86,9 +84,8 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 						{
 							// no sheet rel means it is a macro.
 						}
-						else
+						else if (sheetRelMap.TryGetValue(rel!, out var part))
 						{
-							var part = sheetRelMap[rel!];
 							var info = new SheetInfo(name, part, hidden);
 							sheetNameList.Add(info);
 						}
@@ -113,10 +110,12 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 
 	private protected override ref readonly FieldInfo GetFieldValue(int ordinal)
 	{
-		if (rowIndex < parsedRowIndex || ordinal >= this.RowFieldCount)
+		if (rowIndex < parsedRowIndex)
+		{
 			return ref FieldInfo.Null;
+		}
 
-		return ref values[ordinal];
+		return ref base.GetFieldValue(ordinal);
 	}
 
 	private protected override bool OpenWorksheet(int sheetIdx)
@@ -137,7 +136,8 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 		this.sheetStream = sheetPart.Open();
 
 		this.reader = new RecordReader(this.sheetStream);
-		var rr = this.reader;
+
+		this.rowIndex = 0;
 		this.rowFieldCount = 0;
 		this.curFieldCount = -1;
 		this.sheetIdx = sheetIdx;
@@ -199,23 +199,14 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 			return false;
 		}
 
+		this.curFieldCount = this.rowFieldCount;
 		if (parsedRowIndex > 0)
 		{
-			this.curFieldCount = this.rowFieldCount;
 			this.rowFieldCount = 0;
-		}
+		} 
 
-		if (LoadSchema())
-		{
-			this.state = State.Initialized;
-			this.rowIndex = -1;
-		}
-		else
-		{
-			this.state = State.Open;
-			this.rowIndex = 0;
-		}
-
+		this.state = State.Initialized;
+		this.rowIndex = LoadSchema() ? -1 : 0;
 		return true;
 	}
 
@@ -275,7 +266,7 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 	public override bool Read()
 	{
 		rowIndex++;
-
+		start:
 		if (state == State.Open)
 		{
 			if (rowIndex <= parsedRowIndex)
@@ -298,7 +289,7 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 				if (c < 0)
 				{
 					this.rowFieldCount = 0;
-					return false;
+					break;
 				}
 				if (c == 0)
 				{
@@ -314,20 +305,18 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 			}
 		}
 		else
-		if (state == State.Initialized)
+		if (state == State.Initialized && hasRows)
 		{
 			// after initizialization, the first record would already be in the buffer
 			// if hasRows is true.
-			if (hasRows)
+			this.state = State.Open;
+			if (rowIndex == 1) goto start;
+			if (rowIndex == parsedRowIndex && curFieldCount >= 0)
 			{
-				this.state = State.Open;
-				if (rowIndex == parsedRowIndex && curFieldCount >= 0)
-				{
-					this.rowFieldCount = curFieldCount;
-					this.curFieldCount = -1;
-				}
-				return true;
+				this.rowFieldCount = curFieldCount;
+				this.curFieldCount = -1;
 			}
+			return true;
 		}
 		rowIndex = -1;
 		this.state = State.End;
@@ -350,8 +339,6 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 
 		var rowIdx = reader.GetInt32(0);
 		var ifx = reader.GetInt32(4);
-
-		//reader.DebugInfo("parse " + rowIdx);
 
 		reader.NextRecord();
 		int count = 0;
@@ -449,7 +436,7 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 							case RecordType.CellIsst:
 								type = ExcelDataType.String;
 								var sstIdx = reader.GetInt32(8);
-								
+
 								fi.isSS = true;
 								fi.ssIdx = sstIdx;
 								//fi.strValue = sst[sstIdx];

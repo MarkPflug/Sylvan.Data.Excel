@@ -22,9 +22,6 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 	RecordReader reader;
 	short biffVersion = 0;
 
-	FieldInfo[] fieldInfos;
-
-	int rowIndex;
 	int rowNumber = 0;
 
 	int curFieldCount = 0;
@@ -39,7 +36,6 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 		var ps = part.Open();
 
 		this.reader = new RecordReader(ps);
-		this.fieldInfos = new FieldInfo[16];
 		this.ReadHeader();
 		this.NextResult();
 	}
@@ -80,6 +76,7 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 		if (this.rowIndex >= rowCount)
 		{
 			rowNumber = -1;
+			this.state = State.End;
 			return false;
 		}
 		if (state == State.Initialized)
@@ -91,7 +88,15 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 		}
 		rowIndex++;
 
-		return NextRow();
+		if (NextRow())
+		{
+			return true;
+		}
+		else
+		{
+			this.state = State.End;
+			return false;
+		}
 	}
 
 	private protected override string GetSharedString(int idx)
@@ -126,7 +131,7 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 			throw new InvalidDataException();//"First Stream must be workbook globals stream"
 		var sheets = new List<XlsSheetInfo>();
 		var xfs = new List<int>();
-		
+
 		while (reader.NextRecord())
 		{
 			var recordType = reader.Type;
@@ -157,7 +162,7 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 					break;
 			}
 		}
-		done:
+	done:
 		this.sheetInfos = sheets.ToArray();
 		this.xfMap = xfs.ToArray();
 	}
@@ -389,19 +394,19 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 		if (colIdx >= MaxFieldCount)
 			throw new InvalidDataException();
 		// TODO: this could be cleaner
-		while (colIdx >= fieldInfos.Length)
+		while (colIdx >= values.Length)
 		{
-			Array.Resize(ref fieldInfos, fieldInfos.Length * 2);
+			Array.Resize(ref values, Math.Max(8, values.Length * 2));
 		}
 		rowFieldCount = Math.Max(rowFieldCount, colIdx + 1);
-		fieldInfos[colIdx] = cd;
+		values[colIdx] = cd;
 	}
 
 
 	bool NextRow()
 	{
 		// clear out any fields from previous row
-		Array.Clear(this.fieldInfos, 0, this.fieldInfos.Length);
+		Array.Clear(this.values, 0, this.values.Length);
 		this.rowFieldCount = 0;
 		do
 		{
@@ -557,10 +562,10 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 
 	private protected override ref readonly FieldInfo GetFieldValue(int ordinal)
 	{
-		if (ordinal >= this.fieldInfos.Length)
+		if (ordinal >= this.values.Length)
 			return ref FieldInfo.Null;
 
-		return ref this.fieldInfos[ordinal];
+		return ref this.values[ordinal];
 	}
 
 	internal override DateTime GetDateTimeValue(int ordinal)

@@ -28,14 +28,11 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 	StringBuilder? stringBuilder;
 
 	bool hasRows;
-	//bool skipEmptyRows = true; // TODO: make this an option?
-
 	char[] valueBuffer = new char[64];
 
-	int rowIndex;
-	int parsedRowIndex = -1;
 	// the number of fields in the parsedRowIndex.
 	int curFieldCount = -1;
+	int parsedRowIndex = -1;
 
 	public override ExcelWorkbookType WorkbookType => ExcelWorkbookType.ExcelXml;
 
@@ -105,8 +102,13 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 					var state = sheetElem.GetAttribute("state");
 					var refId = sheetElem.Attributes.OfType<XmlAttribute>().Single(a => a.LocalName == "id").Value;
 
+					if (!sheetRelMap.TryGetValue(refId, out var part))
+					{
+						continue;
+					}
+
 					var hidden = StringComparer.OrdinalIgnoreCase.Equals(state, "hidden");
-					var si = new SheetInfo(name, sheetRelMap[refId], hidden);
+					var si = new SheetInfo(name, part, hidden);
 					sheets.Add(si);
 				}
 			}
@@ -210,7 +212,8 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 		};
 
 		this.reader = XmlReader.Create(tr, settings);
-
+		this.rowIndex = 0;
+		this.rowFieldCount = this.curFieldCount = 0;
 		// worksheet
 		while (reader.Read())
 		{
@@ -287,17 +290,13 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 			this.curFieldCount = rowFieldCount;
 			this.rowFieldCount = 0;
 		}
-
-		if (LoadSchema())
-		{
-			this.state = State.Initialized;
-			this.rowIndex = -1;
-		}
 		else
 		{
-			this.state = State.Open;
-			this.rowIndex = 0;
+			this.curFieldCount = rowFieldCount;
 		}
+
+		this.state = State.Initialized;
+		this.rowIndex = LoadSchema() ? -1 : 0;
 
 		return true;
 	}
@@ -385,6 +384,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 	public override bool Read()
 	{
 		rowIndex++;
+	start:
 		if (state == State.Open)
 		{
 			if (rowIndex <= parsedRowIndex)
@@ -412,26 +412,21 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 				{
 					this.curFieldCount = c;
 					this.rowFieldCount = 0;
-					return true;
 				}
 				return true;
 			}
 		}
 		else
-		if (state == State.Initialized)
+		if (state == State.Initialized && hasRows)
 		{
-			// after initizialization, the first record would already be in the buffer
-			// if hasRows is true.
-			if (hasRows)
+			this.state = State.Open;
+			if (rowIndex == 1) goto start;
+			if (rowIndex == parsedRowIndex && curFieldCount >= 0)
 			{
-				this.state = State.Open;
-				if (rowIndex == parsedRowIndex && curFieldCount >= 0)
-				{
-					this.rowFieldCount = curFieldCount;
-					this.curFieldCount = -1;
-				}
-				return true;
+				this.rowFieldCount = curFieldCount;
+				this.curFieldCount = -1;
 			}
+			return true;
 		}
 		rowIndex = -1;
 		this.state = State.End;
@@ -948,7 +943,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 						Array.Resize(ref sst, sst.Length * 2);
 					}
 					sst[sstIdx] = str;
-					
+
 				}
 			}
 			else
