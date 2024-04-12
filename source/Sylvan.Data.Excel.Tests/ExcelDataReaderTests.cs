@@ -1311,6 +1311,53 @@ public class XlsxTests
 		Assert.Equal("Sheet1", edr.WorksheetName);
 	}
 
+	[Fact]
+	public void MultiSheetHeader()
+	{
+		var file = GetFile("MultiSheet2");
+		using var edr = ExcelDataReader.Create(file);
+		edr.NextResult(); 
+		edr.NextResult();
+		edr.Read();
+		Assert.Equal(5, edr.FieldCount);
+		for (int i = 0; i < edr.FieldCount; i++)
+		{
+			var expected = "" + (char)('v' + i);
+			Assert.Equal(expected, edr.GetName(i));
+		}
+
+		for (int i = 0; i < edr.FieldCount; i++)
+		{
+			var expected = "" + (char)('1' + i);
+			Assert.Equal(expected, edr.GetString(i));
+		}
+	}
+
+	[Fact]
+	public void MultiSheetNoHeader()
+	{
+		var opt = new ExcelDataReaderOptions { Schema = ExcelSchema.NoHeaders };
+		var file = GetFile("MultiSheet2");
+		using var edr = ExcelDataReader.Create(file, opt);
+
+		edr.NextResult();
+		edr.NextResult();
+		edr.Read();
+		Assert.Equal(5, edr.FieldCount);
+		// in no-headers mode the column names will be the Excel column names: A, B, C .. AA, AB, etc
+		for (int i = 0; i < edr.FieldCount; i++)
+		{
+			var expected = "" + (char)('A' + i);
+			Assert.Equal(expected, edr.GetName(i));
+		}
+
+		for (int i = 0; i < edr.FieldCount; i++)
+		{
+			var expected = "" + (char)('v' + i);
+			Assert.Equal(expected, edr.GetString(i));
+		}
+	}
+
 #if ASYNC
 
 	[Fact]
