@@ -2,6 +2,10 @@
 
 _0.4.20_
 - Fixes a bug where advancing to the next worksheet can result in the incorrect number of columns being reported when reading xlsx files.
+- Calling field accessor methods (`GetString`, `GetInt32()`, etc) now throw an exception when called when the reader is in an invalid state.
+  Invalid states would be before the first call to `Read()`, or after the last call of `Read()` returns false. 
+  This may be a behavioral breaking change for code that relied on invalid access patterns, 
+  as previously the behavior was not specified, but might return the first or last row of data.
 
 _0.4.19_
 - Fix a bug where headers might not be read properly on sheets after the first sheet.
