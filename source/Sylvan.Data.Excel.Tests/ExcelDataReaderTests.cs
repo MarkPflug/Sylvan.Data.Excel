@@ -1358,6 +1358,7 @@ public class XlsxTests
 		}
 	}
 
+	// verify that accessor (GetString) throws when the reader is not in valid state for field access.
 	[Fact]
 	public void FieldAccessorsThrowWhenInvalid()
 	{
@@ -1383,6 +1384,46 @@ public class XlsxTests
 		Assert.Throws<InvalidOperationException>(() => edr.GetString(0));
 		Assert.Throws<InvalidOperationException>(() => edr.GetString(1));
 		Assert.Throws<InvalidOperationException>(() => edr.GetString(2));
+	}
+
+	// verify that all expected accessors throw when the reader is not in valid state for field access.
+	[Fact]
+	public async Task AllFieldAccessorsThrowWhenInvalid()
+	{
+		var file = GetFile("Init");
+		using var edr = ExcelDataReader.Create(file);
+		Assert.Equal("a", edr.GetName(0));
+		Assert.Equal("b", edr.GetName(1));
+		Assert.Equal("c", edr.GetName(2));
+		// invalid before calling Read
+		Assert.Throws<InvalidOperationException>(() => edr.GetString(0));
+		Assert.Throws<InvalidOperationException>(() => edr.GetBoolean(0));
+		Assert.Throws<InvalidOperationException>(() => edr.GetByte(0));
+		Assert.Throws<InvalidOperationException>(() => edr.GetChar(0));
+		Assert.Throws<InvalidOperationException>(() => edr.GetDateTime(0));
+		Assert.Throws<InvalidOperationException>(() => edr.GetDecimal(0));
+		Assert.Throws<InvalidOperationException>(() => edr.GetDouble(0));
+		Assert.Throws<InvalidOperationException>(() => edr.GetError(0));
+		Assert.Throws<InvalidOperationException>(() => edr.GetExcelDataType(0));
+		Assert.Throws<InvalidOperationException>(() => edr.GetExcelValue(0));
+		Assert.Throws<InvalidOperationException>(() => edr.GetFieldValue<string>(0));
+		await Assert.ThrowsAsync<InvalidOperationException>(async () => await edr.GetFieldValueAsync<string>(0));
+		Assert.Throws<InvalidOperationException>(() => edr.GetFloat(0));
+		Assert.Throws<InvalidOperationException>(() => edr.GetFormat(0));
+		Assert.Throws<InvalidOperationException>(() => edr.GetFormulaError(0));
+		Assert.Throws<InvalidOperationException>(() => edr.GetGuid(0));
+		Assert.Throws<InvalidOperationException>(() => edr.GetInt16(0));
+		Assert.Throws<InvalidOperationException>(() => edr.GetInt32(0));
+		Assert.Throws<InvalidOperationException>(() => edr.GetInt64(0));
+		Assert.Throws<InvalidOperationException>(() => edr.GetStream(0));
+		Assert.Throws<InvalidOperationException>(() => edr.GetTextReader(0));
+		Assert.Throws<InvalidOperationException>(() => edr.GetTimeSpan(0));
+		Assert.Throws<InvalidOperationException>(() => edr.GetValue(0));
+		object[] values = new object[3];
+		Assert.Throws<InvalidOperationException>(() => edr.GetValues(values));
+		Assert.Throws<InvalidOperationException>(() => edr.IsDBNull(0));
+		await Assert.ThrowsAsync<InvalidOperationException>(async () => await edr.IsDBNullAsync(0));
+
 	}
 
 #if ASYNC
