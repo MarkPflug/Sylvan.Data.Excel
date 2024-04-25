@@ -1,9 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
-using System.Text.RegularExpressions;
 
 namespace Sylvan.Data.Excel;
 
@@ -107,8 +105,7 @@ partial class Ole2Package
 			if (this.StreamSize < Package.miniSectorCutoff)
 			{
 				var sectors = this.Package.GetMiniStreamSectors(this.StartSector).ToArray();
-				throw new NotImplementedException();
-				//return new Ole2MiniStream(this.Package, sectors, StreamSize);
+				return new Ole2MiniStream(this.Package, this.Package.miniStream, sectors, StreamSize);
 			}
 			else
 			{

@@ -1,7 +1,8 @@
 ﻿using System;
+using System.Diagnostics;
 using System.IO;
-using System.Threading;
 using System.Threading.Tasks;
+using System.Threading;
 
 namespace Sylvan.Data.Excel;
 
@@ -44,7 +45,7 @@ partial class Ole2Package
 			}
 			set
 			{
-				Seek(value - this.position, SeekOrigin.Current);
+				Seek(value, SeekOrigin.Begin);
 			}
 		}
 

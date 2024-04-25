@@ -10,7 +10,7 @@ sealed partial class XlsWorkbookReader
 {
 	sealed class RecordReader
 	{
-		const int BufferSize = 0x40000;
+		const int BufferSize = 0x10000;
 		const int MaxRecordSize = 8228;
 
 		Stream stream;

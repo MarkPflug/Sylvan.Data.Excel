@@ -19,9 +19,11 @@ sealed partial class Ole2Package
 	const uint MiniSectorCutoff = 0x1000;
 	const int HeaderFatSectorListCount = 109;
 	const int DirectoryEntrySize = 0x80;
+	const int MiniSectorSize = 0x40;
 
 	BinaryReader reader;
 	Stream stream;
+	Stream miniStream; 
 
 	int sectorSize;
 	ushort verMinor;
@@ -61,7 +63,6 @@ sealed partial class Ole2Package
 
 	public Ole2Package(Stream iStream)
 	{
-
 		this.stream = iStream;
 		this.reader = new BinaryReader(iStream, Encoding.Unicode);
 		this.fatSectorList = Array.Empty<uint>();
@@ -69,11 +70,21 @@ sealed partial class Ole2Package
 		this.entryList = Array.Empty<Ole2Entry>();
 		LoadHeader();
 		LoadDirectoryEntries();
+
+		if (RootEntry.StartSector <= MaxSector)
+		{
+			var miniStreamSectors = GetStreamSectors(RootEntry.StartSector).ToArray();
+
+			this.miniStream = new Ole2Stream(this, miniStreamSectors, RootEntry.StreamSize);
+		}
+		else
+		{
+			this.miniStream = Stream.Null;
+		}
 	}
 
 	void LoadHeader()
 	{
-
 		BinaryReader reader = new BinaryReader(stream, Encoding.Unicode);
 
 		ulong magic = reader.ReadUInt64();
@@ -123,7 +134,7 @@ sealed partial class Ole2Package
 
 		this.fatSectorCount = reader.ReadUInt32();
 
-		directorySectorStart = reader.ReadUInt32();
+		this.directorySectorStart = reader.ReadUInt32();
 
 
 		uint sig = reader.ReadUInt32();
@@ -209,7 +220,7 @@ sealed partial class Ole2Package
 			int diCount = sectorSize / 4 - 1;
 
 			for (int k = 0; k < diCount; k++)
-				fatSectorList[i++] = reader.ReadUInt32();
+				miniFatSectorList[i++] = reader.ReadUInt32();
 
 			// read next difat location
 			sect = reader.ReadUInt32();
@@ -247,30 +258,10 @@ sealed partial class Ole2Package
 		do
 		{
 			yield return sector;
-			sector = NextMiniSector(sector);
+			sector = miniFatSectorList[sector];
 			if (sector == startSector || sector == 0)
 				throw new InvalidDataException();
 		} while (sector != EndOfChain);
-	}
-
-	public uint NextMiniSector(uint sector)
-	{
-		throw new NotImplementedException();
-		//uint fatSectIdx = (uint)(sector / (sectorSize / 4));
-		//uint fatSectOff = (uint)(sector % (sectorSize / 4));
-
-		//uint fatPage = miniSectorCutoff[fatSectIdx];
-
-		//stream.Seek(SectorOffset(fatPage) + (fatSectOff * 4), SeekOrigin.Begin);
-		//return reader.ReadUInt32();
-	}
-
-
-	IEnumerable<Ole2Entry> GetEntries()
-	{
-		var root = this.RootEntry;
-		foreach (var entry in EnumerateEntry(root))
-			yield return entry;
 	}
 
 	IEnumerable<Ole2Entry> EnumerateEntry(Ole2Entry entry)
