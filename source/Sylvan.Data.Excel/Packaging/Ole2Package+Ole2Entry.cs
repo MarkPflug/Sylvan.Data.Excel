@@ -1,9 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
-using System.Text.RegularExpressions;
 
 namespace Sylvan.Data.Excel;
 
@@ -102,10 +100,18 @@ partial class Ole2Package
 			return string.Format("{0}: {1}, {2}, {3}", entryIdx, Name, Type, StreamSize);
 		}
 
-		public Ole2Stream Open()
+		public Stream Open()
 		{
-			var sectors = this.Package.GetStreamSectors(this.StartSector).ToArray();
-			return new Ole2Stream(this.Package, sectors, StreamSize);
+			if (this.StreamSize < Package.miniSectorCutoff)
+			{
+				var sectors = this.Package.GetMiniStreamSectors(this.StartSector).ToArray();
+				return new Ole2MiniStream(this.Package, this.Package.miniStream, sectors, StreamSize);
+			}
+			else
+			{
+				var sectors = this.Package.GetStreamSectors(this.StartSector).ToArray();
+				return new Ole2Stream(this.Package, sectors, StreamSize);
+			}
 		}
 	}
 }
