@@ -24,7 +24,9 @@ public class XlsxDataWriterTests : ExcelDataWriterTests
 		return string.Format(FileFormat, name);
 	}
 }
+
 #if NETCOREAPP1_0_OR_GREATER
+
 public class XlsbDataWriterTests : ExcelDataWriterTests
 {
 	const string FileFormat = "{0}.xlsb";
@@ -36,6 +38,7 @@ public class XlsbDataWriterTests : ExcelDataWriterTests
 		return string.Format(FileFormat, name);
 	}
 }
+
 #endif
 
 public abstract class ExcelDataWriterTests
@@ -103,7 +106,7 @@ public abstract class ExcelDataWriterTests
 		{
 			w.Write(reader);
 		}
-		//Open(f);
+		Open(f);
 		Validate(f);
 	}
 
