@@ -1,40 +1,36 @@
 ﻿using System;
-using System.Diagnostics;
 using System.IO;
-using System.Threading.Tasks;
-using System.Threading;
 
 namespace Sylvan.Data.Excel;
 
 partial class Ole2Package
 {
-	public sealed class Ole2Stream : Stream
+	public sealed class Ole2StreamOld : Stream
 	{
-		Ole2Package package;
+		readonly Ole2Package package;
 
 		readonly long length;
-		long position;
-
-		int sectorOff;
 		readonly int sectorLen;
-
+		readonly int startSector;
 		readonly uint[] sectors;
+		
+		long position;
+		int sectorOff;
+
 		int sectorIdx;
 		uint sector;
 
-		long streamPos;
-
-		public Ole2Stream(Ole2Package package, uint[] sectors, long length)
+		public Ole2StreamOld(Ole2Package package, uint[] sectors, long length)
 		{
 			this.package = package;
 			this.sectors = sectors;
 			this.sectorIdx = 0;
 			this.sector = sectors[sectorIdx];
+			this.startSector = 1;
 			this.length = length;
 			this.position = 0;
 			this.sectorLen = this.package.sectorSize;
 			this.sectorOff = 0;
-			this.streamPos = -1;
 		}
 
 		public override long Position
@@ -73,17 +69,17 @@ partial class Ole2Package
 			var idx = pos / this.sectorLen;
 
 			this.sectorIdx = (int)idx;
-			this.sectorOff = (int) (pos - (idx * sectorLen));
+			this.sectorOff = (int)(pos - (idx * sectorLen));
 			this.sector = this.sectors[sectorIdx];
 			return this.position;
 		}
 
-		public override async Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+		public override int Read(byte[] buffer, int offset, int count)
 		{
 			if (offset + count > buffer.Length)
 				throw new ArgumentOutOfRangeException();
 
-			//Debug.WriteLine($"{offset} {count} {this.position}");
+			var stream = package.stream;
 
 			var sectors = this.sectors;
 
@@ -93,7 +89,7 @@ partial class Ole2Package
 			while (bytesRead < count && position < length)
 			{
 				var readLen = 0;
-				var readStart = (sector + 1) * sectorLen + sectorOff;
+				var readStart = (sector + startSector) * sectorLen + sectorOff;
 				var curSector = sector;
 
 				while (readLen < c)
@@ -128,10 +124,9 @@ partial class Ole2Package
 				}
 
 				// avoid seek if we are already positioned.
-				if (streamPos != readStart)
+				if (stream.Position != readStart)
 				{
-					package.stream.Seek(readStart, SeekOrigin.Begin);
-					streamPos = readStart;
+					stream.Seek(readStart, SeekOrigin.Begin);
 				}
 
 				if (readLen == 0)
@@ -139,23 +134,19 @@ partial class Ole2Package
 				int len = 0;
 				while (len < readLen)
 				{
-					int l = await package.stream.ReadAsync(buffer, offset, readLen).ConfigureAwait(false);
+					int l = stream.Read(buffer, offset, readLen);
 					if (l == 0)
-						throw new IOException();//"Unexpectedly encountered end of Ole2Package Stream"
+					{
+						throw new IOException();
+					}
 					len += l;
 					offset += l;
 					c -= l;
 					this.position += l;
-					this.streamPos += l;
 				}
 				bytesRead += len;
 			}
 			return bytesRead;
-		}
-
-		public override int Read(byte[] buffer, int offset, int count)
-		{
-			return ReadAsync(buffer, offset, count, default).GetAwaiter().GetResult();
 		}
 
 		public override void Flush()
