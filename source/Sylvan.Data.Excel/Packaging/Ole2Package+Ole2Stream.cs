@@ -7,7 +7,7 @@ partial class Ole2Package
 {
 	public sealed class Ole2StreamOld : Stream
 	{
-		readonly Ole2Package package;
+		readonly Stream stream;
 
 		readonly long length;
 		readonly int sectorLen;
@@ -20,16 +20,16 @@ partial class Ole2Package
 		int sectorIdx;
 		uint sector;
 
-		public Ole2StreamOld(Ole2Package package, uint[] sectors, long length)
+		public Ole2StreamOld(Stream stream, uint[] sectors, int sectorLen, int startSector, long length)
 		{
-			this.package = package;
+			this.stream = stream;
 			this.sectors = sectors;
 			this.sectorIdx = 0;
 			this.sector = sectors[sectorIdx];
-			this.startSector = 1;
+			this.startSector = startSector;
 			this.length = length;
 			this.position = 0;
-			this.sectorLen = this.package.sectorSize;
+			this.sectorLen = sectorLen;
 			this.sectorOff = 0;
 		}
 
@@ -79,7 +79,7 @@ partial class Ole2Package
 			if (offset + count > buffer.Length)
 				throw new ArgumentOutOfRangeException();
 
-			var stream = package.stream;
+			var stream = this.stream;
 
 			var sectors = this.sectors;
 
