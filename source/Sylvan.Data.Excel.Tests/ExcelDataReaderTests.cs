@@ -11,7 +11,7 @@ using Xunit;
 namespace Sylvan.Data.Excel;
 
 // the tests defined here will be run against .xls, .xlsx, and .xlsb file
-// containing the same content. The expectation is the behavior of the two
+// containing the same content. The expectation is the behavior of the three
 // implementations is the same, so the same test code can validate the 
 // behavior of the three formats.
 public class XlsxTests
@@ -124,7 +124,7 @@ public class XlsxTests
 		var epoch = new DateTime(1900, 1, 1);
 		using var edr = ExcelDataReader.Create(file);
 		for (int i = 0; i < 22; i++)
-		{
+		{			
 			Assert.True(edr.Read());
 			var value = edr.GetDouble(0);
 			var vs = value.ToString("G15");

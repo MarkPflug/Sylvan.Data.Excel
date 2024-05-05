@@ -287,7 +287,7 @@ sealed partial class XlsWorkbookReader
 		{
 			bufferPos = recordOff + recordLen;
 
-			if (bufferPos + 4 >= bufferLen)
+			if (bufferPos + 4 > bufferLen)
 			{
 				if (!FillBuffer(4))
 				{

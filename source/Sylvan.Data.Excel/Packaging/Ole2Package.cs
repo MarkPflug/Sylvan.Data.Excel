@@ -75,7 +75,7 @@ sealed partial class Ole2Package
 		{
 			var miniStreamSectors = GetStreamSectors(RootEntry.StartSector).ToArray();
 
-			this.miniStream = new Ole2Stream(this, miniStreamSectors, RootEntry.StreamSize);
+			this.miniStream = new Ole2Stream(this.stream, miniStreamSectors, this.sectorSize, 1, RootEntry.StreamSize);
 		}
 		else
 		{
@@ -164,7 +164,7 @@ sealed partial class Ole2Package
 		int entryCount = sectorSize * directorySectorCount / DirectoryEntrySize;
 		this.entryList = new Ole2Entry[entryCount];
 		var sectors = GetStreamSectors(directorySectorStart).ToArray();
-		Ole2Stream dirStream = new Ole2Stream(this, sectors, sectorSize * directorySectorCount);
+		Ole2Stream dirStream = new Ole2Stream(this.stream, sectors, this.sectorSize, 1, sectorSize * directorySectorCount);
 		for (int i = 0; i < entryCount; i++)
 		{
 			this.entryList[i] = new Ole2Entry(this, dirStream, i);

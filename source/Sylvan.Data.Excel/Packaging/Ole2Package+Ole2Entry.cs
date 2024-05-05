@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -102,15 +103,16 @@ partial class Ole2Package
 
 		public Stream Open()
 		{
-			if (this.StreamSize < Package.miniSectorCutoff)
+			var pkg = this.Package;
+			if (this.StreamSize < pkg.miniSectorCutoff)
 			{
-				var sectors = this.Package.GetMiniStreamSectors(this.StartSector).ToArray();
-				return new Ole2MiniStream(this.Package, this.Package.miniStream, sectors, StreamSize);
+				var sectors = pkg.GetMiniStreamSectors(this.StartSector).ToArray();
+				return new Ole2Stream(pkg.miniStream, sectors, MiniSectorSize, 0, StreamSize);
 			}
 			else
 			{
-				var sectors = this.Package.GetStreamSectors(this.StartSector).ToArray();
-				return new Ole2Stream(this.Package, sectors, StreamSize);
+				var sectors = pkg.GetStreamSectors(this.StartSector).ToArray();
+				return new Ole2Stream(pkg.stream, sectors, pkg.sectorSize, 1, StreamSize);
 			}
 		}
 	}
