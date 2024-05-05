@@ -5,7 +5,7 @@ namespace Sylvan.Data.Excel;
 
 partial class Ole2Package
 {
-	public sealed class Ole2StreamOld : Stream
+	public sealed class Ole2Stream : Stream
 	{
 		readonly Stream stream;
 
@@ -20,7 +20,7 @@ partial class Ole2Package
 		int sectorIdx;
 		uint sector;
 
-		public Ole2StreamOld(Stream stream, uint[] sectors, int sectorLen, int startSector, long length)
+		public Ole2Stream(Stream stream, uint[] sectors, int sectorLen, int startSector, long length)
 		{
 			this.stream = stream;
 			this.sectors = sectors;
@@ -86,13 +86,19 @@ partial class Ole2Package
 			int bytesRead = 0;
 			var c = count;
 
+			var streamAvail = this.length - this.position;
+
+			// the amount to read is the lesser of the user requested count
+			// and what remains in the stream.
+			var readAvail = (int)Math.Min(count, streamAvail);
+
 			while (bytesRead < count && position < length)
 			{
 				var readLen = 0;
 				var readStart = (sector + startSector) * sectorLen + sectorOff;
 				var curSector = sector;
 
-				while (readLen < c)
+				while (readLen < readAvail)
 				{
 					if (this.sectorOff >= this.sectorLen)
 					{
@@ -117,7 +123,7 @@ partial class Ole2Package
 					}
 
 					var sectorAvail = this.sectorLen - this.sectorOff;
-					var sectorRead = Math.Min(sectorAvail, c - readLen);
+					var sectorRead = Math.Min(sectorAvail, readAvail - readLen);
 
 					readLen += sectorRead;
 					this.sectorOff += sectorRead;

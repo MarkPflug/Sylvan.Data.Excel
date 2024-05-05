@@ -1,15 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.IO;
 
 namespace Sylvan.Testing
 {
-	class TestStream : Stream
+	sealed class TestStream : Stream
 	{
-		Stream stream;
+		readonly Stream stream;
+
 		public TestStream(Stream stream)
 		{
 			this.stream = stream;
