@@ -1,5 +1,8 @@
 # Sylvan.Data.Excel Release Notes
 
+_0.4.21_
+- Fixes a bug that could cause incorrect behavior when reading certain .xls files.
+
 _0.4.20_
 - Fixes a bug where advancing to the next worksheet can result in the incorrect number of columns being reported when reading xlsx files. #160
 - Calling field accessor methods (`GetString`, `GetInt32()`, etc) now throw an exception when called when the reader is in an invalid state.
