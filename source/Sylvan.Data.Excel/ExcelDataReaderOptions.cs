@@ -66,7 +66,8 @@ public sealed class ExcelDataReaderOptions
 	public bool OwnsStream { get; set; }
 
 	/// <summary>
-	/// Indicates that the reader will stop reading at the first row with all blanks
+	/// Indicates that the reader will skip empty rows and continue reading until another
+	/// non-empty row is found or the sheet ends.
 	/// </summary>
-	public bool IgnoreEmptyTrailingRows { get; set; }
+	public bool IgnoreEmptyRows { get; set; } = true;
 }

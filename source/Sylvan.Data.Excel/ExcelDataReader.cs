@@ -45,7 +45,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 
 	private protected bool readHiddenSheets;
 	private protected bool errorAsNull;
-	private protected bool ignoreEmptyTrailingRows;
+	private protected bool ignoreEmptyRows;
 
 	private protected int rowCount;
 	private protected int rowFieldCount;
@@ -88,7 +88,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 		this.schema = options.Schema;
 		this.errorAsNull = options.GetErrorAsNull;
 		this.readHiddenSheets = options.ReadHiddenWorksheets;
-		this.ignoreEmptyTrailingRows = options.IgnoreEmptyTrailingRows;
+		this.ignoreEmptyRows = options.IgnoreEmptyRows;
 		this.state = State.Initializing;
 		this.values = Array.Empty<FieldInfo>();
 		this.sst = Array.Empty<string>();

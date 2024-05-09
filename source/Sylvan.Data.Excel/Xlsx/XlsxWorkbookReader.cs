@@ -405,7 +405,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 				var c = ParseRowValues();
 				if (c == 0)
 				{
-					if (this.ignoreEmptyTrailingRows)
+					if (this.ignoreEmptyRows)
 					{
 						// handles trailing empty rows.
 						continue;
