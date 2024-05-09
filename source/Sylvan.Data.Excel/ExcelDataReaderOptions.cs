@@ -64,4 +64,9 @@ public sealed class ExcelDataReaderOptions
 	/// Indicates that the data stream should be disposed when the reader is disposed.
 	/// </summary>
 	public bool OwnsStream { get; set; }
+
+	/// <summary>
+	/// Indicates that the reader will stop reading at the first row with all blanks
+	/// </summary>
+	public bool IgnoreEmptyTrailingRows { get; set; }
 }

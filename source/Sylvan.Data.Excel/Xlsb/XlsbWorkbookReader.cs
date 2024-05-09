@@ -293,7 +293,12 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 				}
 				if (c == 0)
 				{
-					continue;
+					if (this.ignoreEmptyTrailingRows)
+					{
+						continue;
+					}
+
+					this.rowFieldCount = 0;
 				}
 				if (rowIndex < parsedRowIndex)
 				{

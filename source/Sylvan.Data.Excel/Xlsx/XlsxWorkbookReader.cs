@@ -405,8 +405,13 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 				var c = ParseRowValues();
 				if (c == 0)
 				{
-					// handles trailing empty rows.
-					continue;
+					if (this.ignoreEmptyTrailingRows)
+					{
+						// handles trailing empty rows.
+						continue;
+					}
+
+					this.rowFieldCount = 0;
 				}
 				if (rowIndex < parsedRowIndex)
 				{
