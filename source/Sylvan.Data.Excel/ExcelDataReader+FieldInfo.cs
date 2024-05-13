@@ -16,6 +16,15 @@ partial class ExcelDataReader
 		public DateTime dtValue;
 		public int xfIdx;
 
+
+		internal bool IsEmptyValue
+		{
+			get
+			{
+				return this.type == ExcelDataType.Null || (this.type == ExcelDataType.String && this.strValue?.Length == 0);
+			}
+		}
+
 		internal ExcelErrorCode ErrorCode
 		{
 			get { return (ExcelErrorCode)numValue; }

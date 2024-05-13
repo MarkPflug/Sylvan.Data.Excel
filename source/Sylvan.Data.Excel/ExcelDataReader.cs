@@ -56,6 +56,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 	static readonly DateTime Epoch1904 = new DateTime(1904, 1, 1);
 
 	private protected DateMode dateMode;
+	private protected readonly bool ignoreEmptyTrailingRows;
 
 	readonly string? trueString;
 	readonly string? falseString;
@@ -102,6 +103,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 		this.culture = options.Culture;
 		this.dateTimeFormat = options.DateTimeFormat;
 		this.ownsStream = options.OwnsStream;
+		this.ignoreEmptyTrailingRows = options.IgnoreEmptyTrailingRows;
 	}
 
 #if ASYNC

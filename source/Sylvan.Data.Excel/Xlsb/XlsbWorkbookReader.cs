@@ -203,7 +203,7 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 		if (parsedRowIndex > 0)
 		{
 			this.rowFieldCount = 0;
-		} 
+		}
 
 		this.state = State.Initialized;
 		this.rowIndex = LoadSchema() ? -1 : 0;
@@ -266,7 +266,7 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 	public override bool Read()
 	{
 		rowIndex++;
-		start:
+	start:
 		if (state == State.Open)
 		{
 			if (rowIndex <= parsedRowIndex)
@@ -293,7 +293,12 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 				}
 				if (c == 0)
 				{
-					continue;
+					if (this.ignoreEmptyTrailingRows)
+					{
+						continue;
+					}
+
+					this.rowFieldCount = 0;
 				}
 				if (rowIndex < parsedRowIndex)
 				{
@@ -436,17 +441,16 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 							case RecordType.CellIsst:
 								type = ExcelDataType.String;
 								var sstIdx = reader.GetInt32(8);
-
 								fi.isSS = true;
 								fi.ssIdx = sstIdx;
-								//fi.strValue = sst[sstIdx];
 								notNull++;
 								break;
 							case RecordType.CellSt:
 							case RecordType.CellFmlaString:
 								type = ExcelDataType.String;
 								fi.strValue = reader.GetString(8);
-								notNull++;
+								if (fi.strValue.Length > 0)
+									notNull++;
 								break;
 							case RecordType.CellFmlaNum:
 								type = ExcelDataType.Numeric;
@@ -454,6 +458,7 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 								notNull++;
 								break;
 						}
+
 
 						fi.type = type;
 						fi.xfIdx = sf;
