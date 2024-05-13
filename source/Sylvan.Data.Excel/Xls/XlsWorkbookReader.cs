@@ -27,6 +27,8 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 	int curFieldCount = 0;
 	int pendingRow = -1;
 
+	int rowCellCount = 0;
+
 	internal XlsWorkbookReader(Stream stream, ExcelDataReaderOptions options) : base(stream, options)
 	{
 		var pkg = new Ole2Package(stream);
@@ -88,14 +90,20 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 		}
 		rowIndex++;
 
-		if (NextRow())
+		var count = NextRow();
+
+		if (count < 0)
 		{
-			return true;
+			if (this.rowCellCount > 0 && this.ignoreEmptyTrailingRows == false)
+			{
+				return true;
+			}
+			this.state = State.End;
+			return false;
 		}
 		else
 		{
-			this.state = State.End;
-			return false;
+			return true;
 		}
 	}
 
@@ -379,6 +387,8 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 					SetRowData(colIdx, new FieldInfo((ExcelErrorCode)rval));
 					break;
 				default:
+					// this seems to indicate the function result is null,
+					// though the spec doesn't make this clear.
 					SetRowData(colIdx, new FieldInfo());
 					break;
 			}
@@ -399,33 +409,46 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 		{
 			Array.Resize(ref values, Math.Max(8, values.Length * 2));
 		}
-		rowFieldCount = Math.Max(rowFieldCount, colIdx + 1);
+		if (!cd.IsEmptyValue)
+		{
+			this.rowFieldCount = Math.Max(rowFieldCount, colIdx + 1);
+		}
+		this.rowCellCount++;
 		values[colIdx] = cd;
 	}
 
 
-	bool NextRow()
+	int NextRow()
 	{
 		// clear out any fields from previous row
 		Array.Clear(this.values, 0, this.values.Length);
+		// rowFieldCount records the last non-empty cell.
 		this.rowFieldCount = 0;
+		// rowCellCount records the number of cells that have any (even empty string) values
+		this.rowCellCount = 0;
+
 		do
 		{
 			if (pendingRow == -1)
 			{
 				if (!reader.NextRecord())
 				{
-					return false;
+					// reached the end of the records stream before finding any more cells
+					return -1;
 				}
 			}
 
 			if (rowIndex < pendingRow)
 			{
-				return true;
+				// the current row is empty but there is more data after.
+				return 0;
 			}
 
 			pendingRow = -1;
 
+			// this first switch is only concerned with "peeking" at the next cell record
+			// to determine if it is for the current row (rowIndex), or if the current row
+			// is empty where the next cell is for a subsequent row.
 			switch (reader.Type)
 			{
 				case RecordType.LabelSST:
@@ -440,8 +463,9 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 					{
 						if (this.rowIndex < peekRow)
 						{
+							// the current row is empty but we've seen a cell for a subsequent row.
 							pendingRow = peekRow;
-							return true;
+							return 0;
 						}
 						else
 						{
@@ -452,14 +476,18 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 				case RecordType.EOF:
 					if (this.rowFieldCount > 0)
 					{
+						// we've reached the end of the data stream
+						// and have cells in the current row
 						if (pendingRow == int.MinValue)
 						{
-							return false;
+							return -1;
 						}
 						else
 						{
+							// set pending row such that we will come back to return -1
+							// the next time we read a row.
 							pendingRow = int.MinValue;
-							return true;
+							return 0;
 						}
 					}
 					break;
@@ -500,7 +528,7 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 					// this should only apply to formulas, and is handled inline
 					break;
 				case RecordType.EOF:
-					return this.RowFieldCount > 0;
+					return this.rowFieldCount == 0 ? -1 : this.rowFieldCount;
 				default:
 					break;
 			}

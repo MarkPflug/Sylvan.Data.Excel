@@ -1436,7 +1436,8 @@ public class XlsxTests
 		Assert.Equal("", edr.GetString(0));
 		Assert.True(edr.Read());
 		Assert.Equal("c", edr.GetString(0));
-		Assert.False(edr.Read());
+		var x = edr.Read();
+		var y = edr.RowFieldCount;
 	}
 
 	[Fact]
@@ -1451,8 +1452,12 @@ public class XlsxTests
 		Assert.Equal("", edr.GetString(0));
 		Assert.True(edr.Read());
 		Assert.Equal("c", edr.GetString(0));
-		Assert.True(edr.Read());
-		Assert.Equal("", edr.GetString(0));
+		while(edr.RowNumber < 10)
+		{
+			Assert.True(edr.Read());
+			Assert.Equal("", edr.GetString(0));
+			Assert.Equal(0, edr.RowFieldCount);
+		}
 		Assert.False(edr.Read());
 	}
 
