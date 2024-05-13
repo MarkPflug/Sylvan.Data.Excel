@@ -23,6 +23,14 @@ public sealed class ExcelDataReaderOptions
 	/// Indicates that any trailing rows with empty cells should be ignored.
 	/// Defaults to true.
 	/// </summary>
+	/// <remarks>
+	/// By default, ExcelDataReader will ignore any rows at the end of the file that
+	/// contain only empty cells. Skipping the empty rows requires reading data until either a non-empty
+	/// row is found, or the end of the file. In some situations, this can require reading a million rows
+	/// only to discover that there is no more data, which takes a measurable amount of time. This option
+	/// allows consumers to have more control, and optionally stop reading when the first empty row is found
+	/// with the expectation that it marks the end of the data.
+	/// </remarks>
 	public bool IgnoreEmptyTrailingRows { get; set; }
 
 	/// <summary>

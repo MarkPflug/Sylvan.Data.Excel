@@ -1,5 +1,8 @@
 # Sylvan.Data.Excel Release Notes
 
+_0.4.22_
+- Adds `ExcelDataReaderOptions.IgnoreEmptyTrailingRows` option.
+
 _0.4.21_
 - Fixes a bug that could cause incorrect behavior when reading certain .xls files.
 
