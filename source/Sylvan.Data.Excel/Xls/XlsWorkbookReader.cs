@@ -379,7 +379,8 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 					SetRowData(colIdx, new FieldInfo((ExcelErrorCode)rval));
 					break;
 				default:
-					throw new InvalidDataException();
+					SetRowData(colIdx, new FieldInfo());
+					break;
 			}
 		}
 		else

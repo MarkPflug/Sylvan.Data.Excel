@@ -1423,7 +1423,37 @@ public class XlsxTests
 		Assert.Throws<InvalidOperationException>(() => edr.GetValues(values));
 		Assert.Throws<InvalidOperationException>(() => edr.IsDBNull(0));
 		await Assert.ThrowsAsync<InvalidOperationException>(async () => await edr.IsDBNullAsync(0));
+	}
 
+	[Fact]
+	public void TrailingBlank()
+	{
+		var file = GetFile("TrailingBlank");
+		using var edr = ExcelDataReader.Create(file);
+		Assert.True(edr.Read());
+		Assert.Equal("b", edr.GetString(0));
+		Assert.True(edr.Read());
+		Assert.Equal("", edr.GetString(0));
+		Assert.True(edr.Read());
+		Assert.Equal("c", edr.GetString(0));
+		Assert.False(edr.Read());
+	}
+
+	[Fact]
+	public void TrailingBlankNoSkip()
+	{
+		var file = GetFile("TrailingBlank");
+		var opt = new ExcelDataReaderOptions { IgnoreEmptyTrailingRows = false };
+		using var edr = ExcelDataReader.Create(file, opt);
+		Assert.True(edr.Read());
+		Assert.Equal("b", edr.GetString(0));
+		Assert.True(edr.Read());
+		Assert.Equal("", edr.GetString(0));
+		Assert.True(edr.Read());
+		Assert.Equal("c", edr.GetString(0));
+		Assert.True(edr.Read());
+		Assert.Equal("", edr.GetString(0));
+		Assert.False(edr.Read());
 	}
 
 #if ASYNC

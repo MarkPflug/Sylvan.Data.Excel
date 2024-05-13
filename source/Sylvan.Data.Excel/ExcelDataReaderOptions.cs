@@ -16,7 +16,14 @@ public sealed class ExcelDataReaderOptions
 	{
 		this.Schema = ExcelSchema.Default;
 		this.Culture = CultureInfo.InvariantCulture;
+		this.IgnoreEmptyTrailingRows = true;
 	}
+
+	/// <summary>
+	/// Indicates that any trailing rows with empty cells should be ignored.
+	/// Defaults to true.
+	/// </summary>
+	public bool IgnoreEmptyTrailingRows { get; set; }
 
 	/// <summary>
 	/// Gets or sets the schema for the data in the workbook.
