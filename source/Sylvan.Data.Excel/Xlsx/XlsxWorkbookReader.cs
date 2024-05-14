@@ -205,7 +205,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 			CheckCharacters = false,
 			CloseInput = true,
 			ValidationType = ValidationType.None,
-			ValidationFlags = System.Xml.Schema.XmlSchemaValidationFlags.None,
+			ValidationFlags = System.Xml.Schema.XmlSchemaValidationFlags.None,		
 #if SPAN
 			NameTable = new SheetNameTable(),
 #endif
@@ -611,12 +611,15 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 								throw new FormatException();
 							}
 							fi.ssIdx = strIdx;
+							fi.type = FieldType.SharedString;
 						}
 						else
 						{
+							// this handles an edge-case where the field is a shared string,
+							// but the index is empty.
 							fi.strValue = string.Empty;
+							fi.type = FieldType.String;
 						}
-						fi.type = FieldType.SharedString;
 						break;
 					case CellType.String:
 						if (reader.NodeType == XmlNodeType.Text)

@@ -938,10 +938,10 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 			case FieldType.SharedString:
 				return GetSharedString(fi.ssIdx) ?? "";
 		}
-		return ProcString(fi);
+		return ProcString(in fi);
 	}
 
-	string ProcString(in FieldInfo fi)
+	string ProcString(ref readonly FieldInfo fi)
 	{
 		return (fi.type == FieldType.SharedString ? GetSharedString(fi.ssIdx) : fi.strValue) ?? string.Empty;
 	}
@@ -982,7 +982,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 		{
 			case FieldType.String:
 			case FieldType.SharedString:
-				return double.Parse(ProcString(cell), culture);
+				return double.Parse(ProcString(in cell), culture);
 			case FieldType.Numeric:
 				return cell.numValue;
 			case FieldType.Error:
@@ -1017,7 +1017,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 				var trueString = col?.TrueString ?? this.trueString;
 				var falseString = col?.FalseString ?? this.falseString;
 
-				var strVal = ProcString(fi);
+				var strVal = ProcString(in fi);
 				var c = StringComparer.OrdinalIgnoreCase;
 
 				if (trueString != null && c.Equals(strVal, trueString))
