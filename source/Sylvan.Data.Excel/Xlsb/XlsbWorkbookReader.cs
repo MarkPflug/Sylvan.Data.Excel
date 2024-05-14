@@ -350,7 +350,7 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 		int count = 0;
 		int notNull = 0;
 
-		ExcelDataType type = 0;
+		FieldType type = FieldType.Null;
 
 		while (reader.RecordType != RecordType.Row)
 		{
@@ -385,7 +385,7 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 						EnsureCols(ref values, col);
 						ref var fi = ref values[col];
 
-						fi.type = ExcelDataType.Numeric;
+						fi.type = FieldType.Numeric;
 						fi.numValue = d;
 						fi.xfIdx = sf;
 						notNull++;
@@ -399,7 +399,7 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 						double d = reader.GetDouble(8);
 						EnsureCols(ref values, col);
 						ref var fi = ref values[col];
-						fi.type = ExcelDataType.Numeric;
+						fi.type = FieldType.Numeric;
 						fi.numValue = d;
 						fi.xfIdx = sf;
 						count = col + 1;
@@ -425,41 +425,39 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 						switch (reader.RecordType)
 						{
 							case RecordType.CellBlank:
-								type = ExcelDataType.Null;
+								type = FieldType.Null;
 								break;
 							case RecordType.CellBool:
 							case RecordType.CellFmlaBool:
-								type = ExcelDataType.Boolean;
+								type = FieldType.Boolean;
 								fi = new FieldInfo(reader.GetByte(8) != 0);
 								notNull++;
 								break;
 							case RecordType.CellError:
 							case RecordType.CellFmlaError:
-								type = ExcelDataType.Error;
+								type = FieldType.Error;
 								fi = new FieldInfo((ExcelErrorCode)reader.GetByte(8));
 								notNull++;
 								break;
 							case RecordType.CellIsst:
-								type = ExcelDataType.String;
-								var sstIdx = reader.GetInt32(8);
-								fi.isSS = true;
+								type = FieldType.SharedString;
+								var sstIdx = reader.GetInt32(8);								
 								fi.ssIdx = sstIdx;
 								notNull++;
 								break;
 							case RecordType.CellSt:
 							case RecordType.CellFmlaString:
-								type = ExcelDataType.String;
+								type = FieldType.String;
 								fi.strValue = reader.GetString(8);
 								if (fi.strValue.Length > 0)
 									notNull++;
 								break;
 							case RecordType.CellFmlaNum:
-								type = ExcelDataType.Numeric;
+								type = FieldType.Numeric;
 								fi.numValue = reader.GetDouble(8);
 								notNull++;
 								break;
 						}
-
 
 						fi.type = type;
 						fi.xfIdx = sf;
