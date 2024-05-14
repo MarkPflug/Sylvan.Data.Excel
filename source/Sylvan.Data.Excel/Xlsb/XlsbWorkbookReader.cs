@@ -266,6 +266,7 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 	public override bool Read()
 	{
 		rowIndex++;
+		colCacheIdx = 0;
 	start:
 		if (state == State.Open)
 		{

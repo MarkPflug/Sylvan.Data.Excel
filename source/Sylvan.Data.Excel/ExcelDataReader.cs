@@ -8,6 +8,7 @@ using System.Data.Common;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -49,7 +50,6 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 	private protected int rowCount;
 	private protected int rowFieldCount;
 
-
 	private protected int rowIndex;
 
 	static readonly DateTime Epoch1900 = new DateTime(1899, 12, 30);
@@ -63,6 +63,15 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 
 	readonly CultureInfo culture;
 	readonly string? dateTimeFormat;
+
+	struct OrdinalCache
+	{
+		internal string name;
+		internal int idx;
+	}
+
+	OrdinalCache[] colCache = Array.Empty<OrdinalCache>();
+	private protected int colCacheIdx;
 
 	/// <inheritdoc/>
 	public sealed override Type GetFieldType(int ordinal)
@@ -378,8 +387,8 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 		return string.Empty;
 	}
 
-	/// <inheritdoc/>
-	public sealed override int GetOrdinal(string name)
+	[MethodImpl(MethodImplOptions.NoInlining)]
+	int LookupOrdinal(string name)
 	{
 		for (int i = 0; i < this.columnSchema.Length; i++)
 		{
@@ -393,6 +402,24 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 				return i;
 		}
 		throw new ArgumentOutOfRangeException(nameof(name));
+	}
+
+	/// <inheritdoc/>
+	public sealed override int GetOrdinal(string name)
+	{
+		if (name == null) throw new ArgumentNullException(nameof(name));
+
+		if (colCacheIdx < colCache.Length)
+		{
+			ref var col = ref colCache[colCacheIdx];
+			colCacheIdx++;
+			if (!ReferenceEquals(name, col.name))
+			{
+				col = new OrdinalCache { name = name, idx = LookupOrdinal(name) };
+			}
+			return col.idx;
+		}
+		return LookupOrdinal(name);
 	}
 
 	/// <summary>
@@ -503,6 +530,10 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 		this.columnSchema = cols;
 		this.fieldCount = fieldCount;
 
+		if (this.colCache.Length < this.fieldCount)
+		{
+			Array.Resize(ref this.colCache, this.fieldCount);
+		}
 		// return value indicates if the current data row is already
 		// sitting in the values array, indicating that the next call
 		// to Read() should used the existing values.
@@ -820,7 +851,6 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 		dt = epoch.AddDays(value);
 		return true;
 	}
-
 	/// <inheritdoc/>
 	public sealed override bool IsDBNull(int ordinal)
 	{
@@ -847,8 +877,6 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 		return false;
 	}
 
-
-
 	/// <summary>
 	/// Gets the value of the column as a string.
 	/// </summary>
@@ -864,7 +892,8 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 		return GetStringRaw(ordinal);
 	}
 
-	string GetStringRaw(int ordinal) {
+	string GetStringRaw(int ordinal)
+	{
 		ref readonly FieldInfo fi = ref GetFieldValue(ordinal);
 		if (ordinal >= MaxFieldCount)
 		{
@@ -884,7 +913,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 			case ExcelDataType.Numeric:
 				return FormatVal(fi.xfIdx, fi.numValue);
 		}
-		return ProcString(in fi);
+		return ProcString(fi);
 	}
 
 	string ProcString(in FieldInfo fi)
@@ -927,7 +956,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 		switch (cell.type)
 		{
 			case ExcelDataType.String:
-				return double.Parse(ProcString(in cell), culture);
+				return double.Parse(ProcString(cell), culture);
 			case ExcelDataType.Numeric:
 				return cell.numValue;
 			case ExcelDataType.Error:
@@ -961,7 +990,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 				var trueString = col?.TrueString ?? this.trueString;
 				var falseString = col?.FalseString ?? this.falseString;
 
-				var strVal = ProcString(in fi);
+				var strVal = ProcString(fi);
 				var c = StringComparer.OrdinalIgnoreCase;
 
 				if (trueString != null && c.Equals(strVal, trueString))

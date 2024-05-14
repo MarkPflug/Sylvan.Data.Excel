@@ -75,6 +75,7 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 	public override bool Read()
 	{
 		rowNumber++;
+		colCacheIdx = 0;
 		if (this.rowIndex >= rowCount)
 		{
 			rowNumber = -1;
