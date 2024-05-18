@@ -228,8 +228,12 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 		xw.Write("</sheetData>");
 
 		var end = ExcelSchema.GetExcelColumnName(fieldWriters.Length - 1);
+		var allCellsRef = $"A1:{end}{row}";
 		// apply filter to header row
-		xw.Write($"<autoFilter ref=\"A1:{end}{row}\"/>");
+		xw.Write($"<autoFilter ref=\"{allCellsRef}\"/>");
+		xw.Write("<ignoredErrors>");
+		xw.Write($"<ignoredError sqref=\"{allCellsRef}\" numberStoredAsText=\"1\"/>");
+		xw.Write("</ignoredErrors>");
 		xw.Write("</worksheet>");
 		return new WriteResult(row, complete);
 	}

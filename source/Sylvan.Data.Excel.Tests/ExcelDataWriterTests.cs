@@ -205,6 +205,7 @@ public abstract class ExcelDataWriterTests
 					Id = i, //int32
 					Name = "Name" + i, //string
 					ValueInt = r.Next(), // another, bigger int
+					ValueStr = r.Next().ToString(), // integer as string
 					ValueDouble = r.NextDouble() * 100d, // double
 					Amount = (decimal)r.NextDouble(), // decimal
 					DateTime = new DateTime(2020, 1, 1).AddHours(i), // datetime
