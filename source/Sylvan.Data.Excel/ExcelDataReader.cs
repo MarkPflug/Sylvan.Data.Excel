@@ -439,7 +439,28 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 		ValidateAccess();
 		ValidateSheetRange(ordinal);
 		ref readonly var cell = ref GetFieldValue(ordinal);
-		return cell.type;
+		return MapFieldType(cell.type);
+	}
+
+	static ExcelDataType MapFieldType(FieldType t)
+	{
+		switch (t)
+		{
+			default: // never
+			case FieldType.Null:
+				return ExcelDataType.Null;
+			case FieldType.Boolean: 
+				return ExcelDataType.Boolean;
+			case FieldType.DateTime: 
+				return ExcelDataType.DateTime;
+			case FieldType.Numeric: 
+				return ExcelDataType.Numeric;
+			case FieldType.String:
+			case FieldType.SharedString:
+				return ExcelDataType.String;
+			case FieldType.Error:
+				return ExcelDataType.Error;
+		}
 	}
 
 	/// <summary>
@@ -681,7 +702,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 	{
 		ValidateAccess();
 		var cell = GetFieldValue(ordinal);
-		if (cell.type == ExcelDataType.Error)
+		if (cell.type == FieldType.Error)
 			return cell.ErrorCode;
 		throw new InvalidOperationException();
 	}
@@ -902,23 +923,27 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 
 		switch (fi.type)
 		{
-			case ExcelDataType.Error:
+			case FieldType.Error:
 				if (errorAsNull)
 				{
 					return string.Empty;
 				}
 				throw GetError(ordinal);
-			case ExcelDataType.Boolean:
+			case FieldType.Boolean:
 				return fi.BoolValue ? bool.TrueString : bool.FalseString;
-			case ExcelDataType.Numeric:
+			case FieldType.Numeric:
 				return FormatVal(fi.xfIdx, fi.numValue);
+			case FieldType.String:
+				return fi.strValue ?? "";
+			case FieldType.SharedString:
+				return GetSharedString(fi.ssIdx) ?? "";
 		}
-		return ProcString(fi);
+		return ProcString(in fi);
 	}
 
-	string ProcString(in FieldInfo fi)
+	string ProcString(ref readonly FieldInfo fi)
 	{
-		return (fi.isSS ? GetSharedString(fi.ssIdx) : fi.strValue) ?? string.Empty;
+		return (fi.type == FieldType.SharedString ? GetSharedString(fi.ssIdx) : fi.strValue) ?? string.Empty;
 	}
 
 	private protected abstract string GetSharedString(int idx);
@@ -955,11 +980,12 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 		ref readonly var cell = ref GetFieldValue(ordinal);
 		switch (cell.type)
 		{
-			case ExcelDataType.String:
-				return double.Parse(ProcString(cell), culture);
-			case ExcelDataType.Numeric:
+			case FieldType.String:
+			case FieldType.SharedString:
+				return double.Parse(ProcString(in cell), culture);
+			case FieldType.Numeric:
 				return cell.numValue;
-			case ExcelDataType.Error:
+			case FieldType.Error:
 				throw Error(ordinal);
 		}
 
@@ -979,18 +1005,19 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 		ref readonly var fi = ref this.GetFieldValue(ordinal);
 		switch (fi.type)
 		{
-			case ExcelDataType.Boolean:
+			case FieldType.Boolean:
 				return fi.BoolValue;
-			case ExcelDataType.Numeric:
+			case FieldType.Numeric:
 				return this.GetDouble(ordinal) != 0;
-			case ExcelDataType.String:
+			case FieldType.String:
+			case FieldType.SharedString:
 
 				var col = (uint)ordinal < this.columnSchema.Length ? this.columnSchema[ordinal] : null;
 
 				var trueString = col?.TrueString ?? this.trueString;
 				var falseString = col?.FalseString ?? this.falseString;
 
-				var strVal = ProcString(fi);
+				var strVal = ProcString(in fi);
 				var c = StringComparer.OrdinalIgnoreCase;
 
 				if (trueString != null && c.Equals(strVal, trueString))
@@ -1017,7 +1044,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 				if (trueString == null && falseString != null) return true;
 
 				throw new InvalidCastException();
-			case ExcelDataType.Error:
+			case FieldType.Error:
 				var code = fi.ErrorCode;
 				throw new ExcelFormulaException(ordinal, RowNumber, code);
 		}

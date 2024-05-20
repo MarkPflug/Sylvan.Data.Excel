@@ -1,27 +1,51 @@
 ﻿using System;
+using System.Runtime.InteropServices;
 
 namespace Sylvan.Data.Excel;
 
 partial class ExcelDataReader
 {
+	internal enum FieldType : int
+	{
+		Null = 0,
+		Numeric,
+		DateTime,
+		String,
+		SharedString,
+		Boolean,
+		Error,
+	}
+
+	[StructLayout(LayoutKind.Explicit)]
 	private protected struct FieldInfo
 	{
 		public static readonly FieldInfo Null = default;
 
-		public ExcelDataType type;
-		public bool isSS;
-		public string? strValue;
-		public int ssIdx;
-		public double numValue;
-		public DateTime dtValue;
-		public int xfIdx;
+		[FieldOffset(0)]
+		internal string? strValue;
+
+		[FieldOffset(8)]
+		internal bool boolValue;
+		[FieldOffset(8)]
+		internal int ssIdx;
+		[FieldOffset(8)]
+		internal double numValue;
+		[FieldOffset(8)]
+		internal DateTime dtValue;
+
+		[FieldOffset(16)]
+		internal FieldType type;
+
+		[FieldOffset(20)]
+		internal int xfIdx;
+
 
 
 		internal bool IsEmptyValue
 		{
 			get
 			{
-				return this.type == ExcelDataType.Null || (this.type == ExcelDataType.String && this.strValue?.Length == 0);
+				return this.type == FieldType.Null || (this.type == FieldType.String && this.strValue?.Length == 0);
 			}
 		}
 
@@ -32,31 +56,31 @@ partial class ExcelDataReader
 
 		internal bool BoolValue
 		{
-			get { return numValue != 0d; }
+			get { return boolValue; }
 		}
 
 		public FieldInfo(string str)
 		{
 			this = default;
-			this.type = ExcelDataType.String;
+			this.type = FieldType.String;
 			this.strValue = str;
 		}
 
 		public FieldInfo(bool b)
 		{
 			this = default;
-			this.type = ExcelDataType.Boolean;
-			this.numValue = b ? 1 : 0;
+			this.type = FieldType.Boolean;
+			this.boolValue = b;
 		}
 
 		public FieldInfo(ExcelErrorCode c)
 		{
 			this = default;
-			this.type = ExcelDataType.Error;
+			this.type = FieldType.Error;
 			this.numValue = (double)c;
 		}
 
-		public FieldInfo(uint val, ExcelDataType type)
+		public FieldInfo(uint val, FieldType type)
 		{
 			this = default;
 			this.numValue = val;
@@ -66,21 +90,23 @@ partial class ExcelDataReader
 		public FieldInfo(double val, ushort ifIdx)
 		{
 			this = default;
-			this.type = ExcelDataType.Numeric;
+			this.type = FieldType.Numeric;
 			this.numValue = val;
 			this.xfIdx = ifIdx;
 		}
 
+#if DEBUG
 		public override string ToString()
 		{
 			switch (type)
 			{
-				case ExcelDataType.Numeric:
+				case FieldType.Numeric:
 					return "Double: " + numValue;
-				case ExcelDataType.String:
+				case FieldType.String:
 					return "String: " + strValue;
 			}
 			return "NULL";
 		}
+#endif
 	}
 }

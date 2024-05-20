@@ -205,7 +205,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 			CheckCharacters = false,
 			CloseInput = true,
 			ValidationType = ValidationType.None,
-			ValidationFlags = System.Xml.Schema.XmlSchemaValidationFlags.None,
+			ValidationFlags = System.Xml.Schema.XmlSchemaValidationFlags.None,		
 #if SPAN
 			NameTable = new SheetNameTable(),
 #endif
@@ -549,14 +549,14 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 				if (ReadToDescendant(reader, "is"))
 				{
 					fi.strValue = ReadString(reader);
-					fi.type = ExcelDataType.String;
+					fi.type = FieldType.String;
 					valueCount++;
 					this.rowFieldCount = col + 1;
 				}
 				else
 				{
 					fi.strValue = string.Empty;
-					fi.type = ExcelDataType.Null;
+					fi.type = FieldType.Null;
 				}
 			}
 			else
@@ -570,7 +570,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 				switch (type)
 				{
 					case CellType.Numeric:
-						fi.type = ExcelDataType.Numeric;
+						fi.type = FieldType.Numeric;
 #if SPAN
 						len = reader.ReadValueChunk(valueBuffer, 0, valueBuffer.Length);
 						if (len < valueBuffer.Length && double.TryParse(valueBuffer.AsSpan(0, len), NumberStyles.Float, ci, out fi.numValue))
@@ -598,7 +598,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 						{
 							throw new FormatException();
 						}
-						fi.type = ExcelDataType.DateTime;
+						fi.type = FieldType.DateTime;
 						break;
 					case CellType.SharedString:
 						if (reader.NodeType == XmlNodeType.Text)
@@ -610,15 +610,16 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 							{
 								throw new FormatException();
 							}
-							fi.isSS = true;
 							fi.ssIdx = strIdx;
-							//fi.strValue = GetSharedString(strIdx);
+							fi.type = FieldType.SharedString;
 						}
 						else
 						{
+							// this handles an edge-case where the field is a shared string,
+							// but the index is empty.
 							fi.strValue = string.Empty;
+							fi.type = FieldType.String;
 						}
-						fi.type = ExcelDataType.String;
 						break;
 					case CellType.String:
 						if (reader.NodeType == XmlNodeType.Text)
@@ -629,20 +630,20 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 								s = s.Trim();
 							}
 							fi.strValue = s;
-							fi.type = ExcelDataType.String;
+							fi.type = FieldType.String;
 						}
 						else
 						{
 							fi.strValue = string.Empty;
-							fi.type = ExcelDataType.Null;
+							fi.type = FieldType.Null;
 						}
 						break;
 					case CellType.InlineString:
 						fi.strValue = ReadString(reader);
-						fi.type = ExcelDataType.String;
+						fi.type = FieldType.String;
 						if (fi.strValue.Length == 0)
 						{
-							fi.type = ExcelDataType.Null;
+							fi.type = FieldType.Null;
 						}
 						break;
 					case CellType.Boolean:
@@ -651,7 +652,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 						{
 							throw new FormatException();
 						}
-						fi.type = ExcelDataType.Boolean;
+						fi.type = FieldType.Boolean;
 						fi = new FieldInfo(valueBuffer[0] != '0');
 						break;
 					case CellType.Error:
@@ -661,7 +662,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 					default:
 						throw new InvalidDataException();
 				}
-				if (fi.type != ExcelDataType.Null)
+				if (fi.type != FieldType.Null)
 				{
 					valueCount++;
 					this.rowFieldCount = col + 1;
