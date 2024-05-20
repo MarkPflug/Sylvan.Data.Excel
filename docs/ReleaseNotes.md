@@ -1,6 +1,11 @@
 # Sylvan.Data.Excel Release Notes
 
-_0.4.22_
+_0.4.23_
+- When writing Excel files, suppress string as number error.
+- Optimize internal storage for field values.
+- Optimize field access pattern where `GetOrdinal` is called repeatedly instead of caching ordinal.
+
+_0.4.22_c
 - Adds `ExcelDataReaderOptions.IgnoreEmptyTrailingRows` option.
 
 _0.4.21_
