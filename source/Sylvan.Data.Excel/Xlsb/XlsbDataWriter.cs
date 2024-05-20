@@ -547,6 +547,19 @@ sealed partial class XlsbDataWriter : ExcelDataWriter
 		bw.Write(fieldCount - 1);
 		bw.WriteMarker(RecordType.FilterEnd);
 
+		// ignore number as string errors
+		bw.WriteMarker(RecordType.BeginIgnoreError);
+
+		bw.WriteType(RecordType.IgnoreError);
+		bw.Write7BitEncodedInt(24);
+		bw.Write(4); // 4 == ignore string as number
+		bw.Write(1); // 1 range
+		bw.Write(0); // row start
+		bw.Write(row - 1); // row end
+		bw.Write(0); // col start
+		bw.Write(fieldCount - 1); // col end
+
+		bw.WriteMarker(RecordType.EndIgnoreError);
 
 		bw.WriteWorksheetEnd();
 		return new WriteResult(row, complete);
