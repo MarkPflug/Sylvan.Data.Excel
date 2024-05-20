@@ -73,4 +73,8 @@ internal enum RecordType
 
 	FilterStart = 161,
 	FilterEnd = 162,
+
+	BeginIgnoreError = 648,
+	IgnoreError = 649,
+	EndIgnoreError = 650,
 }
