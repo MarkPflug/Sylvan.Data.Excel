@@ -199,7 +199,6 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 					default:
 						throw new NotSupportedException();
 				}
-				throw new InvalidDataException();//"Expected sheetBOF"
 			}
 		}
 		throw new InvalidDataException();//"Expected sheetBOF"
