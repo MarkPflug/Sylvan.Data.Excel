@@ -5,7 +5,7 @@ _0.4.23_
 - Optimize internal storage for field values.
 - Optimize field access pattern where `GetOrdinal` is called repeatedly instead of caching ordinal.
 
-_0.4.22_c
+_0.4.22_
 - Adds `ExcelDataReaderOptions.IgnoreEmptyTrailingRows` option.
 
 _0.4.21_
