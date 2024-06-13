@@ -101,6 +101,19 @@ partial class XlsbDataWriter
 
 		public static void WriteDouble(Context c, int col, double value)
 		{
+			if (double.IsNaN(value))
+			{
+				WriteString(c, col, "NaN");
+				return;
+			}
+
+			if (double.IsInfinity(value))
+			{
+				var str = double.IsPositiveInfinity(value) ? "Infinity" : "-Infinity";
+				WriteString(c, col, str);
+				return;
+			}
+
 			c.bw.WriteNumber(col, value);
 		}
 
