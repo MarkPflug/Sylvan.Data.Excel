@@ -544,9 +544,52 @@ public abstract class ExcelDataWriterTests
 		//Open(f);
 	}
 
-#if ASYNC
 	[Fact]
-	public async Task Async() {
+	public void InvalidDouble()
+	{
+		var data =
+			new[] {
+				new { Value = double.NaN },
+				new { Value = double.PositiveInfinity },
+				new { Value = double.NegativeInfinity },
+				new { Value = double.MaxValue },
+				new { Value = double.MinValue },
+				new { Value = double.Epsilon },
+				new { Value = -double.Epsilon },
+			};
+		var f = GetFile();
+		using (var edw = ExcelDataWriter.Create(f))
+		{
+			edw.Write(data.AsDataReader());
+		}
+		Validate(f);
+
+		// verify that these values all round-trip being written then read back using Sylvan.
+		using (var edr = ExcelDataReader.Create(f))
+		{
+			edr.Read();
+			Assert.True(double.IsNaN(edr.GetDouble(0)));
+			edr.Read();
+			Assert.True(double.IsInfinity(edr.GetDouble(0)));
+			edr.Read();
+			Assert.True(double.IsInfinity(edr.GetDouble(0)));
+			edr.Read();
+			Assert.Equal(double.MaxValue, edr.GetDouble(0));
+			edr.Read();
+			Assert.Equal(double.MinValue, edr.GetDouble(0));
+			edr.Read();
+			Assert.Equal(double.Epsilon, edr.GetDouble(0));
+			edr.Read();
+			Assert.Equal(-double.Epsilon, edr.GetDouble(0));
+		}
+		//Open(f);
+	}
+
+#if ASYNC
+
+	[Fact]
+	public async Task Async()
+	{
 		var f = GetFile();
 
 		var r = new Random();

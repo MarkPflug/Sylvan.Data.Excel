@@ -163,6 +163,19 @@ partial class XlsxDataWriter
 		public static void WriteDouble(Context c, double value)
 		{
 			var w = c.xw;
+
+			if (double.IsNaN(value))
+			{
+				WriteString(c, "NaN");
+				return;
+			}
+			if (double.IsInfinity(value))
+			{
+				var str = double.IsPositiveInfinity(value) ? "Infinity" : "-Infinity";
+				WriteString(c, str);
+				return;
+			}
+
 			w.Write("<c><v>");
 
 #if SPAN
