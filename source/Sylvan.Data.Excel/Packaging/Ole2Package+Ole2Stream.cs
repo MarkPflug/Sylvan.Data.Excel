@@ -140,6 +140,11 @@ partial class Ole2Package
 				int len = 0;
 				while (len < readLen)
 				{
+					// Handle case where we are at the end of the buffer and only have a small section left to read
+					if(offset + readLen > buffer.Length)
+					{
+						readLen = buffer.Length - offset;
+					}
 					int l = stream.Read(buffer, offset, readLen);
 					if (l == 0)
 					{
