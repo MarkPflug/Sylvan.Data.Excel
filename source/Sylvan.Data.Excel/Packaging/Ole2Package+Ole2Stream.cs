@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.IO;
 
 namespace Sylvan.Data.Excel;
@@ -8,29 +9,23 @@ partial class Ole2Package
 	public sealed class Ole2Stream : Stream
 	{
 		readonly Stream stream;
-
 		readonly long length;
 		readonly int sectorLen;
-		readonly int startSector;
+		readonly int startSector; // either 0 or 1 depending on if this is a ministream or not
 		readonly uint[] sectors;
 		
 		long position;
-		int sectorOff;
-
-		int sectorIdx;
-		uint sector;
 
 		public Ole2Stream(Stream stream, uint[] sectors, int sectorLen, int startSector, long length)
 		{
+			Debug.Assert(startSector == 0 || startSector == 1);
+
 			this.stream = stream;
 			this.sectors = sectors;
-			this.sectorIdx = 0;
-			this.sector = sectors[sectorIdx];
 			this.startSector = startSector;
 			this.length = length;
 			this.position = 0;
 			this.sectorLen = sectorLen;
-			this.sectorOff = 0;
 		}
 
 		public override long Position
@@ -43,6 +38,15 @@ partial class Ole2Package
 			{
 				Seek(value, SeekOrigin.Begin);
 			}
+		}
+
+		static int DivRem(int n, int d, out int r)
+		{
+			var q = n / d;
+
+			r = n - q * d;
+
+			return q;
 		}
 
 		public override long Seek(long offset, SeekOrigin origin)
@@ -68,9 +72,6 @@ partial class Ole2Package
 			this.position = pos;
 			var idx = pos / this.sectorLen;
 
-			this.sectorIdx = (int)idx;
-			this.sectorOff = (int)(pos - (idx * sectorLen));
-			this.sector = this.sectors[sectorIdx];
 			return this.position;
 		}
 
@@ -83,25 +84,37 @@ partial class Ole2Package
 
 			var sectors = this.sectors;
 
-			int bytesRead = 0;
-			var c = count;
+			var pos = this.position;
 
-			var streamAvail = this.length - this.position;
+			int bytesRead = 0;
+	
+			var streamAvail = this.length - pos;
 
 			// the amount to read is the lesser of the user requested count
 			// and what remains in the stream.
 			var readAvail = (int)Math.Min(count, streamAvail);
+			
+			var readRemain = readAvail;
 
-			while (bytesRead < count && position < length)
-			{
+			while (bytesRead < readAvail)
+			{				
+				// determine the longest block that can be read
+				// in a single IO request, as sectors are often contiguous.
 				var readLen = 0;
-				var readStart = (sector + startSector) * sectorLen + sectorOff;
-				var curSector = sector;
+				
+				if (pos > int.MaxValue) throw new NotSupportedException(); // TODO
 
-				while (readLen < readAvail)
+				int sectorOff;
+				var sectorIdx = DivRem((int)pos, sectorLen, out sectorOff);
+				var sector = this.sectors[sectorIdx];
+				
+				var readStart = (startSector + sector) * sectorLen + sectorOff;
+
+				while (readLen < readRemain)
 				{
-					if (this.sectorOff >= this.sectorLen)
+					if (sectorOff >= this.sectorLen)
 					{
+						Debug.Assert(sectorOff == this.sectorLen);
 						sectorOff = 0;
 						sectorIdx++;
 						if (sectorIdx >= sectors.Length)
@@ -109,49 +122,49 @@ partial class Ole2Package
 							break;
 						}
 						var nextSector = sectors[sectorIdx];
-						if (nextSector != curSector + 1)
+						if (nextSector != sector + 1)
 						{
 							// next sector is not coniguious, so read
 							// the current contig block
-							sector = nextSector;
+							//sector = nextSector;
 							if (readLen > 0)
 							{
 								break;
 							}
 						}
-						sector = curSector = nextSector;
+						sector = nextSector;
 					}
 
-					var sectorAvail = this.sectorLen - this.sectorOff;
-					var sectorRead = Math.Min(sectorAvail, readAvail - readLen);
+					var sectorAvail = this.sectorLen - sectorOff;
+					var sectorRead = Math.Min(sectorAvail, readRemain - readLen);
 
 					readLen += sectorRead;
-					this.sectorOff += sectorRead;
+					sectorOff += sectorRead;
 				}
-
-				// avoid seek if we are already positioned.
+								// avoid seek if we are already positioned.
 				if (stream.Position != readStart)
 				{
 					stream.Seek(readStart, SeekOrigin.Begin);
 				}
 
-				if (readLen == 0)
-					break;
-				int len = 0;
-				while (len < readLen)
+				Debug.Assert(pos + readLen <= length);
+
+				readRemain -= readLen;
+
+				while (readLen > 0)
 				{
 					int l = stream.Read(buffer, offset, readLen);
 					if (l == 0)
 					{
 						throw new IOException();
 					}
-					len += l;
+					readLen -= l;
 					offset += l;
-					c -= l;
-					this.position += l;
+					bytesRead += l;
+					pos += l;					
 				}
-				bytesRead += len;
 			}
+			this.position = pos;
 			return bytesRead;
 		}
 

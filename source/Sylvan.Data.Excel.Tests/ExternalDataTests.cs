@@ -1,4 +1,6 @@
-﻿using System;
+﻿#if NETCOREAPP3_0_OR_GREATER
+
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -11,7 +13,7 @@ namespace Sylvan.Data.Excel;
 
 // Set the `SylvanExcelTestData` env var to point to a directory
 // containing files that will be tested by this set of tests.
-public class ExternalDataTests
+public abstract class ExternalDataTests
 {
 	ITestOutputHelper o;
 
@@ -23,29 +25,59 @@ public class ExternalDataTests
 #endif
 	}
 
-	public static IEnumerable<object[]> GetInputs()
+	public void TestOutput(string str)
 	{
-		var paths = Environment.GetEnvironmentVariable("SylvanExcelTestData");
-		if (string.IsNullOrEmpty(paths))
+		o.WriteLine(str);
+	}
+
+	public static string GetRootPath()
+	{
+		return Environment.GetEnvironmentVariable("SylvanExcelTestData");
+	}
+
+	public static string GetFullPath(string file)
+	{
+		return Path.Combine(GetRootPath(), file);
+	}
+
+	public static IEnumerable<object[]> GetXlsFiles()
+	{
+		return GetTestFiles("*.xls");
+	}
+
+	public static IEnumerable<object[]> GetExcelFiles()
+	{
+		return GetTestFiles("*.xls*");
+	}
+
+	public static IEnumerable<object[]> GetTestFiles(string pattern)
+	{
+		var path = GetRootPath();
+		if (string.IsNullOrEmpty(path))
 		{
 			yield return new object[] { null };
 			yield break;
 		}
 
-		foreach (var path in paths.Split(';'))
+		foreach (var file in Directory.EnumerateFiles(path, pattern, SearchOption.AllDirectories))
 		{
-			foreach (var file in Directory.EnumerateFiles(path, "*.xls*", SearchOption.TopDirectoryOnly))
-			{
-				yield return new object[] { file };
-			}
+			var rel = Path.GetRelativePath(path, file);
+			yield return new object[] { rel };
 		}
 	}
+}
 
+public class ValidateFiles : ExternalDataTests
+{
+	public ValidateFiles(ITestOutputHelper o) : base(o)
+	{
+
+	}
 
 	[Fact]
 	public void AnalyzeFiles()
 	{
-		var root = Environment.GetEnvironmentVariable("SylvanExcelTestData");
+		var root = GetRootPath();
 		if (string.IsNullOrEmpty(root))
 			return;
 		var files = Directory.EnumerateFiles(root, "*.xlsx");
@@ -70,7 +102,7 @@ public class ExternalDataTests
 					{
 						if (edr.GetString(i) == "")
 						{
-							o.WriteLine($"{Path.GetFileName(file)} {edr.RowNumber} {i}");
+							TestOutput($"{Path.GetFileName(file)} {edr.RowNumber} {i}");
 						}
 					}
 				}
@@ -78,7 +110,7 @@ public class ExternalDataTests
 		}
 		catch (Exception e)
 		{
-			o.WriteLine($"{Path.GetFileName(file)} ERROR {e.Message}");
+			TestOutput($"{Path.GetFileName(file)} ERROR {e.Message}");
 		}
 	}
 
@@ -91,11 +123,15 @@ public class ExternalDataTests
 	}
 
 	[Theory]
-	[MemberData(nameof(GetInputs))]
+	[MemberData(nameof(GetXlsFiles))]
 	public void ExtractWS(string path)
 	{
 		// this test was to debug the ole2stream buffer management
 		if (path == null) return;
+
+		var root = GetRootPath();
+		path = Path.Combine(root, path);
+
 		var opts = new ExcelDataReaderOptions
 		{
 			Schema = ExcelSchema.NoHeaders
@@ -103,7 +139,7 @@ public class ExternalDataTests
 
 		var stream = File.OpenRead(path);
 		var pkg = new Ole2Package(stream);
-		var part = pkg.GetEntry("Workbook\0");
+		var part = pkg.GetEntry("Workbook\0") ?? pkg.GetEntry("Book\0");
 		if (part == null)
 			throw new InvalidDataException();
 		var ps = part.Open();
@@ -132,7 +168,7 @@ public class ExternalDataTests
 			if (len > max)
 			{
 				max = len;
-				o.WriteLine($"{code} {p} {len}");
+				TestOutput($"{code} {p} {len}");
 			}
 			p += 2;
 			p += len;
@@ -142,10 +178,15 @@ public class ExternalDataTests
 	}
 
 	[Theory]
-	[MemberData(nameof(GetInputs))]
+	[MemberData(nameof(GetExcelFiles))]
 	public void GetExcelValues(string path)
 	{
 		if (path == null) return;
+
+
+		var root = GetRootPath();
+		path = Path.Combine(root, path);
+
 		var opts = new ExcelDataReaderOptions
 		{
 			ReadHiddenWorksheets = true,
@@ -176,10 +217,14 @@ public class ExternalDataTests
 	}
 
 	[Theory]
-	[MemberData(nameof(GetInputs))]
+	[MemberData(nameof(GetExcelFiles))]
 	public void GetValue(string path)
 	{
 		if (path == null) return;
+
+		var root = GetRootPath();
+		path = Path.Combine(root, path);
+
 		var opts = new ExcelDataReaderOptions
 		{
 			Schema = ExcelSchema.NoHeaders,
@@ -199,3 +244,5 @@ public class ExternalDataTests
 		} while (edr.NextResult());
 	}
 }
+
+#endif

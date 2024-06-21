@@ -87,7 +87,6 @@ sealed partial class XlsWorkbookReader
 		public byte ReadByte()
 		{
 			// the byte we are reading must be within the current record.
-			Debug.Assert(bufferPos < recordOff + recordLen);
 			Assert();
 			var b = buffer[bufferPos];
 			bufferPos++;
@@ -128,6 +127,10 @@ sealed partial class XlsWorkbookReader
 
 			// the length of the string in *characters*
 			int len = ReadInt16();
+			if (len < 0)
+			{
+				throw new InvalidDataException();
+			}
 			byte options = ReadByte();
 
 			bool compressed = (options & 0x01) == 0;
@@ -202,7 +205,10 @@ sealed partial class XlsWorkbookReader
 				// uncompressed string
 				// the bytes in the string are all contained in the current record
 				// the string overflows into the next record, and this current record contains an even number of bytes.
-				Debug.Assert(charSize == 1 || byteCount < recordBytes || (recordBytes & 0x01) == 0);
+				if (!(charSize == 1 || byteCount < recordBytes || (recordBytes & 0x01) == 0))
+				{
+					throw new InvalidDataException();
+				}
 
 				int currentRecordBytes = Math.Min(byteCount, recordBytes);
 				var c = encoding.GetChars(buffer, bufferPos, currentRecordBytes, strBuffer, strPos);
@@ -297,11 +303,16 @@ sealed partial class XlsWorkbookReader
 			this.recordOff = bufferPos;
 			this.recordLen = 4; // we have at least the first 4 bytes.
 			this.recordCode = ReadInt16();
-			Debug.Assert(recordCode >= 0);
-			this.recordLen = ReadInt16();
-			if (recordLen < 0 || recordLen > MaxRecordSize)
+			if (recordCode < 0)
+			{
 				throw new InvalidDataException();
-			Debug.Assert(recordLen >= 0);
+			}
+			this.recordLen = ReadInt16();
+
+			if (recordLen < 0 || recordLen > MaxRecordSize)
+			{
+				throw new InvalidDataException();
+			}
 
 			this.recordOff = bufferPos;
 			if (recordOff + recordLen > bufferLen)
