@@ -17,6 +17,8 @@ public class OleStreamTests : ExternalDataTests
 	[MemberData(nameof(GetXlsFiles))]
 	public void Verify(string file)
 	{
+		if (file == null) return; // nothing to test.
+
 		file = GetFullPath(file);
 
 		using var s = File.OpenRead(file);
