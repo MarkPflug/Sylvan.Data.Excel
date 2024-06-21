@@ -1,5 +1,9 @@
 # Sylvan.Data.Excel Release Notes
 
+_0.4.24_
+- Fix for reading certain .xls files.
+- Handle writing NaN and infinity values.
+
 _0.4.23_
 - When writing Excel files, suppress string as number error.
 - Optimize internal storage for field values.
