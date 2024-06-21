@@ -164,7 +164,11 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 							throw new InvalidDataException();
 						}
 						var fmtIdStr = xf.GetAttribute("numFmtId");
-						xfMap[idx] = int.Parse(fmtIdStr);
+						if (fmtIdStr != null)
+						{
+							var id = int.TryParse(fmtIdStr, out int val) ? val : 0;
+							xfMap[idx] = id;
+						}
 					}
 				}
 				else
@@ -205,7 +209,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 			CheckCharacters = false,
 			CloseInput = true,
 			ValidationType = ValidationType.None,
-			ValidationFlags = System.Xml.Schema.XmlSchemaValidationFlags.None,		
+			ValidationFlags = System.Xml.Schema.XmlSchemaValidationFlags.None,
 #if SPAN
 			NameTable = new SheetNameTable(),
 #endif
