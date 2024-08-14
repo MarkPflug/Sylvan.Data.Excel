@@ -238,15 +238,12 @@ sealed partial class XlsWorkbookReader
 
 		public string ReadByteString(int lenSize)
 		{
-			int len;
-			if (lenSize == 1)
-				len = ReadByte();
-			else
-				len = ReadInt16();
+			int len =
+				lenSize == 1
+				? ReadByte()
+				: ReadInt16();
 
-			ReadStringBuffer(len, true);
-			var str = new string(strBuffer, 0, len);
-			return str;
+			return ReadStringBuffer(len, true);
 		}
 
 		public string ReadString8()

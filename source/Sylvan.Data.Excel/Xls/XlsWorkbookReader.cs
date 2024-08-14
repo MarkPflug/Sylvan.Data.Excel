@@ -310,7 +310,11 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 		int rowIdx = reader.ReadUInt16();
 		int colIdx = reader.ReadUInt16();
 		int xfIdx = reader.ReadUInt16();
-		string str = reader.ReadByteString(2);
+		int len = reader.ReadInt16();
+		if (len > 255) throw new InvalidDataException();
+		byte flags = reader.ReadByte();
+		var compressed = (flags & 1) == 0;
+		var str = reader.ReadStringBuffer(len, compressed);
 		SetRowData(colIdx, new FieldInfo(str));
 	}
 
@@ -470,7 +474,10 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 						}
 						else
 						{
-							throw new InvalidDataException();
+							peekRow = (ushort)(rowIndex + 1);
+							pendingRow = peekRow;
+							return 0;
+							//throw new InvalidDataException();
 						}
 					}
 					break;

@@ -633,6 +633,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 							var kind = fmt?.Kind ?? FormatKind.Number;
 							switch (kind)
 							{
+								case FormatKind.String:
 								case FormatKind.Number:
 									var doubleValue = GetDouble(ordinal);
 									unchecked
