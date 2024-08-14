@@ -32,7 +32,10 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 	internal XlsWorkbookReader(Stream stream, ExcelDataReaderOptions options) : base(stream, options)
 	{
 		var pkg = new Ole2Package(stream);
-		var part = pkg.GetEntry("Workbook\0");
+		var part = 
+			pkg.GetEntry("Workbook\0") ??
+			pkg.GetEntry("Book\0");
+
 		if (part == null)
 			throw new InvalidDataException();
 		var ps = part.Open();
@@ -254,15 +257,10 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 	void ParseFormat()
 	{
 		int ifmt = reader.ReadInt16();
-		string str;
-		if (biffVersion == 0x0500)
-		{
-			str = reader.ReadByteString(1);
-		}
-		else
-		{
-			str = reader.ReadString16();
-		}
+		string str =
+			biffVersion == 0x0500
+			? reader.ReadByteString(1)
+			: reader.ReadString16();
 
 		if (formats.ContainsKey(ifmt))
 		{
@@ -312,9 +310,36 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 		int xfIdx = reader.ReadUInt16();
 		int len = reader.ReadInt16();
 		if (len > 255) throw new InvalidDataException();
-		byte flags = reader.ReadByte();
-		var compressed = (flags & 1) == 0;
+		bool compressed = true;
+		if (biffVersion == 0x0500)
+		{
+			// apparently there are no flags in this version
+		}
+		else
+		{
+			byte flags = reader.ReadByte();
+			compressed = (flags & 1) == 0;
+		}
+
 		var str = reader.ReadStringBuffer(len, compressed);
+		SetRowData(colIdx, new FieldInfo(str));
+	}
+
+	void ParseRString()
+	{
+		int rowIdx = reader.ReadUInt16();
+		int colIdx = reader.ReadUInt16();
+		int xfIdx = reader.ReadUInt16();
+		var len = reader.ReadInt16();
+		var str = reader.ReadStringBuffer(len, true);
+
+		// consume the formatting info
+		var x = reader.ReadByte();
+		for (int i = 0; i < x; i++)
+		{
+			reader.ReadUInt16();
+		}
+
 		SetRowData(colIdx, new FieldInfo(str));
 	}
 
@@ -523,10 +548,12 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 				case RecordType.Formula:
 					ParseFormula();
 					break;
+				case RecordType.RString:
+					ParseRString();
+					break;
 				case RecordType.Blank:
 				case RecordType.BoolErr:
 				case RecordType.MulBlank:
-				case RecordType.RString:
 					break;
 				case RecordType.Array:
 				case RecordType.SharedFmla:
