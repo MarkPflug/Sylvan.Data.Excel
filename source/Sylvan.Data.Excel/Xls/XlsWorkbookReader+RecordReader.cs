@@ -244,9 +244,7 @@ sealed partial class XlsWorkbookReader
 			else
 				len = ReadInt16();
 
-			ReadStringBuffer(len, true);
-			var str = new string(strBuffer, 0, len);
-			return str;
+			return ReadStringBuffer(len, true);
 		}
 
 		public string ReadString8()
