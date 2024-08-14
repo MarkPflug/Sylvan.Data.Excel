@@ -183,6 +183,12 @@ sealed partial class XlsWorkbookReader
 				var recordPos = bufferPos - recordOff;
 				int recordBytes = recordLen - recordPos;
 
+				//if the start of the buffer is a null character, advance past it
+				if (i == 0 && buffer[bufferPos] == 0x0000) 
+				{
+					bufferPos += charSize;
+				}
+
 				// if the string sits entirely within the current record
 				// we can directly create a string from it.
 				if (i == 0 && recordBytes >= byteCount)
