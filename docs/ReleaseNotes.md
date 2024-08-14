@@ -1,5 +1,8 @@
 # Sylvan.Data.Excel Release Notes
 
+_0.4.25_
+- Fix some issues with reading Excel 95 .xls files.
+
 _0.4.24_
 - Fix for reading certain .xls files.
 - Handle writing NaN and infinity values.
