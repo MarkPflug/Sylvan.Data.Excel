@@ -248,6 +248,8 @@ public class ValidateFiles : ExternalDataTests
 	[MemberData(nameof(GetExcelFiles))]
 	public void ToCsv(string filename)
 	{
+		if (filename == null) return;
+
 		var root = GetRootPath();
 		var path = Path.Combine(root, filename);
 
