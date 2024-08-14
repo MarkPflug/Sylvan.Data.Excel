@@ -115,57 +115,7 @@ sealed partial class XlsWorkbookReader
 		{
 			return ReadByte() | ReadByte() << 8 | ReadByte() << 16 | ReadByte() << 24;
 		}
-
-		public string ReadString16()
-		{
-			if (bufferPos >= recordOff + recordLen)
-			{
-				var next = NextRecord();
-				if (!next || Type != RecordType.Continue)
-					throw new InvalidDataException();
-			}
-
-			// the length of the string in *characters*
-			int len = ReadInt16();
-			if (len < 0)
-			{
-				throw new InvalidDataException();
-			}
-			byte options = ReadByte();
-
-			bool compressed = (options & 0x01) == 0;
-			bool asian = (options & 0x04) != 0;
-			bool rich = (options & 0x08) != 0;
-
-			int richCount = 0;
-			if (rich)
-				richCount = ReadInt16();
-
-			int asianCount = 0;
-			if (asian)
-				asianCount = ReadInt32();
-
-			var str = ReadStringBuffer(len, compressed);
-
-			var remain = richCount * 4 + asianCount;
-
-			while (remain > 0)
-			{
-				var avail = recordOff + recordLen - bufferPos;
-				var c = Math.Min(remain, avail);
-				remain -= c;
-				bufferPos += c;
-				Assert();
-				if (remain > 0)
-				{
-					var next = NextRecord();
-					if (!next || Type != RecordType.Continue)
-						throw new InvalidDataException();
-				}
-			}
-
-			return str;
-		}
+			
 
 		static readonly Encoding Encoding1252 = Encoding.GetEncoding(1252);
 
@@ -248,7 +198,34 @@ sealed partial class XlsWorkbookReader
 
 		public string ReadString8()
 		{
-			int len = ReadByte();
+			MaybeContinueString();
+			var len = ReadByte();
+			return ReadString(len);
+		}
+
+		public string ReadString16()
+		{
+			MaybeContinueString();
+			var len = ReadInt16();
+			return ReadString(len);
+		}
+
+		void MaybeContinueString()
+		{
+			if (bufferPos >= recordOff + recordLen)
+			{
+				var next = NextRecord();
+				if (!next || Type != RecordType.Continue)
+					throw new InvalidDataException();
+			}
+		}
+
+		public string ReadString(int len)
+		{
+			if (len < 0)
+			{
+				throw new InvalidDataException();
+			}
 			byte options = ReadByte();
 
 			bool compressed = (options & 0x01) == 0;
@@ -265,14 +242,21 @@ sealed partial class XlsWorkbookReader
 
 			var str = ReadStringBuffer(len, compressed);
 
-			for (int i = 0; i < richCount; i++)
-			{
-				ReadInt32();
-			}
+			var remain = richCount * 4 + asianCount;
 
-			for (int i = 0; i < asianCount; i++)
+			while (remain > 0)
 			{
-				ReadByte();
+				var avail = recordOff + recordLen - bufferPos;
+				var c = Math.Min(remain, avail);
+				remain -= c;
+				bufferPos += c;
+				Assert();
+				if (remain > 0)
+				{
+					var next = NextRecord();
+					if (!next || Type != RecordType.Continue)
+						throw new InvalidDataException();
+				}
 			}
 
 			return str;
