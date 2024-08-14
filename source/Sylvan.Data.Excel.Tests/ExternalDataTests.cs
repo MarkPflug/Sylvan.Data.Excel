@@ -1,5 +1,6 @@
 ﻿#if NETCOREAPP3_0_OR_GREATER
 
+using Sylvan.Data.Csv;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -231,7 +232,6 @@ public class ValidateFiles : ExternalDataTests
 			GetErrorAsNull = true
 		};
 		var edr = ExcelDataReader.Create(path, opts);
-
 		do
 		{
 			while (edr.Read())
@@ -241,6 +241,32 @@ public class ValidateFiles : ExternalDataTests
 					edr.GetValue(i);
 				}
 			}
+		} while (edr.NextResult());
+	}
+
+	[Theory]
+	[MemberData(nameof(GetExcelFiles))]
+	public void ToCsv(string filename)
+	{
+		if (filename == null) return;
+
+		var root = GetRootPath();
+		var path = Path.Combine(root, filename);
+
+		var opts = new ExcelDataReaderOptions
+		{
+			Schema = ExcelSchema.NoHeaders,
+			GetErrorAsNull = true
+		};
+		var edr = ExcelDataReader.Create(path, opts);
+
+		do
+		{
+			var outPath = $"{filename}-{edr.WorksheetName}.csv";
+			var dir = Path.GetDirectoryName(outPath);
+			Directory.CreateDirectory(dir);
+			using var w = CsvDataWriter.Create($"{filename}-{edr.WorksheetName}.csv");
+			w.Write(edr.AsVariableField(e => e.RowFieldCount));
 		} while (edr.NextResult());
 	}
 }
