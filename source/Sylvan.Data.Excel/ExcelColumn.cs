@@ -5,7 +5,6 @@ namespace Sylvan.Data.Excel;
 
 class ExcelColumn : DbColumn
 {
-
 	public string? Format { get; }
 
 	public string? TrueString { get; }
