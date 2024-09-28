@@ -8,7 +8,7 @@
 		<PackageIcon>Sylvan.png</PackageIcon>
 		<Copyright>© 2024 $(Owner)</Copyright>
 		<PackageLicenseFile>license.txt</PackageLicenseFile>
-		<LangVersion>13.0</LangVersion>
+		<LangVersion>12.0</LangVersion>
 
 		<RepositoryUrl>https://github.com/MarkPflug/Sylvan.Data.Excel</RepositoryUrl>
 		<RepositoryType>git</RepositoryType>
