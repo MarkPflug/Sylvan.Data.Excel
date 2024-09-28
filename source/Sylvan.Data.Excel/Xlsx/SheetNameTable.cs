@@ -51,11 +51,18 @@ sealed class SheetNameTable : NameTable
 				if (value.SequenceEqual("is")) return "is";
 				break;
 			case 3:
+				if (value.SequenceEqual("col")) return "col";
 				if (value.SequenceEqual("row")) return "row";
 				if (value.SequenceEqual("ref")) return "ref";
 				break;
+			case 4:
+				if (value.SequenceEqual("cols")) return "cols";
+				break;
 			case 5:
 				if (value.SequenceEqual("spans")) return "spans";
+				break;
+			case 6:
+				if (value.SequenceEqual("hidden")) return "hidden";
 				break;
 			case 9:
 				if (value.SequenceEqual("dyDescent")) return "dyDescent";
