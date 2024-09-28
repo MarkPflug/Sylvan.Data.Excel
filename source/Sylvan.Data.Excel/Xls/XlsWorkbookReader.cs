@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 
@@ -16,6 +17,8 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 		public int Offset { get; }
 	}
 
+	// rows are stored in blocks of records
+	const int RowBatchSize = 32;
 	const int Biff8VersionCode = 0x0600;
 	const int Biff8EntryDataSize = 8224;
 
@@ -32,7 +35,7 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 	internal XlsWorkbookReader(Stream stream, ExcelDataReaderOptions options) : base(stream, options)
 	{
 		var pkg = new Ole2Package(stream);
-		var part = 
+		var part =
 			pkg.GetEntry("Workbook\0") ??
 			pkg.GetEntry("Book\0");
 
@@ -45,9 +48,19 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 		this.NextResult();
 	}
 
+	BitArray rowHidden = new BitArray(32);
+
 	public override ExcelWorkbookType WorkbookType => ExcelWorkbookType.Excel;
 
 	public override int RowNumber => rowNumber;
+
+	public override bool IsRowHidden
+	{
+		get
+		{
+			return this.rowHidden[(this.rowNumber - 1) & 0b11111];
+		}
+	}
 
 	private protected override bool OpenWorksheet(int sheetIdx)
 	{
@@ -77,6 +90,7 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 
 	public override bool Read()
 	{
+	next:
 		rowNumber++;
 		colCacheIdx = 0;
 		if (this.rowIndex >= rowCount)
@@ -92,6 +106,7 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 			this.curFieldCount = 0;
 			return true;
 		}
+
 		rowIndex++;
 
 		var count = NextRow();
@@ -107,6 +122,10 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 		}
 		else
 		{
+			if (this.readHiddenRows == false && this.IsRowHidden)
+			{
+				goto next;
+			}
 			return true;
 		}
 	}
@@ -481,6 +500,7 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 			// is empty where the next cell is for a subsequent row.
 			switch (reader.Type)
 			{
+				//case RecordType.Row:
 				case RecordType.LabelSST:
 				case RecordType.Label:
 				case RecordType.RK:
@@ -530,6 +550,16 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 
 			switch (reader.Type)
 			{
+				case RecordType.Row:
+					// TODO: I should really be handling this more similarly to .xlsb reading.
+					// where I can read from a specific offset in the record.
+					var r1 = reader.ReadInt16();
+					var r2 = reader.ReadInt16();
+					reader.ReadInt32();
+					reader.ReadInt32();
+					var flags = reader.ReadInt32();
+					this.rowHidden[r1 & 0b11111] = (flags & 0x20) != 0;
+					break;
 				case RecordType.LabelSST:
 					ParseLabelSST();
 					break;

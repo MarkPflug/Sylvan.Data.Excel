@@ -27,7 +27,8 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 
 	public override ExcelWorkbookType WorkbookType => ExcelWorkbookType.ExcelXml;
 
-	public override bool IsRowHidden {
+	public override bool IsRowHidden
+	{
 		get
 		{
 			return this.isRowHidden && this.rowIndex == this.parsedRowIndex;
@@ -455,7 +456,7 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 								break;
 							case RecordType.CellIsst:
 								type = FieldType.SharedString;
-								var sstIdx = reader.GetInt32(8);								
+								var sstIdx = reader.GetInt32(8);
 								fi.ssIdx = sstIdx;
 								notNull++;
 								break;
