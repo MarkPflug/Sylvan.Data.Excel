@@ -10,7 +10,7 @@ namespace Sylvan.Data.Excel;
 /// <summary>
 /// Writes data to Excel files.
 /// </summary>
-public abstract class ExcelDataWriter : 
+public abstract class ExcelDataWriter :
 	IDisposable
 #if ASYNC
 	, IAsyncDisposable
@@ -26,6 +26,15 @@ public abstract class ExcelDataWriter :
 	readonly Stream stream;
 	private protected readonly bool truncateStrings;
 
+	/// <summary>
+	/// Gets the maximum number of columns that can be written to a worksheet.
+	/// </summary>
+	public abstract int MaxColumnCount { get; }
+
+	/// <summary>
+	/// Gets the maximum number of rows that can be written to a worksheet.
+	/// </summary>
+	public abstract int MaxRowCount { get; }
 
 #if ASYNC
 
@@ -196,8 +205,14 @@ public abstract class ExcelDataWriter :
 		public int RowsWritten => value < 0 ? -value : value;
 
 		/// <summary>
-		/// Indicates if all rows from the 
+		/// Indicates if all rows from the input data were written to the spreadsheet.
 		/// </summary>
+		/// <remarks>
+		/// It is possible for <see cref="IsComplete"/> to be <code>false</code>, indicating
+		/// that the dataset wasn't fully consumed, when the dataset was fully consumed.
+		/// This will only happen when the number of records exactly matches the number of
+		/// rows allowed by the Excel format.
+		/// </remarks>
 		public bool IsComplete => value >= 0;
 	}
 }

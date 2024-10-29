@@ -73,7 +73,13 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 	const int StringLimit = short.MaxValue;
 	const int MaxWorksheetNameLength = 31;
 
-    readonly ZipArchive zipArchive;
+	const int MaxXlsxRowCount = 0x100000;
+
+	public override int MaxRowCount => MaxXlsxRowCount;
+
+	public override int MaxColumnCount => 0x4000;
+
+	readonly ZipArchive zipArchive;
 	readonly List<string> worksheets;
 
 	readonly SharedStringTable sharedStrings;
@@ -216,7 +222,7 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 			}
 			xw.Write("</row>");
 			row++;
-			if (row >= 0x100000)
+			if (row >= MaxXlsxRowCount)
 			{
 				// avoid calling Read again so the reader will remain in a state
 				// where it can be written to a different worksheet.
