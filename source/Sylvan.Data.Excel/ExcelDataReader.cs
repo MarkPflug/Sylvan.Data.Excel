@@ -449,11 +449,11 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 			default: // never
 			case FieldType.Null:
 				return ExcelDataType.Null;
-			case FieldType.Boolean: 
+			case FieldType.Boolean:
 				return ExcelDataType.Boolean;
-			case FieldType.DateTime: 
+			case FieldType.DateTime:
 				return ExcelDataType.DateTime;
-			case FieldType.Numeric: 
+			case FieldType.Numeric:
 				return ExcelDataType.Numeric;
 			case FieldType.String:
 			case FieldType.SharedString:
@@ -574,7 +574,54 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 		return c;
 	}
 
-
+	object GetObjectValue(int ordinal)
+	{
+		// when the type of the column is object
+		// we'll treat it "dynamically" and try
+		// to return the most appropriate value.
+		var type = GetExcelDataType(ordinal);
+		switch (type)
+		{
+			case ExcelDataType.Boolean:
+				return GetBoolean(ordinal);
+			case ExcelDataType.DateTime:
+				return GetDateTime(ordinal);
+			case ExcelDataType.Error:
+				throw GetError(ordinal);
+			case ExcelDataType.Null:
+				return DBNull.Value;
+			case ExcelDataType.Numeric:
+				var fmt = GetFormat(ordinal);
+				var kind = fmt?.Kind ?? FormatKind.Number;
+				switch (kind)
+				{
+					case FormatKind.String:
+					case FormatKind.Number:
+						var doubleValue = GetDouble(ordinal);
+						unchecked
+						{
+							// Excel stores all values as double
+							// but we'll try to return it as the
+							// most "intuitive" type.
+							var int32Value = (int)doubleValue;
+							if (doubleValue == int32Value)
+								return int32Value;
+							var int64Value = (long)doubleValue;
+							if (doubleValue == int64Value)
+								return int64Value;
+							return doubleValue;
+						}
+					case FormatKind.Date:
+						return GetDateTime(ordinal);
+					case FormatKind.Time:
+						return GetFieldValue<TimeSpan>(ordinal);
+				}
+				break;
+			case ExcelDataType.String:
+				return GetString(ordinal);
+		}
+		throw new NotSupportedException();
+	}
 
 	/// <inheritdoc/>
 	public sealed override object GetValue(int ordinal)
@@ -612,55 +659,29 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 				{
 					return GetGuid(ordinal);
 				}
+
 				if (schemaType == typeof(object))
 				{
-					// when the type of the column is object
-					// we'll treat it "dynamically" and try
-					// to return the most appropriate value.
-					var type = GetExcelDataType(ordinal);
-					switch (type)
-					{
-						case ExcelDataType.Boolean:
-							return GetBoolean(ordinal);
-						case ExcelDataType.DateTime:
-							return GetDateTime(ordinal);
-						case ExcelDataType.Error:
-							throw GetError(ordinal);
-						case ExcelDataType.Null:
-							return DBNull.Value;
-						case ExcelDataType.Numeric:
-							var fmt = GetFormat(ordinal);
-							var kind = fmt?.Kind ?? FormatKind.Number;
-							switch (kind)
-							{
-								case FormatKind.String:
-								case FormatKind.Number:
-									var doubleValue = GetDouble(ordinal);
-									unchecked
-									{
-										// Excel stores all values as double
-										// but we'll try to return it as the
-										// most "intuitive" type.
-										var int32Value = (int)doubleValue;
-										if (doubleValue == int32Value)
-											return int32Value;
-										var int64Value = (long)doubleValue;
-										if (doubleValue == int64Value)
-											return int64Value;
-										return doubleValue;
-									}
-								case FormatKind.Date:
-									return GetDateTime(ordinal);
-								case FormatKind.Time:
-									return GetFieldValue<TimeSpan>(ordinal);
-							}
-							break;
-						case ExcelDataType.String:
-							return GetString(ordinal);
-						default:
-							throw new NotSupportedException();
-					}
+					return GetObjectValue(ordinal);	
 				}
+
+				if (schemaType == typeof(TimeSpan))
+				{
+					return GetTimeSpan(ordinal);
+				}
+
+#if DATE_ONLY
+				if (schemaType == typeof(DateOnly))
+				{
+					return GetFieldValue<DateOnly>(ordinal);
+				}
+
+				if (schemaType == typeof(TimeOnly))
+				{
+					return GetFieldValue<TimeOnly>(ordinal);
+				}
+#endif
+
 				break;
 		}
 		throw new NotSupportedException();
@@ -952,19 +973,14 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 	string FormatVal(int xfIdx, double val)
 	{
 		var fmtIdx = xfIdx >= this.xfMap.Length ? -1 : this.xfMap[xfIdx];
-		if (fmtIdx == -1)
+		if (fmtIdx != -1)
 		{
-			return val.ToString();
+			if (formats.TryGetValue(fmtIdx, out var fmt))
+			{
+				return fmt.FormatValue(val, this.dateMode);
+			}
 		}
-
-		if (formats.TryGetValue(fmtIdx, out var fmt))
-		{
-			return fmt.FormatValue(val, this.dateMode);
-		}
-		else
-		{
-			return val.ToString();
-		}
+		return val.ToString();
 	}
 
 	/// <inheritdoc/>
