@@ -1461,6 +1461,65 @@ public class XlsxTests
 		Assert.False(edr.Read());
 	}
 
+	[Fact]
+	public void TimeSpanAsString()
+	{
+		var file = GetFile("DateTime");
+		using var edr = ExcelDataReader.Create(file);
+
+		edr.Read();
+		var ts = edr.GetTimeSpan(3);
+		Assert.Equal(TimeSpan.Zero, ts);
+		var val = edr.GetValue(3);
+		Assert.Equal("00:00:00", val);
+		var str = edr.GetString(3);
+		Assert.Equal("00:00:00", str);
+
+		edr.Read();
+		ts = edr.GetTimeSpan(3);
+		Assert.Equal(TimeSpan.FromMinutes(144), ts);
+		val = edr.GetValue(3);
+		Assert.Equal("02:24:00", val);
+		str = edr.GetString(3);
+		Assert.Equal("02:24:00", str);
+	}
+
+#if NET6_0_OR_GREATER
+
+	[Fact]
+	public void DateTimeGetValue()
+	{
+		var sb =
+			new Schema.Builder()
+			.Add<double>("Value")
+			.Add<DateOnly>("Date")
+			.Add<DateTime>("DateTime")
+			.Add<TimeSpan>("Time")
+			.Build();
+
+		var schema = new ExcelSchema(true, sb);
+		var opts = new ExcelDataReaderOptions { Schema = schema };
+		var file = GetFile("DateTime");
+		using var edr = ExcelDataReader.Create(file, opts);
+
+		for (int i = 0; i < 10; i++)
+		{
+			// skip the rows with the invalid dates
+			edr.Read();
+		}
+
+		edr.Read();
+		object value;
+		value = edr.GetValue(0);
+		Assert.IsType<double>(value);
+		Assert.IsType<DateOnly>(edr.GetValue(1));
+		Assert.IsType<DateTime>(edr.GetValue(2));
+		Assert.IsType<TimeSpan>(edr.GetValue(3));
+
+	}
+
+#endif
+
 #if ASYNC
 
 	[Fact]

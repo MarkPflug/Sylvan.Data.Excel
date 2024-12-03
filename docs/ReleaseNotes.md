@@ -1,5 +1,9 @@
 # Sylvan.Data.Excel Release Notes
 
+_0.4.26_
+- Add handling for TimeSpan, DateOnly and TimeOnly, on supported runtimes.
+- Time formatted date values will return a TimeSpan string when accessed as a string value.
+
 _0.4.25_
 - Fix some issues with reading Excel 95 .xls files.
 
