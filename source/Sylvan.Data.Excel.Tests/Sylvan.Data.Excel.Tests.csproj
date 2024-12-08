@@ -5,6 +5,12 @@
 		<RootNamespace>Sylvan.Data.Excel</RootNamespace>
 		<IsPackable>false</IsPackable>
 		<DisableImplicitNamespaceImports>true</DisableImplicitNamespaceImports>
+		
+		<!-- 
+		Suppress nuget vulnerability warnings, as I'm not really concerned about these in the test project.
+		Maybe I should be?
+		-->
+		<NoWarn>$(NoWarn);NU1903</NoWarn>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="$(TargetFramework) == 'net6.0'">
