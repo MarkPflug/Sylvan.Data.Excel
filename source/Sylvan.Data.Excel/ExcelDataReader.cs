@@ -29,9 +29,11 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 	int fieldCount;
 	bool isClosed;
 	Stream stream;
+
 #pragma warning disable
 	bool isAsync; // currently unused, but intend to use it to enforce async access patterns.
 #pragma warning restore
+
 	private protected IExcelSchemaProvider schema;
 	private protected State state;
 	private protected ExcelColumn[] columnSchema;
@@ -45,6 +47,12 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 	private protected int sheetIdx = -1;
 
 	private protected bool readHiddenSheets;
+	private protected bool readHiddenColumns;
+	private protected bool readHiddenRows;
+
+	// indicates if the current data row is hidden.
+	private protected bool isRowHidden; 
+
 	private protected bool errorAsNull;
 
 	private protected int rowCount;
@@ -90,6 +98,17 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 		return SchemaTable.GetSchemaTable(this.GetColumnSchema());
 	}
 
+	/// <summary>
+	/// Indicates if the current row is hidden.
+	/// </summary>
+	public virtual bool IsRowHidden
+	{
+		get
+		{
+			return this.isRowHidden;
+		}
+	}
+
 	private protected ExcelDataReader(Stream stream, ExcelDataReaderOptions options)
 	{
 		this.isAsync = false;
@@ -97,6 +116,8 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 		this.schema = options.Schema;
 		this.errorAsNull = options.GetErrorAsNull;
 		this.readHiddenSheets = options.ReadHiddenWorksheets;
+		this.readHiddenColumns = options.ReadHiddenColumns;
+		this.readHiddenRows = options.ReadHiddenRows;
 		this.state = State.Initializing;
 		this.values = Array.Empty<FieldInfo>();
 		this.sst = Array.Empty<string>();
@@ -573,8 +594,6 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 		}
 		return c;
 	}
-
-
 
 	/// <inheritdoc/>
 	public sealed override object GetValue(int ordinal)

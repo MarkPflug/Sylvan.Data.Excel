@@ -124,7 +124,7 @@ public class XlsxTests
 		var epoch = new DateTime(1900, 1, 1);
 		using var edr = ExcelDataReader.Create(file);
 		for (int i = 0; i < 22; i++)
-		{			
+		{
 			Assert.True(edr.Read());
 			var value = edr.GetDouble(0);
 			var vs = value.ToString("G15");
@@ -636,14 +636,14 @@ public class XlsxTests
 		edr.Initialize();
 
 		var table = new DataTable();
-		
+
 		table.Load(edr);
 
 		Assert.Equal(12, table.Rows.Count);
 		Assert.Equal(6, table.Columns.Count);
 
 		Assert.Equal(typeof(int), table.Columns[0].DataType);
-		Assert.Equal(typeof(DateTime), table.Columns[3].DataType);		
+		Assert.Equal(typeof(DateTime), table.Columns[3].DataType);
 	}
 
 	[Fact]
@@ -992,7 +992,7 @@ public class XlsxTests
 		Assert.True(reader.Read());
 		Assert.Equal(1, reader.GetFieldValue<int>(0));
 		Assert.Equal("James", reader.GetFieldValue<string>(1));
-		Assert.Equal(new DateTime(2020,1,1), reader.GetFieldValue<DateTime>(2));
+		Assert.Equal(new DateTime(2020, 1, 1), reader.GetFieldValue<DateTime>(2));
 		Assert.Equal(1234.56m, reader.GetFieldValue<decimal>(3));
 		Assert.Equal('A', reader.GetFieldValue<char>(4));
 		Assert.False(reader.GetFieldValue<bool>(5));
@@ -1008,7 +1008,7 @@ public class XlsxTests
 		Assert.Equal("b", reader.GetName(1));
 		Assert.Equal("c", reader.GetName(2));
 		// calling Initialize shouldn't change anything if Read hasn't been called.
-		reader.Initialize(); 
+		reader.Initialize();
 		Assert.Equal(3, reader.FieldCount);
 		Assert.Equal("a", reader.GetName(0));
 		Assert.Equal("b", reader.GetName(1));
@@ -1197,7 +1197,7 @@ public class XlsxTests
 		Assert.Equal(ExcelDataType.Numeric, edr.GetExcelDataType(0));
 		Assert.Equal(59d, edr.GetDouble(0));
 		Assert.Equal(new DateTime(1904, 2, 29), edr.GetDateTime(0));
-		
+
 		Assert.True(edr.Read());
 		Assert.Equal(ExcelDataType.Numeric, edr.GetExcelDataType(0));
 		Assert.Equal(60d, edr.GetDouble(0));
@@ -1232,7 +1232,7 @@ public class XlsxTests
 		Assert.Equal(ExcelDataType.Numeric, edr.GetExcelDataType(0));
 		Assert.Equal(-1.5, edr.GetDouble(0));
 		Assert.Throws<InvalidCastException>(() => edr.GetDateTime(0));
-		
+
 		Assert.True(edr.Read());
 		Assert.Equal(ExcelDataType.Numeric, edr.GetExcelDataType(0));
 		Assert.Equal(-1d, edr.GetDouble(0));
@@ -1301,13 +1301,13 @@ public class XlsxTests
 		Assert.Equal("d", s[0].ColumnName);
 		Assert.False(edr.NextResult());
 	}
-	
+
 	[Fact]
 	public void ChartSheet()
 	{
 		var file = GetFile();
 		using var edr = ExcelDataReader.Create(file);
-		
+
 		Assert.Equal("Sheet1", edr.WorksheetName);
 	}
 
@@ -1316,7 +1316,7 @@ public class XlsxTests
 	{
 		var file = GetFile("MultiSheet2");
 		using var edr = ExcelDataReader.Create(file);
-		edr.NextResult(); 
+		edr.NextResult();
 		edr.NextResult();
 		edr.Read();
 		Assert.Equal(5, edr.FieldCount);
@@ -1452,12 +1452,52 @@ public class XlsxTests
 		Assert.Equal("", edr.GetString(0));
 		Assert.True(edr.Read());
 		Assert.Equal("c", edr.GetString(0));
-		while(edr.RowNumber < 10)
+		while (edr.RowNumber < 10)
 		{
 			Assert.True(edr.Read());
 			Assert.Equal("", edr.GetString(0));
 			Assert.Equal(0, edr.RowFieldCount);
 		}
+		Assert.False(edr.Read());
+	}
+
+	[Fact]
+	public void HiddenRow()
+	{
+		var name = GetFile();
+		var opt = new ExcelDataReaderOptions
+		{
+			Schema = ExcelSchema.NoHeaders
+		};
+		var edr = ExcelDataReader.Create(name, opt);
+		Assert.True(edr.Read());
+		Assert.False(edr.IsRowHidden);
+		Assert.Equal(1, edr.GetInt32(0));
+		Assert.True(edr.Read());
+		Assert.True(edr.IsRowHidden);
+		Assert.Equal(2, edr.GetInt32(0));
+		Assert.True(edr.Read());
+		Assert.False(edr.IsRowHidden);
+		Assert.Equal(3, edr.GetInt32(0));
+		Assert.False(edr.Read());
+	}
+
+	[Fact]
+	public void HiddenRowSkip()
+	{
+		var name = GetFile("HiddenRow");
+		var opt = new ExcelDataReaderOptions
+		{
+			Schema = ExcelSchema.NoHeaders,
+			ReadHiddenRows = false
+		};
+		var edr = ExcelDataReader.Create(name, opt);
+		Assert.True(edr.Read());
+		Assert.False(edr.IsRowHidden);
+		Assert.Equal(1, edr.GetInt32(0));
+		Assert.True(edr.Read());
+		Assert.False(edr.IsRowHidden);
+		Assert.Equal(3, edr.GetInt32(0));
 		Assert.False(edr.Read());
 	}
 
@@ -1484,7 +1524,7 @@ public class XlsxTests
 		var stream = File.OpenRead(name);
 
 		var testStream = new TestStream(stream);
-		
+
 		await using var edr = await ExcelDataReader.CreateAsync(testStream, this.WorkbookType);
 		while (await edr.ReadAsync())
 		{
