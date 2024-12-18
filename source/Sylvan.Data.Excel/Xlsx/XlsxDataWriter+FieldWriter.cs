@@ -149,12 +149,12 @@ partial class XlsxDataWriter
 
 #if SPAN
 			var scratch = c.GetCharBuffer();
-			if (value.TryFormat(scratch.AsSpan(), out var sl, default, CultureInfo.InvariantCulture))
+			if (value.TryFormat(scratch.AsSpan(), out var sl, "R", CultureInfo.InvariantCulture))
 			{
 				w.Write(scratch, 0, sl);
 			}
 #else
-			w.Write(value.ToString(CultureInfo.InvariantCulture));
+			w.Write(value.ToString("R", CultureInfo.InvariantCulture));
 #endif
 
 			w.Write("</v></c>");
@@ -180,12 +180,12 @@ partial class XlsxDataWriter
 
 #if SPAN
 			var scratch = c.GetCharBuffer();
-			if (value.TryFormat(scratch.AsSpan(), out var sl, default, CultureInfo.InvariantCulture))
+			if (value.TryFormat(scratch.AsSpan(), out var sl, "R", CultureInfo.InvariantCulture))
 			{
 				w.Write(scratch, 0, sl);
 			}
 #else
-			w.Write(value.ToString(CultureInfo.InvariantCulture));
+			w.Write(value.ToString("R", CultureInfo.InvariantCulture));
 #endif
 
 			w.Write("</v></c>");

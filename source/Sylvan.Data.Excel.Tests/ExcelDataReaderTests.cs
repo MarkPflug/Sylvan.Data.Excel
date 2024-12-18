@@ -1467,6 +1467,48 @@ public class XlsxTests
 		Assert.False(edr.Read());
 	}
 
+	[Fact]
+	public void NoHeaderFieldCount()
+	{
+		var file = GetFile("Date1900");
+		var opt = new ExcelDataReaderOptions { Schema = DynamicNoHeadersSchema.Instance };
+		using var edr = ExcelDataReader.Create(file, opt);
+		Assert.Equal(1, edr.FieldCount);
+	}
+
+
+	class DynamicNoHeadersSchema : IExcelSchemaProvider
+	{
+		public static DynamicNoHeadersSchema Instance = new DynamicNoHeadersSchema();
+
+		class Col : DbColumn
+		{
+			public Col(int ordinal)
+			{
+				this.ColumnOrdinal = ordinal;
+				this.ColumnName = "a";
+				this.AllowDBNull = true;
+				this.DataType = typeof(object);
+				this.DataTypeName = this.DataType.Name;
+			}
+		}
+
+		public DbColumn GetColumn(string sheetName, string name, int ordinal)
+		{
+			return new Col(ordinal);
+		}
+
+		public bool HasHeaders(string sheetName)
+		{
+			return false;
+		}
+
+		public int GetFieldCount(ExcelDataReader reader)
+		{
+			return reader.RowFieldCount;
+		}
+	}
+
 #if ASYNC
 
 	[Fact]
