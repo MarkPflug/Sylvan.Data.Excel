@@ -592,7 +592,6 @@ public abstract class ExcelDataWriterTests
 		using var w = ExcelDataWriter.Create(filename);
 		var r = new VariableColumnTestDataReader(0x4000, 2);
 		w.Write(r, "JustRight");
-		Open(filename);
 	}
 
 	[Fact]
