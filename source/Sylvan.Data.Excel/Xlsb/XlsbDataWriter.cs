@@ -450,6 +450,10 @@ sealed partial class XlsbDataWriter : ExcelDataWriter
 		using var bw = new BinaryWriter(bs);
 
 		var fieldCount = data.FieldCount;
+		if (fieldCount > this.MaxColumnCount)
+		{
+			throw new ArgumentOutOfRangeException();
+		}
 
 		var context = new Context(this, bw, data);
 

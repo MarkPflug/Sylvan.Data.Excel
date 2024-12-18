@@ -134,7 +134,13 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 			} while (worksheets.Contains(worksheetName));
 		}
 
-		var fieldWriters = new FieldWriter[data.FieldCount];
+		var fieldCount = data.FieldCount;
+		if (fieldCount > this.MaxColumnCount)
+		{
+			throw new ArgumentOutOfRangeException();
+		}
+
+		var fieldWriters = new FieldWriter[fieldCount];
 		for (int i = 0; i < fieldWriters.Length; i++)
 		{
 			fieldWriters[i] = FieldWriter.Get(data.GetFieldType(i));
@@ -166,7 +172,7 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 		// headers
 		{
 			xw.Write("<row>");
-			for (int i = 0; i < data.FieldCount; i++)
+			for (int i = 0; i < fieldCount; i++)
 			{
 				var colName = data.GetName(i);
 				if (string.IsNullOrEmpty(colName))
@@ -207,8 +213,7 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 			}
 
 			xw.Write("<row>");
-			var c = data.FieldCount;
-			for (int i = 0; i < c; i++)
+			for (int i = 0; i < fieldCount; i++)
 			{
 				if (data.IsDBNull(i))
 				{
