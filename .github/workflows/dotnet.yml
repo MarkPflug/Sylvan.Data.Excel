@@ -16,10 +16,10 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: 6.0.422
+        dotnet-version: 9.0.100
     - name: Restore dependencies
       run: dotnet restore source
     - name: Build
       run: dotnet build source --no-restore
     - name: Test
-      run: dotnet test source -f net6.0 --no-build --verbosity normal
+      run: dotnet test source -f net9.0 --no-build --verbosity normal
