@@ -193,10 +193,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 	private protected override bool OpenWorksheet(int sheetIdx)
 	{
 		var sheetName = sheetInfos[sheetIdx].Part;
-		// the relationship is recorded as an absolute path
-		// but the zip entry has a relative name.
-		sheetName = sheetName.TrimStart('/');
-		var sheetPart = package.GetEntry(sheetName);
+		var sheetPart = package.FindEntry(sheetName);
 		if (sheetPart == null)
 			return false;
 

@@ -1,5 +1,9 @@
 # Sylvan.Data.Excel Release Notes
 
+_0.4.26_
+- Fix issue with certain .xlsx files that contain absolute paths in package relations.
+- Attempts to write more columns than are supported by Excel will now throw an exception.
+ 
 _0.4.25_
 - Fix some issues with reading Excel 95 .xls files.
 
