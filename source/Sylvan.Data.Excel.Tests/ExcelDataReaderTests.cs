@@ -146,8 +146,14 @@ public class XlsxTests
 			}
 			else
 			{
-				var dt = epoch.AddDays(value - 1);
+				var dayTicks = value * TimeSpan.TicksPerDay;
+				var ticks = (long)dayTicks - TimeSpan.TicksPerDay;
+				var dt = epoch.AddTicks(ticks);
 
+				if (i == 0x0d)
+				{
+					;
+				}
 				var dt1 = edr.GetDateTime(1);
 				Assert.Equal(dt, dt1);
 				var dt2 = edr.GetDateTime(2);
