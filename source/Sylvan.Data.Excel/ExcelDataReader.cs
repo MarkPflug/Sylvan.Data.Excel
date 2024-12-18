@@ -842,6 +842,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 		// Excel doesn't render negative values as dates.
 		if (value < 0.0)
 			return false;
+		long adjustTicks = 0;
 		if (mode == DateMode.Mode1900)
 		{
 			epoch = Epoch1900;
@@ -867,10 +868,11 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 					// Excel renders it as 1900-2-29 (not a real day)
 					return false;
 				}
-				value += 1;
+				adjustTicks = TimeSpan.TicksPerDay;
 			}
 		}
-		dt = epoch.AddDays(value);
+		var ticks = (long)(value * TimeSpan.TicksPerDay);
+		dt = epoch.AddTicks(ticks + adjustTicks);
 		return true;
 	}
 	/// <inheritdoc/>
