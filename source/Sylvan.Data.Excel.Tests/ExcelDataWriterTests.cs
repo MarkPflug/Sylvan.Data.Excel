@@ -588,7 +588,7 @@ public abstract class ExcelDataWriterTests
 	[Fact]
 	public void ExactCols()
 	{
-		var filename = "Exact.xlsx";
+		var filename = GetFile();
 		using var w = ExcelDataWriter.Create(filename);
 		var r = new VariableColumnTestDataReader(0x4000, 2);
 		w.Write(r, "JustRight");
@@ -597,7 +597,8 @@ public abstract class ExcelDataWriterTests
 	[Fact]
 	public void TooManyCols()
 	{
-		using var w = ExcelDataWriter.Create("TooManyCols.xlsx");
+		var filename = GetFile();
+		using var w = ExcelDataWriter.Create(filename);
 		var r = new VariableColumnTestDataReader(2000000, 2);
 
 		Assert.Throws<ArgumentOutOfRangeException>(() => w.Write(r, "TooMany"));
