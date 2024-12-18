@@ -3,7 +3,9 @@
 _0.4.26_
 - Add handling for TimeSpan, DateOnly and TimeOnly, on supported runtimes.
 - Time formatted date values will return a TimeSpan string when accessed as a string value.
-
+- Fix issue with certain .xlsx files that contain absolute paths in package relations.
+- Attempts to write more columns than are supported by Excel will now throw an exception.
+ 
 _0.4.25_
 - Fix some issues with reading Excel 95 .xls files.
 

@@ -1,13 +1,19 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
-		<TargetFrameworks>net6.0;net48</TargetFrameworks>
+		<TargetFrameworks>net8.0;net48</TargetFrameworks>
 		<RootNamespace>Sylvan.Data.Excel</RootNamespace>
 		<IsPackable>false</IsPackable>
 		<DisableImplicitNamespaceImports>true</DisableImplicitNamespaceImports>
+		
+		<!-- 
+		Suppress nuget vulnerability warnings, as I'm not really concerned about these in the test project.
+		Maybe I should be?
+		-->
+		<NoWarn>$(NoWarn);NU1903</NoWarn>
 	</PropertyGroup>
 
-	<PropertyGroup Condition="$(TargetFramework) == 'net6.0'">
+	<PropertyGroup Condition="$(TargetFramework) == 'net8.0'">
 		<DefineConstants>$(DefineConstants);ASYNC;DATEONLY</DefineConstants>
 	</PropertyGroup>
 

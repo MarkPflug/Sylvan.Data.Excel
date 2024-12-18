@@ -73,7 +73,13 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 	const int StringLimit = short.MaxValue;
 	const int MaxWorksheetNameLength = 31;
 
-    readonly ZipArchive zipArchive;
+	const int MaxXlsxRowCount = 0x100000;
+
+	public override int MaxRowCount => MaxXlsxRowCount;
+
+	public override int MaxColumnCount => 0x4000;
+
+	readonly ZipArchive zipArchive;
 	readonly List<string> worksheets;
 
 	readonly SharedStringTable sharedStrings;
@@ -128,7 +134,13 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 			} while (worksheets.Contains(worksheetName));
 		}
 
-		var fieldWriters = new FieldWriter[data.FieldCount];
+		var fieldCount = data.FieldCount;
+		if (fieldCount > this.MaxColumnCount)
+		{
+			throw new ArgumentOutOfRangeException();
+		}
+
+		var fieldWriters = new FieldWriter[fieldCount];
 		for (int i = 0; i < fieldWriters.Length; i++)
 		{
 			fieldWriters[i] = FieldWriter.Get(data.GetFieldType(i));
@@ -160,7 +172,7 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 		// headers
 		{
 			xw.Write("<row>");
-			for (int i = 0; i < data.FieldCount; i++)
+			for (int i = 0; i < fieldCount; i++)
 			{
 				var colName = data.GetName(i);
 				if (string.IsNullOrEmpty(colName))
@@ -201,8 +213,7 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 			}
 
 			xw.Write("<row>");
-			var c = data.FieldCount;
-			for (int i = 0; i < c; i++)
+			for (int i = 0; i < fieldCount; i++)
 			{
 				if (data.IsDBNull(i))
 				{
@@ -216,7 +227,7 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 			}
 			xw.Write("</row>");
 			row++;
-			if (row >= 0x100000)
+			if (row >= MaxXlsxRowCount)
 			{
 				// avoid calling Read again so the reader will remain in a state
 				// where it can be written to a different worksheet.

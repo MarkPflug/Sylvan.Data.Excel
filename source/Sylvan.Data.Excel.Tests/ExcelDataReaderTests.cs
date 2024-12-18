@@ -146,8 +146,14 @@ public class XlsxTests
 			}
 			else
 			{
-				var dt = epoch.AddDays(value - 1);
+				var dayTicks = value * TimeSpan.TicksPerDay;
+				var ticks = (long)dayTicks - TimeSpan.TicksPerDay;
+				var dt = epoch.AddTicks(ticks);
 
+				if (i == 0x0d)
+				{
+					;
+				}
 				var dt1 = edr.GetDateTime(1);
 				Assert.Equal(dt, dt1);
 				var dt2 = edr.GetDateTime(2);
@@ -1519,6 +1525,48 @@ public class XlsxTests
 	}
 
 #endif
+
+	[Fact]
+	public void NoHeaderFieldCount()
+	{
+		var file = GetFile("Date1900");
+		var opt = new ExcelDataReaderOptions { Schema = DynamicNoHeadersSchema.Instance };
+		using var edr = ExcelDataReader.Create(file, opt);
+		Assert.Equal(1, edr.FieldCount);
+	}
+
+
+	class DynamicNoHeadersSchema : IExcelSchemaProvider
+	{
+		public static DynamicNoHeadersSchema Instance = new DynamicNoHeadersSchema();
+
+		class Col : DbColumn
+		{
+			public Col(int ordinal)
+			{
+				this.ColumnOrdinal = ordinal;
+				this.ColumnName = "a";
+				this.AllowDBNull = true;
+				this.DataType = typeof(object);
+				this.DataTypeName = this.DataType.Name;
+			}
+		}
+
+		public DbColumn GetColumn(string sheetName, string name, int ordinal)
+		{
+			return new Col(ordinal);
+		}
+
+		public bool HasHeaders(string sheetName)
+		{
+			return false;
+		}
+
+		public int GetFieldCount(ExcelDataReader reader)
+		{
+			return reader.RowFieldCount;
+		}
+	}
 
 #if ASYNC
 
