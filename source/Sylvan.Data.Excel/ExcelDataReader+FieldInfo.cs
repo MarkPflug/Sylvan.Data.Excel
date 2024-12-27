@@ -104,6 +104,8 @@ partial class ExcelDataReader
 					return "Double: " + numValue;
 				case FieldType.String:
 					return "String: " + strValue;
+				case FieldType.Boolean:
+					return "Bool:" + boolValue;
 			}
 			return "NULL";
 		}
