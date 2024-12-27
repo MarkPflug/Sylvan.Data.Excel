@@ -10,7 +10,7 @@
 		Suppress nuget vulnerability warnings, as I'm not really concerned about these in the test project.
 		Maybe I should be?
 		-->
-		<NoWarn>$(NoWarn);NU1903</NoWarn>
+		<NoWarn>$(NoWarn);NU1903;xUnit2004</NoWarn>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="$(TargetFramework) == 'net8.0'">

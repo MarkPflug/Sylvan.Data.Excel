@@ -124,7 +124,7 @@ public class XlsxTests
 		var epoch = new DateTime(1900, 1, 1);
 		using var edr = ExcelDataReader.Create(file);
 		for (int i = 0; i < 22; i++)
-		{			
+		{
 			Assert.True(edr.Read());
 			var value = edr.GetDouble(0);
 			var vs = value.ToString("G15");
@@ -642,14 +642,14 @@ public class XlsxTests
 		edr.Initialize();
 
 		var table = new DataTable();
-		
+
 		table.Load(edr);
 
 		Assert.Equal(12, table.Rows.Count);
 		Assert.Equal(6, table.Columns.Count);
 
 		Assert.Equal(typeof(int), table.Columns[0].DataType);
-		Assert.Equal(typeof(DateTime), table.Columns[3].DataType);		
+		Assert.Equal(typeof(DateTime), table.Columns[3].DataType);
 	}
 
 	[Fact]
@@ -890,6 +890,112 @@ public class XlsxTests
 	}
 
 	[Fact]
+	public void Boolean()
+	{
+		var file = this.GetFile();
+		using var edr = ExcelDataReader.Create(file);
+
+		Assert.True(edr.Read());
+
+		Assert.Equal(ExcelDataType.Boolean, edr.GetExcelDataType(0));
+		Assert.False(edr.IsDBNull(0));
+		Assert.True(edr.GetBoolean(0));
+
+		Assert.Equal("True", edr.GetValue(0)); // without a schema, this is a string
+
+		Assert.Equal(ExcelDataType.Boolean, edr.GetExcelDataType(1));
+		Assert.True(edr.GetBoolean(1));
+		Assert.False(edr.IsDBNull(1));
+		Assert.Equal("True", edr.GetValue(1));
+
+		Assert.Equal(ExcelDataType.String, edr.GetExcelDataType(2));
+		Assert.True(edr.GetBoolean(2));
+		Assert.False(edr.IsDBNull(2));
+		Assert.Equal("true", edr.GetValue(2));
+
+		Assert.True(edr.Read());
+		Assert.Equal(ExcelDataType.Boolean, edr.GetExcelDataType(0));
+		Assert.False(edr.GetBoolean(0));
+		Assert.Equal(ExcelDataType.Boolean, edr.GetExcelDataType(1));
+		Assert.False(edr.GetBoolean(1));
+		Assert.Equal(ExcelDataType.String, edr.GetExcelDataType(2));
+		Assert.False(edr.GetBoolean(2));
+
+		Assert.True(edr.Read());
+		Assert.Equal(ExcelDataType.Null, edr.GetExcelDataType(0));
+		Assert.Equal(DBNull.Value, edr.GetValue(0));
+		Assert.Equal(ExcelDataType.Null, edr.GetExcelDataType(1));
+		Assert.Equal(DBNull.Value, edr.GetValue(1));
+		Assert.Equal(ExcelDataType.Null, edr.GetExcelDataType(2));
+		Assert.Equal(DBNull.Value, edr.GetValue(2));
+
+		Assert.True(edr.Read());
+		Assert.Equal(ExcelDataType.Boolean, edr.GetExcelDataType(0));
+		Assert.True(edr.GetBoolean(0));
+		Assert.Equal(ExcelDataType.Boolean, edr.GetExcelDataType(1));
+		Assert.True(edr.GetBoolean(1));
+		Assert.Equal(ExcelDataType.String, edr.GetExcelDataType(2));
+		Assert.True(edr.GetBoolean(2));
+	}
+
+	[Fact]
+	public void BooleanSchema()
+	{
+		var file = this.GetFile("Boolean");
+
+		var schema =
+			new Schema.Builder()
+			.Add<bool?>("Boolean")
+			.Add<bool?>("Formula")
+			.Add<bool?>("String")
+			.Build();
+
+		using var edr = ExcelDataReader.Create(file, new ExcelDataReaderOptions { Schema = new ExcelSchema(true, schema) });
+
+		Assert.True(edr.Read());
+
+		Assert.Equal(ExcelDataType.Boolean, edr.GetExcelDataType(0));
+		Assert.False(edr.IsDBNull(0));
+		Assert.True(edr.GetBoolean(0));
+		Assert.Equal(true, edr.GetValue(0)); // with the schema this is a boolean
+
+		Assert.Equal(ExcelDataType.Boolean, edr.GetExcelDataType(1));
+		Assert.True(edr.GetBoolean(1));
+		Assert.False(edr.IsDBNull(1));
+		Assert.Equal(true, edr.GetValue(1));
+
+		Assert.Equal(ExcelDataType.String, edr.GetExcelDataType(2));
+		Assert.True(edr.GetBoolean(2));
+		Assert.False(edr.IsDBNull(2));
+		Assert.Equal(true, edr.GetValue(2));
+
+		Assert.True(edr.Read());
+		Assert.Equal(ExcelDataType.Boolean, edr.GetExcelDataType(0));
+		Assert.False(edr.GetBoolean(0));
+		Assert.Equal(ExcelDataType.Boolean, edr.GetExcelDataType(1));
+		Assert.False(edr.GetBoolean(1));
+		Assert.Equal(ExcelDataType.String, edr.GetExcelDataType(2));
+		Assert.False(edr.GetBoolean(2));
+
+		Assert.True(edr.Read());
+		Assert.Equal(ExcelDataType.Null, edr.GetExcelDataType(0));
+		Assert.Equal(typeof(bool), edr.GetFieldType(0)); // still boolean type, even though this cell is null
+		Assert.Equal(DBNull.Value, edr.GetValue(0));
+		Assert.Equal(ExcelDataType.Null, edr.GetExcelDataType(1));
+		Assert.Equal(DBNull.Value, edr.GetValue(1));
+		Assert.Equal(ExcelDataType.Null, edr.GetExcelDataType(2));
+		Assert.Equal(DBNull.Value, edr.GetValue(2));
+
+		Assert.True(edr.Read());
+		Assert.Equal(ExcelDataType.Boolean, edr.GetExcelDataType(0));
+		Assert.True(edr.GetBoolean(0));
+		Assert.Equal(ExcelDataType.Boolean, edr.GetExcelDataType(1));
+		Assert.True(edr.GetBoolean(1));
+		Assert.Equal(ExcelDataType.String, edr.GetExcelDataType(2));
+		Assert.True(edr.GetBoolean(2));
+	}
+
+	[Fact]
 	public void BoolSchema()
 	{
 		var schemaSpec = ":bool{Yes|No},:bool,:bool{Yes|},:bool{|0}";
@@ -998,7 +1104,7 @@ public class XlsxTests
 		Assert.True(reader.Read());
 		Assert.Equal(1, reader.GetFieldValue<int>(0));
 		Assert.Equal("James", reader.GetFieldValue<string>(1));
-		Assert.Equal(new DateTime(2020,1,1), reader.GetFieldValue<DateTime>(2));
+		Assert.Equal(new DateTime(2020, 1, 1), reader.GetFieldValue<DateTime>(2));
 		Assert.Equal(1234.56m, reader.GetFieldValue<decimal>(3));
 		Assert.Equal('A', reader.GetFieldValue<char>(4));
 		Assert.False(reader.GetFieldValue<bool>(5));
@@ -1014,7 +1120,7 @@ public class XlsxTests
 		Assert.Equal("b", reader.GetName(1));
 		Assert.Equal("c", reader.GetName(2));
 		// calling Initialize shouldn't change anything if Read hasn't been called.
-		reader.Initialize(); 
+		reader.Initialize();
 		Assert.Equal(3, reader.FieldCount);
 		Assert.Equal("a", reader.GetName(0));
 		Assert.Equal("b", reader.GetName(1));
@@ -1203,7 +1309,7 @@ public class XlsxTests
 		Assert.Equal(ExcelDataType.Numeric, edr.GetExcelDataType(0));
 		Assert.Equal(59d, edr.GetDouble(0));
 		Assert.Equal(new DateTime(1904, 2, 29), edr.GetDateTime(0));
-		
+
 		Assert.True(edr.Read());
 		Assert.Equal(ExcelDataType.Numeric, edr.GetExcelDataType(0));
 		Assert.Equal(60d, edr.GetDouble(0));
@@ -1238,7 +1344,7 @@ public class XlsxTests
 		Assert.Equal(ExcelDataType.Numeric, edr.GetExcelDataType(0));
 		Assert.Equal(-1.5, edr.GetDouble(0));
 		Assert.Throws<InvalidCastException>(() => edr.GetDateTime(0));
-		
+
 		Assert.True(edr.Read());
 		Assert.Equal(ExcelDataType.Numeric, edr.GetExcelDataType(0));
 		Assert.Equal(-1d, edr.GetDouble(0));
@@ -1307,13 +1413,13 @@ public class XlsxTests
 		Assert.Equal("d", s[0].ColumnName);
 		Assert.False(edr.NextResult());
 	}
-	
+
 	[Fact]
 	public void ChartSheet()
 	{
 		var file = GetFile();
 		using var edr = ExcelDataReader.Create(file);
-		
+
 		Assert.Equal("Sheet1", edr.WorksheetName);
 	}
 
@@ -1322,7 +1428,7 @@ public class XlsxTests
 	{
 		var file = GetFile("MultiSheet2");
 		using var edr = ExcelDataReader.Create(file);
-		edr.NextResult(); 
+		edr.NextResult();
 		edr.NextResult();
 		edr.Read();
 		Assert.Equal(5, edr.FieldCount);
@@ -1458,7 +1564,7 @@ public class XlsxTests
 		Assert.Equal("", edr.GetString(0));
 		Assert.True(edr.Read());
 		Assert.Equal("c", edr.GetString(0));
-		while(edr.RowNumber < 10)
+		while (edr.RowNumber < 10)
 		{
 			Assert.True(edr.Read());
 			Assert.Equal("", edr.GetString(0));
@@ -1532,7 +1638,7 @@ public class XlsxTests
 		var stream = File.OpenRead(name);
 
 		var testStream = new TestStream(stream);
-		
+
 		await using var edr = await ExcelDataReader.CreateAsync(testStream, this.WorkbookType);
 		while (await edr.ReadAsync())
 		{
