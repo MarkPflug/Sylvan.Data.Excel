@@ -19,7 +19,7 @@ static class Accessor<T>
 			{
 				return EnumAccessor<T>.Instance;
 			}
-			throw new NotSupportedException(); // TODO: exception type?
+			throw new NotSupportedException($"GetFieldValue<{typeof(T).Name}>() is not supported by {nameof(ExcelDataReader)}.");
 		}
 		return acc;
 	}
