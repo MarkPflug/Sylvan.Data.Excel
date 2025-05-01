@@ -235,6 +235,33 @@ sealed class TimeSpanAccessor : FieldAccessor<TimeSpan>
 	}
 }
 
+#if DATE_ONLY
+
+sealed class DateOnlyAccessor : FieldAccessor<DateOnly>
+{
+	internal static readonly DateOnlyAccessor Instance = new DateOnlyAccessor();
+
+	public override DateOnly GetValue(ExcelDataReader reader, int ordinal)
+	{
+		var dt = reader.GetDateTime(ordinal);
+		return new DateOnly(dt.Year, dt.Month, dt.Day);
+	}
+}
+
+sealed class TimeOnlyAccessor : FieldAccessor<TimeOnly>
+{
+	internal static readonly TimeOnlyAccessor Instance = new TimeOnlyAccessor();
+
+	public override TimeOnly GetValue(ExcelDataReader reader, int ordinal)
+	{
+		var dt = reader.GetDateTime(ordinal);
+		return TimeOnly.FromDateTime(dt);
+	}
+}
+
+#endif
+
+
 sealed class GuidAccessor : FieldAccessor<Guid>
 {
 	internal static readonly GuidAccessor Instance = new GuidAccessor();
@@ -304,6 +331,10 @@ sealed partial class ExcelDataAccessor :
 	IFieldAccessor<decimal>,
 	IFieldAccessor<DateTime>,
 	IFieldAccessor<TimeSpan>,
+#if DATE_ONLY
+	IFieldAccessor<DateOnly>,
+	IFieldAccessor<TimeOnly>,
+#endif
 	IFieldAccessor<Guid>,
 	IFieldAccessor<Stream>,
 	IFieldAccessor<TextReader>,
@@ -332,6 +363,10 @@ sealed partial class ExcelDataAccessor :
 			{typeof(decimal), DecimalAccessor.Instance },
 			{typeof(DateTime), DateTimeAccessor.Instance },
 			{typeof(TimeSpan), TimeSpanAccessor.Instance },
+#if DATE_ONLY
+			{typeof(DateOnly), DateOnlyAccessor.Instance },
+			{typeof(TimeOnly), TimeOnlyAccessor.Instance },
+#endif
 			{typeof(Guid), GuidAccessor.Instance },
 
 			// TODO: add support for the following types?
@@ -416,6 +451,20 @@ sealed partial class ExcelDataAccessor :
 	{
 		return reader.GetTimeSpan(ordinal);
 	}
+
+#if DATE_ONLY
+
+	DateOnly IFieldAccessor<DateOnly>.GetValue(ExcelDataReader reader, int ordinal)
+	{
+		return DateOnlyAccessor.Instance.GetValue(reader, ordinal);
+	}
+
+	TimeOnly IFieldAccessor<TimeOnly>.GetValue(ExcelDataReader reader, int ordinal)
+	{
+		return TimeOnlyAccessor.Instance.GetValue(reader, ordinal);
+	}
+
+#endif
 
 	decimal IFieldAccessor<decimal>.GetValue(ExcelDataReader reader, int ordinal)
 	{
