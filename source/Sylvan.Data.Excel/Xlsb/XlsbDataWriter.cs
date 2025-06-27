@@ -196,7 +196,7 @@ static class XlsbWriterExtensions
 		// len
 		bw.Write7BitEncodedInt(30);
 
-		bw.Write((short)0x03dc); // flags
+		bw.Write((short)0b1110011100); // flags
 		bw.Write(0); // normal view
 		bw.Write(0); // top
 		bw.Write(0); // left
