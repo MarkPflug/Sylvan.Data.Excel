@@ -18,7 +18,7 @@ using CharSpan = System.Span<char>;
 
 namespace Sylvan.Data.Excel;
 
-sealed class XlsxWorkbookReader : ExcelDataReader
+sealed partial class XlsxWorkbookReader : ExcelDataReader
 {
 	readonly ZipArchive package;
 
@@ -28,7 +28,6 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 	StringBuilder? stringBuilder;
 
 	bool hasRows;
-	char[] valueBuffer = new char[64];
 
 	// the number of fields in the parsedRowIndex.
 	int curFieldCount = -1;
@@ -302,6 +301,13 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 		return true;
 	}
 
+	// a buffer used to read values that must be materialized when read.
+	char[] buffer = new char[16];
+	// a buffer used to hold values that can be materialized lazily when the field is accessed.
+	char[] valuesBuffer = Array.Empty<char>();
+
+	const int ValueBufferElementSize = 64;
+
 	bool NextRow()
 	{
 		var ci = NumberFormatInfo.InvariantInfo;
@@ -311,8 +317,8 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 			{
 				int row;
 #if SPAN
-				var len = reader.ReadValueChunk(valueBuffer, 0, valueBuffer.Length);
-				if (len < valueBuffer.Length && int.TryParse(valueBuffer.AsSpan(0, len), NumberStyles.Integer, ci, out row))
+				var len = reader.ReadValueChunk(buffer, 0, buffer.Length);
+				if (len < buffer.Length && TryParse(buffer.AsSpan(0, len), out row))
 				{
 				}
 				else
@@ -466,9 +472,9 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 				var n = reader.Name;
 				if (n == "r")
 				{
-					len = reader.ReadValueChunk(valueBuffer, 0, valueBuffer.Length);
+					len = reader.ReadValueChunk(buffer, 0, buffer.Length);
 
-					if (CellPosition.TryParse(valueBuffer.AsSpan().ToParsable(0, len), out var pos))
+					if (CellPosition.TryParse(buffer.AsSpan().ToParsable(0, len), out var pos))
 					{
 						col = pos.Column;
 					}
@@ -480,14 +486,14 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 				else
 				if (n == "t")
 				{
-					len = reader.ReadValueChunk(valueBuffer, 0, valueBuffer.Length);
-					type = GetCellType(valueBuffer, len);
+					len = reader.ReadValueChunk(buffer, 0, buffer.Length);
+					type = GetCellType(buffer, len);
 				}
 				else
 				if (n == "s")
 				{
-					len = reader.ReadValueChunk(valueBuffer, 0, valueBuffer.Length);
-					if (!TryParse(valueBuffer.AsSpan().ToParsable(0, len), out xfIdx))
+					len = reader.ReadValueChunk(buffer, 0, buffer.Length);
+					if (!TryParse(buffer.AsSpan().ToParsable(0, len), out xfIdx))
 					{
 						throw new FormatException();
 					}
@@ -496,25 +502,11 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 
 			if (col >= values.Length)
 			{
-				Array.Resize(ref values, col + 8);
-				this.values = values;
-			}
+				var newLen = col + 8;
 
-			static bool TryParse(ReadonlyCharSpan span, out int value)
-			{
-				int a = 0;
-				for (int i = 0; i < span.Length; i++)
-				{
-					var d = span[i] - '0';
-					if ((uint)d >= 10)
-					{
-						value = 0;
-						return false;
-					}
-					a = a * 10 + d;
-				}
-				value = a;
-				return true;
+				Array.Resize(ref values, newLen);
+				this.values = values;
+				Array.Resize(ref valuesBuffer, newLen * ValueBufferElementSize);
 			}
 
 			static CellType GetCellType(char[] b, int l)
@@ -563,56 +555,31 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 			else
 			if (ReadToDescendant(reader, "v"))
 			{
-
 				if (!reader.IsEmptyElement)
 				{
 					reader.Read();
 				}
+
+				int ReadValue(int col)
+				{
+					return reader.ReadValueChunk(valuesBuffer, col * ValueBufferElementSize, ValueBufferElementSize);
+				}
+
 				switch (type)
 				{
 					case CellType.Numeric:
 						fi.type = FieldType.Numeric;
-#if SPAN
-						len = reader.ReadValueChunk(valueBuffer, 0, valueBuffer.Length);
-						if (len < valueBuffer.Length && double.TryParse(valueBuffer.AsSpan(0, len), NumberStyles.Float, ci, out fi.numValue))
-						{
-						}
-						else
-						{
-							throw new FormatException();
-						}
-#else
-						var str = reader.Value;
-						fi.numValue = double.Parse(str, NumberStyles.Float, ci);
-#endif
+						fi.valueLen = ReadValue(col);
 						break;
 					case CellType.Date:
-						len = reader.ReadValueChunk(valueBuffer, 0, valueBuffer.Length);
-						if (len < valueBuffer.Length)
-						{
-							if (!IsoDate.TryParse(valueBuffer.AsSpan(0, len), out fi.dtValue))
-							{
-								throw new FormatException();
-							}
-						}
-						else
-						{
-							throw new FormatException();
-						}
 						fi.type = FieldType.DateTime;
+						fi.valueLen = ReadValue(col);
 						break;
 					case CellType.SharedString:
 						if (reader.NodeType == XmlNodeType.Text)
 						{
-							len = reader.ReadValueChunk(valueBuffer, 0, valueBuffer.Length);
-							if (len >= valueBuffer.Length)
-								throw new FormatException();
-							if (!TryParse(valueBuffer.AsSpan().ToParsable(0, len), out int strIdx))
-							{
-								throw new FormatException();
-							}
-							fi.ssIdx = strIdx;
 							fi.type = FieldType.SharedString;
+							fi.valueLen = ReadValue(col);
 						}
 						else
 						{
@@ -648,17 +615,14 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 						}
 						break;
 					case CellType.Boolean:
-						len = reader.ReadValueChunk(valueBuffer, 0, valueBuffer.Length);
-						if (len < 1)
-						{
-							throw new FormatException();
-						}
 						fi.type = FieldType.Boolean;
-						fi = new FieldInfo(valueBuffer[0] != '0');
+						fi.valueLen = ReadValue(col);
+						//fi = new FieldInfo(valueBuffer[0] != '0');
 						break;
 					case CellType.Error:
-						len = reader.ReadValueChunk(valueBuffer, 0, valueBuffer.Length);
-						fi = new FieldInfo(GetErrorCode(valueBuffer.AsSpan(0, len)));
+						fi.type = FieldType.Error;
+						fi.valueLen = ReadValue(col);
+						//fi = new FieldInfo(GetErrorCode(valueBuffer.AsSpan(0, len)));
 						break;
 					default:
 						throw new InvalidDataException();
@@ -679,7 +643,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 		return valueCount == 0 ? 0 : col + 1;
 	}
 
-	static bool Equal(CharSpan l, ReadonlyCharSpan r)
+	static bool Equal(ReadonlyCharSpan l, ReadonlyCharSpan r)
 	{
 		if (l.Length != r.Length) return false;
 		for (int i = 0; i < l.Length; i++)
@@ -690,7 +654,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 		return true;
 	}
 
-	static ExcelErrorCode GetErrorCode(CharSpan str)
+	static ExcelErrorCode GetErrorCode(ReadonlyCharSpan str)
 	{
 		if (Equal(str, "#DIV/0!"))
 			return ExcelErrorCode.DivideByZero;
@@ -958,8 +922,6 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 			{
 				// a cell with an SST value reference out of bounds.
 				// this exception type is probably wrong
-				//y
-				//throw new ArgumentOutOfRangeException(nameof(i));
 				return false;
 			}
 		}
