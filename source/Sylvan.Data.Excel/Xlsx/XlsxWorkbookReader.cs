@@ -273,7 +273,7 @@ sealed class XlsxWorkbookReader : ExcelDataReader
 	bool InitializeSheet()
 	{
 		this.state = State.Initializing;
-
+		this.fieldCount = 0;
 		if (reader == null)
 		{
 			this.state = State.Closed;

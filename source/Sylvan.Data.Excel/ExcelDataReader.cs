@@ -26,7 +26,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 		Mode1904,
 	}
 
-	int fieldCount;
+	private protected int fieldCount;
 	bool isClosed;
 	Stream stream;
 #pragma warning disable
@@ -512,7 +512,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 	/// </remarks>
 	public void Initialize()
 	{
-		var sheet = this.WorksheetName;
+		var sheet = this.WorksheetName;		
 		if (sheet == null)
 		{
 			throw new InvalidOperationException();

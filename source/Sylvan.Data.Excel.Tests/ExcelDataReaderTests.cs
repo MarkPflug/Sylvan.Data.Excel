@@ -1422,6 +1422,18 @@ public class XlsxTests
 
 		Assert.Equal("Sheet1", edr.WorksheetName);
 	}
+	[Fact]
+	public void MultiSheet3()
+	{
+		var file = GetFile("MultiSheet3");
+		using var reader = ExcelDataReader.Create(file);
+
+		Assert.Equal(3, reader.FieldCount);
+		reader.NextResult();
+		Assert.Equal(2, reader.FieldCount);
+		reader.NextResult();
+		Assert.Equal(0, reader.FieldCount);
+	}
 
 	[Fact]
 	public void MultiSheetHeader()
