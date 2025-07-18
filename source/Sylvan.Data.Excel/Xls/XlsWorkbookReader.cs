@@ -218,7 +218,6 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 					default:
 						throw new NotSupportedException();
 				}
-				throw new InvalidDataException();//"Expected sheetBOF"
 			}
 		}
 		throw new InvalidDataException();//"Expected sheetBOF"
@@ -399,6 +398,31 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 		SetRowData(colIdx, new FieldInfo(d, xfIdx));
 	}
 
+	void ParseBoolErr()
+	{
+		var rowIdx = reader.ReadUInt16();
+		var colIdx = reader.ReadUInt16();
+		var xfIdx = reader.ReadUInt16();
+
+		unchecked
+		{
+			uint val = (uint)reader.ReadInt32();
+			var type = (val & 0xff00) >> 8;
+			var code = val & 0xff;
+			switch (type)
+			{
+				case 0: // boolean
+					SetRowData(colIdx, new FieldInfo(code != 0));
+					break;
+				case 1: // err
+					SetRowData(colIdx, new FieldInfo((ExcelErrorCode)code));
+					break;
+				default:
+					throw new InvalidDataException();
+			}
+		}		
+	}
+
 	void ParseFormula()
 	{
 		var rowIdx = reader.ReadUInt16();
@@ -500,7 +524,7 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 			// is empty where the next cell is for a subsequent row.
 			switch (reader.Type)
 			{
-				//case RecordType.Row:
+				case RecordType.BoolErr:
 				case RecordType.LabelSST:
 				case RecordType.Label:
 				case RecordType.RK:
@@ -581,8 +605,10 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 				case RecordType.RString:
 					ParseRString();
 					break;
-				case RecordType.Blank:
 				case RecordType.BoolErr:
+					ParseBoolErr();
+					break;
+				case RecordType.Blank:
 				case RecordType.MulBlank:
 					break;
 				case RecordType.Array:

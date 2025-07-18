@@ -25,7 +25,7 @@ public class XlsxDataWriterTests : ExcelDataWriterTests
 	}
 }
 
-#if NETCOREAPP1_0_OR_GREATER
+#if NETCOREAPP
 
 public class XlsbDataWriterTests : ExcelDataWriterTests
 {
@@ -583,6 +583,25 @@ public abstract class ExcelDataWriterTests
 			Assert.Equal(-double.Epsilon, edr.GetDouble(0));
 		}
 		//Open(f);
+	}
+
+	[Fact]
+	public void ExactCols()
+	{
+		var filename = GetFile();
+		using var w = ExcelDataWriter.Create(filename);
+		var r = new VariableColumnTestDataReader(0x4000, 2);
+		w.Write(r, "JustRight");
+	}
+
+	[Fact]
+	public void TooManyCols()
+	{
+		var filename = GetFile();
+		using var w = ExcelDataWriter.Create(filename);
+		var r = new VariableColumnTestDataReader(2000000, 2);
+
+		Assert.Throws<ArgumentOutOfRangeException>(() => w.Write(r, "TooMany"));
 	}
 
 #if ASYNC

@@ -1,5 +1,16 @@
 # Sylvan.Data.Excel Release Notes
 
+_0.4.27_
+- Fixes an issue which prevented copying data out of an .xlsb file due to "multiple selection".
+    This was caused because the sheet "selection" bit was set.
+
+_0.4.26_
+- Add handling for TimeSpan, DateOnly and TimeOnly, on supported runtimes.
+- Time formatted date values will return a TimeSpan string when accessed as a string value.
+- Fix issue with certain .xlsx files that contain absolute paths in package relations.
+- Attempts to write more columns than are supported by Excel will now throw an exception.
+- Fix an issue with reading Boolean values in .xls files. #203
+ 
 _0.4.25_
 - Fix some issues with reading Excel 95 .xls files.
 

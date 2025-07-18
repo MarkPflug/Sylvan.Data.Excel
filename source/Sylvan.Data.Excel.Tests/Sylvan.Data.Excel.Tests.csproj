@@ -1,31 +1,25 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
-		<TargetFrameworks>net6.0;net48</TargetFrameworks>
+		<TargetFrameworks>net8.0;net48</TargetFrameworks>
 		<RootNamespace>Sylvan.Data.Excel</RootNamespace>
-		<IsPackable>false</IsPackable>
-		<DisableImplicitNamespaceImports>true</DisableImplicitNamespaceImports>
 	</PropertyGroup>
 
-	<PropertyGroup Condition="$(TargetFramework) == 'net6.0'">
+	<PropertyGroup Condition="$(TargetFramework) == 'net8.0'">
 		<DefineConstants>$(DefineConstants);ASYNC;DATEONLY</DefineConstants>
 	</PropertyGroup>
 
 	<ItemGroup>
-		<PackageReference Include="Sylvan.BuildTools.Resources" Version="0.6.1">
-			<PrivateAssets>all</PrivateAssets>
-			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-		</PackageReference>
-		<PackageReference Include="Sylvan.Data" Version="0.2.13" />
-		<PackageReference Include="Sylvan.Data.Csv" Version="1.3.7" />
-		<PackageReference Include="System.Data.SqlClient" Version="4.8.6" />
+		<PackageReference Include="Sylvan.BuildTools.Resources" Version="0.6.2" PrivateAssets="all" />
+		<PackageReference Include="Sylvan.Data" Version="0.2.16" />
+		<PackageReference Include="Sylvan.Data.Csv" Version="1.4.2" />
 		<ProjectReference Include="..\Sylvan.Data.Excel\Sylvan.Data.Excel.csproj" />
 		<Reference Include="System.IO.Compression" Condition="$(TargetFramework) == 'net48'" />
 	</ItemGroup>
 
 	
 	<ItemGroup>
-		<StaticResourceFolder Include="TestData" />
+		<StaticResourceFolder Include="TestData" Visible="false" />
 		<None Update="Data/**/*">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</None>

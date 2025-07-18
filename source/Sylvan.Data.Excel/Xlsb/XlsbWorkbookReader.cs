@@ -172,6 +172,7 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 	{
 		this.hasRows = true;
 		this.state = State.Initializing;
+		this.fieldCount = 0;
 
 		if (reader == null)
 		{

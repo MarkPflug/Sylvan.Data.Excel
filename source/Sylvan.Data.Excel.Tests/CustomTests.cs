@@ -5,6 +5,30 @@ namespace Sylvan.Data.Excel;
 
 public class CustomTests
 {
+
+	[Fact]
+	public void BadSlash()
+	{
+		// This file contains package relations that use absolute rooted paths instead of relative paths.
+		// "/xl/workbook.xml" vs "xl/workbook.xml"
+		// This was causing the issues with the code that locates the package parts 
+		TestSlash("Data/sample_file_bad.xlsx");
+	}
+
+	[Fact]
+	public void GoodSlash()
+	{
+		TestSlash("Data/sample_file_good.xlsx");
+	}
+
+	void TestSlash(string file)
+	{
+		using var reader = ExcelDataReader.Create(file);
+
+		var b = reader.TryOpenWorksheet("MasterInvoice_Detailed_XLSX");
+		Assert.True(b);
+	}
+
 	[Fact]
 	public void InlineString()
 	{

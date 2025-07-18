@@ -146,7 +146,9 @@ public class XlsxTests
 			}
 			else
 			{
-				var dt = epoch.AddDays(value - 1);
+				var dayTicks = value * TimeSpan.TicksPerDay;
+				var ticks = (long)dayTicks - TimeSpan.TicksPerDay;
+				var dt = epoch.AddTicks(ticks);
 
 				var dt1 = edr.GetDateTime(1);
 				Assert.Equal(dt, dt1);
@@ -884,6 +886,112 @@ public class XlsxTests
 	}
 
 	[Fact]
+	public void Boolean()
+	{
+		var file = this.GetFile();
+		using var edr = ExcelDataReader.Create(file);
+
+		Assert.True(edr.Read());
+
+		Assert.Equal(ExcelDataType.Boolean, edr.GetExcelDataType(0));
+		Assert.False(edr.IsDBNull(0));
+		Assert.True(edr.GetBoolean(0));
+
+		Assert.Equal("True", edr.GetValue(0)); // without a schema, this is a string
+
+		Assert.Equal(ExcelDataType.Boolean, edr.GetExcelDataType(1));
+		Assert.True(edr.GetBoolean(1));
+		Assert.False(edr.IsDBNull(1));
+		Assert.Equal("True", edr.GetValue(1));
+
+		Assert.Equal(ExcelDataType.String, edr.GetExcelDataType(2));
+		Assert.True(edr.GetBoolean(2));
+		Assert.False(edr.IsDBNull(2));
+		Assert.Equal("true", edr.GetValue(2));
+
+		Assert.True(edr.Read());
+		Assert.Equal(ExcelDataType.Boolean, edr.GetExcelDataType(0));
+		Assert.False(edr.GetBoolean(0));
+		Assert.Equal(ExcelDataType.Boolean, edr.GetExcelDataType(1));
+		Assert.False(edr.GetBoolean(1));
+		Assert.Equal(ExcelDataType.String, edr.GetExcelDataType(2));
+		Assert.False(edr.GetBoolean(2));
+
+		Assert.True(edr.Read());
+		Assert.Equal(ExcelDataType.Null, edr.GetExcelDataType(0));
+		Assert.Equal(DBNull.Value, edr.GetValue(0));
+		Assert.Equal(ExcelDataType.Null, edr.GetExcelDataType(1));
+		Assert.Equal(DBNull.Value, edr.GetValue(1));
+		Assert.Equal(ExcelDataType.Null, edr.GetExcelDataType(2));
+		Assert.Equal(DBNull.Value, edr.GetValue(2));
+
+		Assert.True(edr.Read());
+		Assert.Equal(ExcelDataType.Boolean, edr.GetExcelDataType(0));
+		Assert.True(edr.GetBoolean(0));
+		Assert.Equal(ExcelDataType.Boolean, edr.GetExcelDataType(1));
+		Assert.True(edr.GetBoolean(1));
+		Assert.Equal(ExcelDataType.String, edr.GetExcelDataType(2));
+		Assert.True(edr.GetBoolean(2));
+	}
+
+	[Fact]
+	public void BooleanSchema()
+	{
+		var file = this.GetFile("Boolean");
+
+		var schema =
+			new Schema.Builder()
+			.Add<bool?>("Boolean")
+			.Add<bool?>("Formula")
+			.Add<bool?>("String")
+			.Build();
+
+		using var edr = ExcelDataReader.Create(file, new ExcelDataReaderOptions { Schema = new ExcelSchema(true, schema) });
+
+		Assert.True(edr.Read());
+
+		Assert.Equal(ExcelDataType.Boolean, edr.GetExcelDataType(0));
+		Assert.False(edr.IsDBNull(0));
+		Assert.True(edr.GetBoolean(0));
+		Assert.Equal(true, edr.GetValue(0)); // with the schema this is a boolean
+
+		Assert.Equal(ExcelDataType.Boolean, edr.GetExcelDataType(1));
+		Assert.True(edr.GetBoolean(1));
+		Assert.False(edr.IsDBNull(1));
+		Assert.Equal(true, edr.GetValue(1));
+
+		Assert.Equal(ExcelDataType.String, edr.GetExcelDataType(2));
+		Assert.True(edr.GetBoolean(2));
+		Assert.False(edr.IsDBNull(2));
+		Assert.Equal(true, edr.GetValue(2));
+
+		Assert.True(edr.Read());
+		Assert.Equal(ExcelDataType.Boolean, edr.GetExcelDataType(0));
+		Assert.False(edr.GetBoolean(0));
+		Assert.Equal(ExcelDataType.Boolean, edr.GetExcelDataType(1));
+		Assert.False(edr.GetBoolean(1));
+		Assert.Equal(ExcelDataType.String, edr.GetExcelDataType(2));
+		Assert.False(edr.GetBoolean(2));
+
+		Assert.True(edr.Read());
+		Assert.Equal(ExcelDataType.Null, edr.GetExcelDataType(0));
+		Assert.Equal(typeof(bool), edr.GetFieldType(0)); // still boolean type, even though this cell is null
+		Assert.Equal(DBNull.Value, edr.GetValue(0));
+		Assert.Equal(ExcelDataType.Null, edr.GetExcelDataType(1));
+		Assert.Equal(DBNull.Value, edr.GetValue(1));
+		Assert.Equal(ExcelDataType.Null, edr.GetExcelDataType(2));
+		Assert.Equal(DBNull.Value, edr.GetValue(2));
+
+		Assert.True(edr.Read());
+		Assert.Equal(ExcelDataType.Boolean, edr.GetExcelDataType(0));
+		Assert.True(edr.GetBoolean(0));
+		Assert.Equal(ExcelDataType.Boolean, edr.GetExcelDataType(1));
+		Assert.True(edr.GetBoolean(1));
+		Assert.Equal(ExcelDataType.String, edr.GetExcelDataType(2));
+		Assert.True(edr.GetBoolean(2));
+	}
+
+	[Fact]
 	public void BoolSchema()
 	{
 		var schemaSpec = ":bool{Yes|No},:bool,:bool{Yes|},:bool{|0}";
@@ -1310,6 +1418,18 @@ public class XlsxTests
 
 		Assert.Equal("Sheet1", edr.WorksheetName);
 	}
+	[Fact]
+	public void MultiSheet3()
+	{
+		var file = GetFile("MultiSheet3");
+		using var reader = ExcelDataReader.Create(file);
+
+		Assert.Equal(3, reader.FieldCount);
+		reader.NextResult();
+		Assert.Equal(2, reader.FieldCount);
+		reader.NextResult();
+		Assert.Equal(0, reader.FieldCount);
+	}
 
 	[Fact]
 	public void MultiSheetHeader()
@@ -1499,6 +1619,107 @@ public class XlsxTests
 		Assert.False(edr.IsRowHidden);
 		Assert.Equal(3, edr.GetInt32(0));
 		Assert.False(edr.Read());
+	}
+
+	[Fact]
+	public void TimeSpanAsString()
+	{
+		var file = GetFile("DateTime");
+		using var edr = ExcelDataReader.Create(file);
+
+		edr.Read();
+		var ts = edr.GetTimeSpan(3);
+		Assert.Equal(TimeSpan.Zero, ts);
+		var val = edr.GetValue(3);
+		Assert.Equal("00:00:00", val);
+		var str = edr.GetString(3);
+		Assert.Equal("00:00:00", str);
+
+		edr.Read();
+		ts = edr.GetTimeSpan(3);
+		Assert.Equal(TimeSpan.FromMinutes(144), ts);
+		val = edr.GetValue(3);
+		Assert.Equal("02:24:00", val);
+		str = edr.GetString(3);
+		Assert.Equal("02:24:00", str);
+	}
+
+#if NET6_0_OR_GREATER
+
+	[Fact]
+	public void DateTimeGetValue()
+	{
+		var sb =
+			new Schema.Builder()
+			.Add<double>("Value")
+			.Add<DateOnly>("Date")
+			.Add<DateTime>("DateTime")
+			.Add<TimeSpan>("Time")
+			.Build();
+
+		var schema = new ExcelSchema(true, sb);
+		var opts = new ExcelDataReaderOptions { Schema = schema };
+		var file = GetFile("DateTime");
+		using var edr = ExcelDataReader.Create(file, opts);
+
+		for (int i = 0; i < 10; i++)
+		{
+			// skip the rows with the invalid dates
+			edr.Read();
+		}
+
+		edr.Read();
+		object value;
+		value = edr.GetValue(0);
+		Assert.IsType<double>(value);
+		Assert.IsType<DateOnly>(edr.GetValue(1));
+		Assert.IsType<DateTime>(edr.GetValue(2));
+		Assert.IsType<TimeSpan>(edr.GetValue(3));
+
+	}
+
+#endif
+
+	[Fact]
+	public void NoHeaderFieldCount()
+	{
+		var file = GetFile("Date1900");
+		var opt = new ExcelDataReaderOptions { Schema = DynamicNoHeadersSchema.Instance };
+		using var edr = ExcelDataReader.Create(file, opt);
+		Assert.Equal(1, edr.FieldCount);
+	}
+
+
+	class DynamicNoHeadersSchema : IExcelSchemaProvider
+	{
+		public static DynamicNoHeadersSchema Instance = new DynamicNoHeadersSchema();
+
+		class Col : DbColumn
+		{
+			public Col(int ordinal)
+			{
+				this.ColumnOrdinal = ordinal;
+				this.ColumnName = "a";
+				this.AllowDBNull = true;
+				this.DataType = typeof(object);
+				this.DataTypeName = this.DataType.Name;
+			}
+		}
+
+		public DbColumn GetColumn(string sheetName, string name, int ordinal)
+		{
+			return new Col(ordinal);
+		}
+
+		public bool HasHeaders(string sheetName)
+		{
+			return false;
+		}
+
+		public int GetFieldCount(ExcelDataReader reader)
+		{
+			return reader.RowFieldCount;
+		}
 	}
 
 #if ASYNC

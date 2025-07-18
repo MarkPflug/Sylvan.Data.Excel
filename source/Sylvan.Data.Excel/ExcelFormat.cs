@@ -248,13 +248,26 @@ public sealed class ExcelFormat
 	internal string FormatValue(double value, ExcelDataReader.DateMode mode)
 	{
 		var kind = this.Kind;
+		DateTime dt;
 		switch (kind)
 		{
 			case FormatKind.Number:
 				return value.ToString("G");
-			case FormatKind.Date:
 			case FormatKind.Time:
-				if (ExcelDataReader.TryGetDate(this, value, mode,  out var dt))
+				// for values rendered as time (not including date) that are in the
+				// range 0-1 (which renders in Excel as 1900-01-00),
+				// allow these to be reported as just the time component.
+				if (value >= 0d && value < 1d)
+				{
+					// omit rendering the date when the value is in the range 0-1
+					// this would render in Excel as the date 
+					var fmt = "HH:mm:ss.FFFFFF";
+					dt = DateTime.MinValue.AddDays(value);
+					return dt.ToString(fmt);
+				}
+				goto case FormatKind.Date;
+			case FormatKind.Date:
+				if (ExcelDataReader.TryGetDate(this, value, mode, out dt))
 				{
 					if (dt.TimeOfDay == TimeSpan.Zero)
 					{
@@ -263,20 +276,6 @@ public sealed class ExcelFormat
 					else
 					{
 						return IsoDate.ToStringIso(dt);
-					}
-				}
-				else
-				{
-					// for values rendered as time (not including date) that are in the
-					// range 0-1 (which renders in Excel as 1900-01-00),
-					// allow these to be reported as just the time component.
-					if (value < 1d && value >= 0d && Kind == FormatKind.Time)
-					{
-						// omit rendering the date when the value is in the range 0-1
-						// this would render in Excel as the date 
-						var fmt = "HH:mm:ss.FFFFFF";
-						dt = DateTime.MinValue.AddDays(value);
-						return dt.ToString(fmt);
 					}
 				}
 				// We arrive here for negative values which render in Excel as "########" (not meaningful)
