@@ -12,6 +12,12 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 
+#if !SPAN
+using ReadonlyCharSpan = System.String;
+#else
+using ReadonlyCharSpan = System.ReadOnlySpan<char>;
+#endif
+
 namespace Sylvan.Data.Excel;
 
 /// <summary>
@@ -58,10 +64,10 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 	private protected DateMode dateMode;
 	private protected readonly bool ignoreEmptyTrailingRows;
 
-	readonly string? trueString;
-	readonly string? falseString;
+	private protected readonly string? trueString;
+	private protected readonly string? falseString;
 
-	readonly CultureInfo culture;
+	private protected readonly CultureInfo culture;
 	readonly string? dateTimeFormat;
 
 	struct OrdinalCache
@@ -285,7 +291,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 		}
 	}
 
-	void ValidateAccess()
+	private protected void ValidateAccess()
 	{
 		if (state != State.Open)
 			throw new InvalidOperationException();
@@ -720,7 +726,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 	/// <summary>
 	/// Gets the <see cref="ExcelErrorCode"/> of the error in the given cell.
 	/// </summary>
-	public ExcelErrorCode GetFormulaError(int ordinal)
+	public virtual ExcelErrorCode GetFormulaError(int ordinal)
 	{
 		ValidateAccess();
 		var cell = GetFieldValue(ordinal);
@@ -931,10 +937,27 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 	/// </remarks>
 	/// <param name="ordinal">The zero-based column ordinal.</param>
 	/// <returns>A string representing the value of the column.</returns>
-	public sealed override string GetString(int ordinal)
+	public override string GetString(int ordinal)
 	{
 		ValidateAccess();
 		return GetStringRaw(ordinal);
+	}
+
+	private protected static bool TryParse(ReadonlyCharSpan span, out int value)
+	{
+		int a = 0;
+		for (int i = 0; i < span.Length; i++)
+		{
+			var d = span[i] - '0';
+			if ((uint)d >= 10)
+			{
+				value = 0;
+				return false;
+			}
+			a = a * 10 + d;
+		}
+		value = a;
+		return true;
 	}
 
 	string GetStringRaw(int ordinal)
@@ -960,9 +983,14 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 			case FieldType.String:
 				return fi.strValue ?? "";
 			case FieldType.SharedString:
-				return GetSharedString(fi.ssIdx) ?? "";
+				return GetSharedStringRaw(in fi, ordinal);
 		}
 		return ProcString(in fi);
+	}
+
+	private protected virtual string GetSharedStringRaw(ref readonly FieldInfo fi, int ordinal)
+	{
+		return GetSharedString(fi.ssIdx) ?? "";
 	}
 
 	string ProcString(ref readonly FieldInfo fi)
@@ -972,7 +1000,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 
 	private protected abstract string GetSharedString(int idx);
 
-	string FormatVal(int xfIdx, double val)
+	private protected string FormatVal(int xfIdx, double val)
 	{
 		var fmtIdx = xfIdx >= this.xfMap.Length ? -1 : this.xfMap[xfIdx];
 		if (fmtIdx != -1)
@@ -993,7 +1021,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 	}
 
 	/// <inheritdoc/>
-	public sealed override double GetDouble(int ordinal)
+	public override double GetDouble(int ordinal)
 	{
 		ValidateAccess();
 		ref readonly var cell = ref GetFieldValue(ordinal);
@@ -1011,14 +1039,14 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 		throw new InvalidCastException();
 	}
 
-	ExcelFormulaException Error(int ordinal)
+	private protected virtual ExcelFormulaException Error(int ordinal)
 	{
 		ref readonly var cell = ref GetFieldValue(ordinal);
 		return new ExcelFormulaException(ordinal, RowNumber, cell.ErrorCode);
 	}
 
 	/// <inheritdoc/>
-	public sealed override bool GetBoolean(int ordinal)
+	public override bool GetBoolean(int ordinal)
 	{
 		ValidateAccess();
 		ref readonly var fi = ref this.GetFieldValue(ordinal);

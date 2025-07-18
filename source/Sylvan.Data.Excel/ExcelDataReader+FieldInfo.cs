@@ -25,6 +25,8 @@ partial class ExcelDataReader
 		internal string? strValue;
 
 		[FieldOffset(8)]
+		internal ExcelErrorCode errorCode;
+		[FieldOffset(8)]
 		internal bool boolValue;
 		[FieldOffset(8)]
 		internal int ssIdx;
@@ -39,7 +41,8 @@ partial class ExcelDataReader
 		[FieldOffset(20)]
 		internal int xfIdx;
 
-
+		[FieldOffset(24)]
+		internal int valueLen;
 
 		internal bool IsEmptyValue
 		{
@@ -51,7 +54,7 @@ partial class ExcelDataReader
 
 		internal ExcelErrorCode ErrorCode
 		{
-			get { return (ExcelErrorCode)numValue; }
+			get { return errorCode; }
 		}
 
 		internal bool BoolValue
@@ -77,7 +80,7 @@ partial class ExcelDataReader
 		{
 			this = default;
 			this.type = FieldType.Error;
-			this.numValue = (double)c;
+			this.errorCode = c;
 		}
 
 		public FieldInfo(uint val, FieldType type)
