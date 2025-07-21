@@ -17,19 +17,13 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 		public int Offset { get; }
 	}
 
-	// rows are stored in blocks of records
-	const int RowBatchSize = 32;
-	const int Biff8VersionCode = 0x0600;
-	const int Biff8EntryDataSize = 8224;
-
 	RecordReader reader;
 	short biffVersion = 0;
 
 	int rowNumber = 0;
-
 	int curFieldCount = 0;
 	int pendingRow = -1;
-
+	BitArray hidden;
 	int rowCellCount = 0;
 
 	internal XlsWorkbookReader(Stream stream, ExcelDataReaderOptions options) : base(stream, options)
@@ -44,23 +38,20 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 		var ps = part.Open();
 
 		this.reader = new RecordReader(ps);
+		// this is an 8k allocation to hold the hidden state of the rows.
+		// typically we'd only need 32 at a time, but for some files we need more
+		// but, I don't think it's worth the effort for .xls files, which are less
+		// often used anymore.
+		this.hidden = new BitArray(0x10000);
 		this.ReadHeader();
 		this.NextResult();
 	}
-
-	BitArray rowHidden = new BitArray(32);
 
 	public override ExcelWorkbookType WorkbookType => ExcelWorkbookType.Excel;
 
 	public override int RowNumber => rowNumber;
 
-	public override bool IsRowHidden
-	{
-		get
-		{
-			return this.rowHidden[(this.rowNumber - 1) & 0b11111];
-		}
-	}
+	public override bool IsRowHidden => GetRowHidden(this.rowIndex);
 
 	private protected override bool OpenWorksheet(int sheetIdx)
 	{
@@ -108,6 +99,7 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 		}
 
 		rowIndex++;
+		AdvanceRowHidden(rowIndex);
 
 		var count = NextRow();
 
@@ -420,7 +412,7 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 				default:
 					throw new InvalidDataException();
 			}
-		}		
+		}
 	}
 
 	void ParseFormula()
@@ -490,6 +482,25 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 		values[colIdx] = cd;
 	}
 
+	void SetRowHidden(int row, bool hidden)
+	{
+		this.hidden[row] = hidden;
+	}
+
+	bool GetRowHidden(int row)
+	{
+		return hidden[row];
+	}
+		
+	void AdvanceRowHidden(int row)
+	{
+		// We don't do anything at this time.
+		// This is for a potential future improvement
+		// which doesn't use a 64k bit array (8k bytes) for
+		// storing the hidden flags.
+		// As the row cursor is advanced we could "forget"
+		// the previous row hidden state.
+	}
 
 	int NextRow()
 	{
@@ -575,14 +586,22 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 			switch (reader.Type)
 			{
 				case RecordType.Row:
-					// TODO: I should really be handling this more similarly to .xlsb reading.
-					// where I can read from a specific offset in the record.
-					var r1 = reader.ReadInt16();
-					var r2 = reader.ReadInt16();
+					var rowIdx = reader.ReadInt16();
+					reader.ReadInt16();
 					reader.ReadInt32();
 					reader.ReadInt32();
+
+					// the only reason we care about the "row" record is for the flag indicating if
+					// the row is hidden/collapsed. Unfortunately, multiple row records can appear
+					// sequentially before their associated cell/field data. Typically, Excel will
+					// write 32 row records in a block, followed by the cell data for those rows.
+					// However, some .xls files created by other tools will have *all* rows
+					// before any cell data. So, we might need to allocate up to 64k bits to store
+					// the hidden state for those files.
+
 					var flags = reader.ReadInt32();
-					this.rowHidden[r1 & 0b11111] = (flags & 0x20) != 0;
+					var isHidden = (flags & 0x20) != 0;
+					SetRowHidden(rowIdx, isHidden);
 					break;
 				case RecordType.LabelSST:
 					ParseLabelSST();
