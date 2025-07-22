@@ -116,12 +116,12 @@ static class RunTimeCompatability
 	public static ReadOnlySpan<char> ToParsable(this ReadOnlySpan<char> span, int offset, int length)
 	{
 		return span.Slice(offset, length);
+	}
 
+	public static ReadOnlySpan<char> ToParsable(this Span<char> span, int offset, int length)
+	{
+		return span.Slice(offset, length);
 	}
-		public static ReadOnlySpan<char> ToParsable(this Span<char> span, int offset, int length)
-		{
-			return span.Slice(offset, length);
-		}
-	}
+}
 
 #endif
