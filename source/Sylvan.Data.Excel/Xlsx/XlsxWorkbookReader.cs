@@ -180,6 +180,14 @@ sealed partial class XlsxWorkbookReader : ExcelDataReader
 		NextResult();
 	}
 
+	public override bool IsRowHidden
+	{
+		get
+		{
+			return this.isRowHidden && this.rowIndex == this.parsedRowIndex;
+		}
+	}
+
 	private protected override ref readonly FieldInfo GetFieldValue(int ordinal)
 	{
 		if (rowIndex < this.parsedRowIndex)
@@ -239,6 +247,31 @@ sealed partial class XlsxWorkbookReader : ExcelDataReader
 						}
 					}
 				}
+				else
+				if (reader.LocalName == "cols")
+				{
+					if (reader.IsEmptyElement)
+						continue;
+					while (reader.Read())
+					{
+						if (reader.NodeType == XmlNodeType.Element)
+						{
+							if (reader.LocalName == "col")
+							{
+								if (reader.MoveToAttribute("hidden"))
+								{
+									var isColHidden = ReadBooleanValue();
+								}
+							}
+						}
+						else
+						if (reader.NodeType == XmlNodeType.EndElement)
+						{
+							break;
+						}
+					}
+				}
+				else
 				if (reader.LocalName == "sheetData")
 				{
 					break;
@@ -310,12 +343,19 @@ sealed partial class XlsxWorkbookReader : ExcelDataReader
 
 	bool NextRow()
 	{
+		var reader = this.reader;
+		if (reader == null) return false;
+
 		var ci = NumberFormatInfo.InvariantInfo;
-		if (ReadToFollowing(reader!, "row"))
+		if (ReadToFollowing(reader, "row"))
 		{
-			if (reader!.MoveToAttribute("r"))
+			this.parsedRowIndex = -1;
+			this.isRowHidden = false;
+			while (reader.MoveToNextAttribute())
 			{
-				int row;
+				if (reader.LocalName == "r")
+				{
+					int row;
 #if SPAN
 				var len = reader.ReadValueChunk(buffer, 0, buffer.Length);
 				if (len < buffer.Length && TryParse(buffer.AsSpan(0, len), out row))
@@ -326,22 +366,46 @@ sealed partial class XlsxWorkbookReader : ExcelDataReader
 					row = 0;
 				}
 #else
-				var str = reader.Value;
-				if (!int.TryParse(str, NumberStyles.Integer, ci, out row))
-				{
-					row = 0;
-				}
+					var str = reader.Value;
+					if (!int.TryParse(str, NumberStyles.Integer, ci, out row))
+					{
+						row = 0;
+					}
 #endif
-				this.parsedRowIndex = row - 1;
-			}
-			else
-			{
-				this.parsedRowIndex = -1;
+					this.parsedRowIndex = row - 1;
+
+				}
+				else
+				if (reader.LocalName == "hidden")
+				{
+					this.isRowHidden = ReadBooleanValue();
+				}
 			}
 			reader.MoveToElement();
 			return true;
 		}
 		return false;
+	}
+
+	bool ReadBooleanValue()
+	{
+		var len = reader!.ReadValueChunk(buffer, 0, 1);
+		if (len == 1)
+		{
+			var c = buffer[0];
+			switch (c)
+			{
+				case '0':
+				case 'f':
+				case 'F':
+					return false;
+				case '1':
+				case 't':
+				case 'T':
+					return true;
+			}
+		}
+		return false;// empty value.
 	}
 
 	struct CellPosition
@@ -411,6 +475,11 @@ sealed partial class XlsxWorkbookReader : ExcelDataReader
 			while (NextRow())
 			{
 				var c = ParseRowValues();
+				if (this.readHiddenRows == false && this.IsRowHidden)
+				{
+					rowIndex++;
+					continue;
+				}
 				if (c == 0)
 				{
 					if (this.ignoreEmptyTrailingRows)

@@ -27,6 +27,14 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 
 	public override ExcelWorkbookType WorkbookType => ExcelWorkbookType.ExcelXml;
 
+	public override bool IsRowHidden
+	{
+		get
+		{
+			return this.isRowHidden && this.rowIndex == this.parsedRowIndex;
+		}
+	}
+
 	public override void Close()
 	{
 		this.sheetStream?.Close();
@@ -288,6 +296,11 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 			while (true)
 			{
 				var c = ParseRowValues();
+				if (this.readHiddenRows == false && this.IsRowHidden)
+				{
+					rowIndex++;
+					continue;
+				}
 				if (c < 0)
 				{
 					this.rowFieldCount = 0;
@@ -346,6 +359,8 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 
 		var rowIdx = reader.GetInt32(0);
 		var ifx = reader.GetInt32(4);
+		var flags = reader.GetByte(11);
+		this.isRowHidden = (flags & 0x10) != 0;
 
 		reader.NextRecord();
 		int count = 0;
@@ -442,7 +457,7 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 								break;
 							case RecordType.CellIsst:
 								type = FieldType.SharedString;
-								var sstIdx = reader.GetInt32(8);								
+								var sstIdx = reader.GetInt32(8);
 								fi.ssIdx = sstIdx;
 								notNull++;
 								break;

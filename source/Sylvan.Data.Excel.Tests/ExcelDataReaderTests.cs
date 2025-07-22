@@ -150,10 +150,6 @@ public class XlsxTests
 				var ticks = (long)dayTicks - TimeSpan.TicksPerDay;
 				var dt = epoch.AddTicks(ticks);
 
-				if (i == 0x0d)
-				{
-					;
-				}
 				var dt1 = edr.GetDateTime(1);
 				Assert.Equal(dt, dt1);
 				var dt2 = edr.GetDateTime(2);
@@ -1582,6 +1578,46 @@ public class XlsxTests
 			Assert.Equal("", edr.GetString(0));
 			Assert.Equal(0, edr.RowFieldCount);
 		}
+		Assert.False(edr.Read());
+	}
+
+	[Fact]
+	public void HiddenRow()
+	{
+		var name = GetFile();
+		var opt = new ExcelDataReaderOptions
+		{
+			Schema = ExcelSchema.NoHeaders
+		};
+		var edr = ExcelDataReader.Create(name, opt);
+		Assert.True(edr.Read());
+		Assert.False(edr.IsRowHidden);
+		Assert.Equal(1, edr.GetInt32(0));
+		Assert.True(edr.Read());
+		Assert.True(edr.IsRowHidden);
+		Assert.Equal(2, edr.GetInt32(0));
+		Assert.True(edr.Read());
+		Assert.False(edr.IsRowHidden);
+		Assert.Equal(3, edr.GetInt32(0));
+		Assert.False(edr.Read());
+	}
+
+	[Fact]
+	public void HiddenRowSkip()
+	{
+		var name = GetFile("HiddenRow");
+		var opt = new ExcelDataReaderOptions
+		{
+			Schema = ExcelSchema.NoHeaders,
+			ReadHiddenRows = false
+		};
+		var edr = ExcelDataReader.Create(name, opt);
+		Assert.True(edr.Read());
+		Assert.False(edr.IsRowHidden);
+		Assert.Equal(1, edr.GetInt32(0));
+		Assert.True(edr.Read());
+		Assert.False(edr.IsRowHidden);
+		Assert.Equal(3, edr.GetInt32(0));
 		Assert.False(edr.Read());
 	}
 
