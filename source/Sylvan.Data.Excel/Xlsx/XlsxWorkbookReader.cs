@@ -357,14 +357,14 @@ sealed partial class XlsxWorkbookReader : ExcelDataReader
 				{
 					int row;
 #if SPAN
-				var len = reader.ReadValueChunk(buffer, 0, buffer.Length);
-				if (len < buffer.Length && TryParse(buffer.AsSpan(0, len), out row))
-				{
-				}
-				else
-				{
-					row = 0;
-				}
+					var len = reader.ReadValueChunk(buffer, 0, buffer.Length);
+					if (len < buffer.Length && TryParse(buffer.AsSpan(0, len), out row))
+					{
+					}
+					else
+					{
+						row = 0;
+					}
 #else
 					var str = reader.Value;
 					if (!int.TryParse(str, NumberStyles.Integer, ci, out row))
@@ -624,82 +624,94 @@ sealed partial class XlsxWorkbookReader : ExcelDataReader
 			else
 			if (ReadToDescendant(reader, "v"))
 			{
-				if (!reader.IsEmptyElement)
+				if (reader.IsEmptyElement)
+				{
+					fi.type = FieldType.Null;
+					fi.valueLen = 0;
+				}
+				else
 				{
 					reader.Read();
-				}
 
-				int ReadValue(int col)
-				{
-					return reader.ReadValueChunk(valuesBuffer, col * ValueBufferElementSize, ValueBufferElementSize);
-				}
+					int ReadValue(int col)
+					{
+						return reader.ReadValueChunk(valuesBuffer, col * ValueBufferElementSize, ValueBufferElementSize);
+					}
 
-				switch (type)
-				{
-					case CellType.Numeric:
-						fi.type = FieldType.Numeric;
-						fi.valueLen = ReadValue(col);
-						break;
-					case CellType.Date:
-						fi.type = FieldType.DateTime;
-						fi.valueLen = ReadValue(col);
-						break;
-					case CellType.SharedString:
-						if (reader.NodeType == XmlNodeType.Text)
+					if (reader.NodeType == XmlNodeType.EndElement)
+					{
+
+					} 
+					else
+					{
+						switch (type)
 						{
-							fi.type = FieldType.SharedString;
-							fi.valueLen = ReadValue(col);
+							case CellType.Numeric:
+								fi.type = FieldType.Numeric;
+								fi.valueLen = ReadValue(col);
+								break;
+							case CellType.Date:
+								fi.type = FieldType.DateTime;
+								fi.valueLen = ReadValue(col);
+								break;
+							case CellType.SharedString:
+								if (reader.NodeType == XmlNodeType.Text)
+								{
+									fi.type = FieldType.SharedString;
+									fi.valueLen = ReadValue(col);
+								}
+								else
+								{
+									// this handles an edge-case where the field is a shared string,
+									// but the index is empty.
+									fi.strValue = string.Empty;
+									fi.type = FieldType.String;
+								}
+								break;
+							case CellType.String:
+								if (reader.NodeType == XmlNodeType.Text)
+								{
+									var s = reader.ReadContentAsString();
+									if (reader.XmlSpace != XmlSpace.Preserve)
+									{
+										s = s.Trim();
+									}
+									fi.strValue = s;
+									fi.type = FieldType.String;
+								}
+								else
+								{
+									fi.strValue = string.Empty;
+									fi.type = FieldType.Null;
+								}
+								break;
+							case CellType.InlineString:
+								fi.strValue = ReadString(reader);
+								fi.type = FieldType.String;
+								if (fi.strValue.Length == 0)
+								{
+									fi.type = FieldType.Null;
+								}
+								break;
+							case CellType.Boolean:
+								fi.type = FieldType.Boolean;
+								fi.valueLen = ReadValue(col);
+								//fi = new FieldInfo(valueBuffer[0] != '0');
+								break;
+							case CellType.Error:
+								fi.type = FieldType.Error;
+								fi.valueLen = ReadValue(col);
+								//fi = new FieldInfo(GetErrorCode(valueBuffer.AsSpan(0, len)));
+								break;
+							default:
+								throw new InvalidDataException();
 						}
-						else
+						if (fi.type != FieldType.Null)
 						{
-							// this handles an edge-case where the field is a shared string,
-							// but the index is empty.
-							fi.strValue = string.Empty;
-							fi.type = FieldType.String;
+							valueCount++;
+							this.rowFieldCount = col + 1;
 						}
-						break;
-					case CellType.String:
-						if (reader.NodeType == XmlNodeType.Text)
-						{
-							var s = reader.ReadContentAsString();
-							if (reader.XmlSpace != XmlSpace.Preserve)
-							{
-								s = s.Trim();
-							}
-							fi.strValue = s;
-							fi.type = FieldType.String;
-						}
-						else
-						{
-							fi.strValue = string.Empty;
-							fi.type = FieldType.Null;
-						}
-						break;
-					case CellType.InlineString:
-						fi.strValue = ReadString(reader);
-						fi.type = FieldType.String;
-						if (fi.strValue.Length == 0)
-						{
-							fi.type = FieldType.Null;
-						}
-						break;
-					case CellType.Boolean:
-						fi.type = FieldType.Boolean;
-						fi.valueLen = ReadValue(col);
-						//fi = new FieldInfo(valueBuffer[0] != '0');
-						break;
-					case CellType.Error:
-						fi.type = FieldType.Error;
-						fi.valueLen = ReadValue(col);
-						//fi = new FieldInfo(GetErrorCode(valueBuffer.AsSpan(0, len)));
-						break;
-					default:
-						throw new InvalidDataException();
-				}
-				if (fi.type != FieldType.Null)
-				{
-					valueCount++;
-					this.rowFieldCount = col + 1;
+					}					
 				}
 			}
 
