@@ -260,7 +260,7 @@ sealed partial class XlsxWorkbookReader : ExcelDataReader
 							{
 								if (reader.MoveToAttribute("hidden"))
 								{
-									var isColHidden = ReadBooleanValue();
+									var isColHidden = ReadBooleanValue(reader, buffer);
 								}
 							}
 						}
@@ -378,7 +378,7 @@ sealed partial class XlsxWorkbookReader : ExcelDataReader
 				else
 				if (reader.LocalName == "hidden")
 				{
-					this.isRowHidden = ReadBooleanValue();
+					this.isRowHidden = ReadBooleanValue(reader, buffer);
 				}
 			}
 			reader.MoveToElement();
@@ -387,7 +387,7 @@ sealed partial class XlsxWorkbookReader : ExcelDataReader
 		return false;
 	}
 
-	bool ReadBooleanValue()
+	static bool ReadBooleanValue(XmlReader reader, char[] buffer)
 	{
 		var len = reader!.ReadValueChunk(buffer, 0, 1);
 		if (len == 1)
@@ -638,11 +638,7 @@ sealed partial class XlsxWorkbookReader : ExcelDataReader
 						return reader.ReadValueChunk(valuesBuffer, col * ValueBufferElementSize, ValueBufferElementSize);
 					}
 
-					if (reader.NodeType == XmlNodeType.EndElement)
-					{
-
-					} 
-					else
+					if (reader.NodeType == XmlNodeType.Text)
 					{
 						switch (type)
 						{
