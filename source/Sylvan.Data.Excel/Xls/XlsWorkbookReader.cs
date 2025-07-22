@@ -586,7 +586,7 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 			switch (reader.Type)
 			{
 				case RecordType.Row:
-					var rowIdx = reader.ReadInt16();
+					var rowIdx = reader.ReadUInt16();
 					reader.ReadInt16();
 					reader.ReadInt32();
 					reader.ReadInt32();
