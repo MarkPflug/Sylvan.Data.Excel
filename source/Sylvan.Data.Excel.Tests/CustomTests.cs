@@ -85,6 +85,19 @@ public class CustomTests
 	}
 
 	[Fact]
+	public void EmptyNumeric()
+	{
+		// Tests formatted shared string text
+		var reader = XlsxBuilder.Create(TestData.EmptyNumeric);
+
+		Assert.True(reader.Read());
+		Assert.True(reader.IsDBNull(0));
+		Assert.True(reader.IsDBNull(1));
+		Assert.True(reader.IsDBNull(2));
+		Assert.False(reader.Read());
+	}
+
+	[Fact]
 	public void EmptySharedStringValue()
 	{
 		// Test a degenerate case produced by AG grid export to Excel.
