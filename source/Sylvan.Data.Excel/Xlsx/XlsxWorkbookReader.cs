@@ -389,10 +389,10 @@ sealed partial class XlsxWorkbookReader : ExcelDataReader
 
 	bool ReadBooleanValue()
 	{
-		var len = reader!.ReadValueChunk(valueBuffer, 0, 1);
+		var len = reader!.ReadValueChunk(buffer, 0, 1);
 		if (len == 1)
 		{
-			var c = valueBuffer[0];
+			var c = buffer[0];
 			switch (c)
 			{
 				case '0':
