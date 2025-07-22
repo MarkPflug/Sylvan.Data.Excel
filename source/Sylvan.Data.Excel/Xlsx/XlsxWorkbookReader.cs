@@ -707,7 +707,7 @@ sealed partial class XlsxWorkbookReader : ExcelDataReader
 							valueCount++;
 							this.rowFieldCount = col + 1;
 						}
-					}					
+					}
 				}
 			}
 
