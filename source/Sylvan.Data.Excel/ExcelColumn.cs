@@ -16,7 +16,7 @@ class ExcelColumn : DbColumn
 		// non-overridable
 		this.ColumnOrdinal = ordinal;
 		this.IsReadOnly = true;
-		
+
 		var colName = schema?.ColumnName;
 
 		this.ColumnName = string.IsNullOrEmpty(colName) ? name ?? "" : colName;

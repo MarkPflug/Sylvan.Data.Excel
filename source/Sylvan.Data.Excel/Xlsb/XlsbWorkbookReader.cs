@@ -195,6 +195,21 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 				}
 				this.rowCount = rowLast + 1;
 			}
+			if (reader.RecordType == RecordType.ColInfo)
+			{
+				var min = reader.GetInt32(0);
+				var max = reader.GetInt32(4);
+				var flags = (ushort)reader.GetInt16(16);
+				var hidden = (flags & 1) != 0;
+
+				if (hidden && min <= max)
+				{
+					for (int i = min; i <= max; i++)
+					{
+						colHidden[i] = hidden;
+					}
+				}
+			}
 			if (reader.RecordType == RecordType.DataStart)
 			{
 				break;

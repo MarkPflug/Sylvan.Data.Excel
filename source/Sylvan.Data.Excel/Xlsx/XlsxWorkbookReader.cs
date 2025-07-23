@@ -289,7 +289,8 @@ sealed partial class XlsxWorkbookReader : ExcelDataReader
 								{
 									for (int i = min; i <= max; i++)
 									{
-										colHidden[i-1] = hidden;
+										// these indices are 1-based.
+										colHidden[i - 1] = hidden;
 									}
 								}
 							}

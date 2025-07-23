@@ -23,7 +23,7 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 	int rowNumber = 0;
 	int curFieldCount = 0;
 	int pendingRow = -1;
-	BitArray hidden;
+	BitArray rowHidden;
 	int rowCellCount = 0;
 
 	internal XlsWorkbookReader(Stream stream, ExcelDataReaderOptions options) : base(stream, options)
@@ -42,7 +42,7 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 		// typically we'd only need 32 at a time, but for some files we need more
 		// but, I don't think it's worth the effort for .xls files, which are less
 		// often used anymore.
-		this.hidden = new BitArray(0x10000);
+		this.rowHidden = new BitArray(0x10000);
 		this.ReadHeader();
 		this.NextResult();
 	}
@@ -222,7 +222,7 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 			switch (reader.Type)
 			{
 				case RecordType.ColInfo:
-					//ParseColInfo();
+					ReadColInfo();
 					break;
 				case RecordType.Dimension:
 					this.rowCount = ParseDimension();
@@ -262,6 +262,26 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 		short flags = reader.ReadInt16();
 
 		return ifmt;
+	}
+
+	void ReadColInfo()
+	{
+		var min = reader.ReadUInt16();
+		var max = reader.ReadUInt16();
+		reader.ReadUInt16(); // col width
+		reader.ReadUInt16(); // ixfe
+
+		var flags = reader.ReadUInt16();
+
+		var hidden = (flags & 1) != 0;
+
+		if (hidden && min <= max)
+		{
+			for (int i = min; i <= max; i++)
+			{
+				colHidden[i] = hidden;
+			}
+		}
 	}
 
 	void ParseFormat()
@@ -484,14 +504,14 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 
 	void SetRowHidden(int row, bool hidden)
 	{
-		this.hidden[row] = hidden;
+		this.rowHidden[row] = hidden;
 	}
 
 	bool GetRowHidden(int row)
 	{
-		return hidden[row];
+		return rowHidden[row];
 	}
-		
+
 	void AdvanceRowHidden(int row)
 	{
 		// We don't do anything at this time.
