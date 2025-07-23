@@ -1,5 +1,13 @@
 # Sylvan.Data.Excel Release Notes
 
+_0.4.28_
+- Adds `IsRowHidden` property to indicate if the current row is hidden.
+- Adds `ReadHiddenRows` option to skip hidden rows.
+- Schema now populates the `DbColumn.IsHidden` metadata for hidden columns.
+- Fixes a bug where `FieldCount` could be wrong for .xlsx files when advancing to the next sheet.
+- Fixes a bug when reading certain .xlsx files created/edited by third party tools.
+- Improves performance of reading .xlsx files when accessing only a subset of the columns in a sheet.
+
 _0.4.27_
 - Fixes an issue which prevented copying data out of an .xlsb file due to "multiple selection".
     This was caused because the sheet "selection" bit was set.
