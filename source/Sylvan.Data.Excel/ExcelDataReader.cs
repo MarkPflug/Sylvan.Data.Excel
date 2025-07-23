@@ -53,11 +53,10 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 	private protected int sheetIdx = -1;
 
 	private protected bool readHiddenSheets;
-	private protected bool readHiddenColumns;
 	private protected bool readHiddenRows;
 
 	// indicates if the current data row is hidden.
-	private protected bool isRowHidden; 
+	private protected bool isRowHidden;
 
 	private protected bool errorAsNull;
 
@@ -77,6 +76,8 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 
 	private protected readonly CultureInfo culture;
 	readonly string? dateTimeFormat;
+
+	private protected BitList colHidden;
 
 	struct OrdinalCache
 	{
@@ -122,12 +123,11 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 		this.schema = options.Schema;
 		this.errorAsNull = options.GetErrorAsNull;
 		this.readHiddenSheets = options.ReadHiddenWorksheets;
-		this.readHiddenColumns = options.ReadHiddenColumns;
 		this.readHiddenRows = options.ReadHiddenRows;
 		this.state = State.Initializing;
 		this.values = Array.Empty<FieldInfo>();
 		this.sst = Array.Empty<string>();
-
+		this.colHidden = new();
 		this.xfMap = Array.Empty<int>();
 		this.sheetInfos = Array.Empty<SheetInfo>();
 
@@ -539,7 +539,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 	/// </remarks>
 	public void Initialize()
 	{
-		var sheet = this.WorksheetName;		
+		var sheet = this.WorksheetName;
 		if (sheet == null)
 		{
 			throw new InvalidOperationException();
@@ -572,7 +572,8 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 		{
 			string? header = hasHeaders ? GetStringRaw(i) : null;
 			var col = schema.GetColumn(sheet, header, i);
-			var ecs = new ExcelColumn(header, i, col);
+			var hidden = colHidden[i];
+			var ecs = new ExcelColumn(header, i, hidden, col);
 			cols[i] = ecs;
 		}
 		this.columnSchema = cols;
@@ -689,7 +690,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 
 				if (schemaType == typeof(object))
 				{
-					return GetObjectValue(ordinal);	
+					return GetObjectValue(ordinal);
 				}
 
 				if (schemaType == typeof(TimeSpan))
@@ -962,23 +963,6 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 	{
 		ValidateAccess();
 		return GetStringRaw(ordinal);
-	}
-
-	private protected static bool TryParse(ReadonlyCharSpan span, out int value)
-	{
-		int a = 0;
-		for (int i = 0; i < span.Length; i++)
-		{
-			var d = span[i] - '0';
-			if ((uint)d >= 10)
-			{
-				value = 0;
-				return false;
-			}
-			a = a * 10 + d;
-		}
-		value = a;
-		return true;
 	}
 
 	string GetStringRaw(int ordinal)

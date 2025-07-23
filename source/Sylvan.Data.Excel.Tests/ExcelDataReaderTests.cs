@@ -1582,6 +1582,24 @@ public class XlsxTests
 	}
 
 	[Fact]
+	public void HiddenCol()
+	{
+		var name = GetFile();
+		var opt = new ExcelDataReaderOptions
+		{
+			Schema = ExcelSchema.NoHeaders
+		};
+		var edr = ExcelDataReader.Create(name, opt);
+		var s = edr.GetColumnSchema();
+		Assert.Equal(3, s.Count);
+		Assert.True(s[1].IsHidden);
+		edr.Read();
+		Assert.Equal("a", edr.GetString(0));
+		Assert.Equal("b", edr.GetString(1));
+		Assert.Equal("c", edr.GetString(2));
+	}
+
+	[Fact]
 	public void HiddenRow()
 	{
 		var name = GetFile();

@@ -1,8 +1,9 @@
 ﻿#if SPAN
+
 using System;
 using System.Xml;
 
-namespace Sylvan.Data.Excel.Xlsx;
+namespace Sylvan.Data.Excel;
 
 // these name tables avoid having to compute hashes on the
 // most common element names, and ensures that the strings
@@ -51,9 +52,11 @@ sealed class SheetNameTable : NameTable
 				if (value.SequenceEqual("is")) return "is";
 				break;
 			case 3:
-				if (value.SequenceEqual("col")) return "col";
 				if (value.SequenceEqual("row")) return "row";
 				if (value.SequenceEqual("ref")) return "ref";
+				if (value.SequenceEqual("col")) return "col";
+				if (value.SequenceEqual("min")) return "min";
+				if (value.SequenceEqual("max")) return "max";
 				break;
 			case 4:
 				if (value.SequenceEqual("cols")) return "cols";
