@@ -1,5 +1,8 @@
 # Sylvan.Data.Excel Release Notes
 
+_0.4.29_
+- Restores netstandard2.0 and 2.1 TFMs. (whoops!)
+
 _0.4.28_
 - Adds `IsRowHidden` property to indicate if the current row is hidden.
 - Adds `ReadHiddenRows` option to skip hidden rows.
