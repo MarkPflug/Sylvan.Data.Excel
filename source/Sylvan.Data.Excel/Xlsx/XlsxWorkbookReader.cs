@@ -7,7 +7,6 @@ using System.IO.Compression;
 using System.Linq;
 using System.Text;
 using System.Xml;
-using Sylvan.Data.Excel.Xlsx;
 
 #if !SPAN
 using ReadonlyCharSpan = System.String;
@@ -258,9 +257,40 @@ sealed partial class XlsxWorkbookReader : ExcelDataReader
 						{
 							if (reader.LocalName == "col")
 							{
-								if (reader.MoveToAttribute("hidden"))
+								int min = 0, max = 0;
+								bool hidden = false;
+								while (reader.MoveToNextAttribute())
 								{
-									var isColHidden = ReadBooleanValue(reader, buffer);
+									var name = reader.LocalName;
+									if (name == "hidden")
+									{
+										hidden = ReadBooleanValue(reader, buffer);
+									}
+									else
+									if (name == "min")
+									{
+										if (!TryReadIntValue(reader, buffer, out min))
+										{
+											// TODO ? This means there was an attribute but it didn't contain a valid int value
+											// which I think we can just treat as zero.
+										}
+									}
+									else
+									if (name == "max")
+									{
+										if (!TryReadIntValue(reader, buffer, out max))
+										{
+											// TODO ?
+										}
+									}
+								}
+
+								if (min <= max && min != 0 && max != 0)
+								{
+									for (int i = min; i <= max; i++)
+									{
+										colHidden[i-1] = hidden;
+									}
 								}
 							}
 						}
@@ -341,6 +371,23 @@ sealed partial class XlsxWorkbookReader : ExcelDataReader
 
 	const int ValueBufferElementSize = 64;
 
+	static bool TryParse(ReadonlyCharSpan span, out int value)
+	{
+		int a = 0;
+		for (int i = 0; i < span.Length; i++)
+		{
+			var d = span[i] - '0';
+			if ((uint)d >= 10)
+			{
+				value = 0;
+				return false;
+			}
+			a = a * 10 + d;
+		}
+		value = a;
+		return true;
+	}
+
 	bool NextRow()
 	{
 		var reader = this.reader;
@@ -406,6 +453,20 @@ sealed partial class XlsxWorkbookReader : ExcelDataReader
 			}
 		}
 		return false;// empty value.
+	}
+
+	static bool TryReadIntValue(XmlReader reader, char[] buffer, out int value)
+	{
+		var len = reader!.ReadValueChunk(buffer, 0, buffer.Length);
+		if (len > 0)
+		{
+			if (TryParse(buffer.AsSpan().ToParsable(0, len), out value))
+			{
+				return true;
+			}
+		}
+		value = 0;
+		return false;
 	}
 
 	struct CellPosition
@@ -538,7 +599,7 @@ sealed partial class XlsxWorkbookReader : ExcelDataReader
 			col++;
 			while (reader.MoveToNextAttribute())
 			{
-				var n = reader.Name;
+				var n = reader.LocalName;
 				if (n == "r")
 				{
 					len = reader.ReadValueChunk(buffer, 0, buffer.Length);

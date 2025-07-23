@@ -11,12 +11,12 @@ class ExcelColumn : DbColumn
 
 	public string? FalseString { get; }
 
-	public ExcelColumn(string? name, int ordinal, DbColumn? schema = null)
+	public ExcelColumn(string? name, int ordinal, bool hidden, DbColumn? schema = null)
 	{
 		// non-overridable
 		this.ColumnOrdinal = ordinal;
 		this.IsReadOnly = true;
-
+		
 		var colName = schema?.ColumnName;
 
 		this.ColumnName = string.IsNullOrEmpty(colName) ? name ?? "" : colName;
@@ -33,7 +33,7 @@ class ExcelColumn : DbColumn
 		this.IsLong = schema?.IsLong ?? false;
 		this.IsKey = schema?.IsKey ?? false;
 		this.IsIdentity = schema?.IsIdentity ?? false;
-		this.IsHidden = schema?.IsHidden ?? false;
+		this.IsHidden = schema?.IsHidden ?? hidden;
 		this.IsExpression = schema?.IsExpression ?? false;
 		this.IsAutoIncrement = schema?.IsAutoIncrement ?? false;
 		this.NumericPrecision = schema?.NumericPrecision;

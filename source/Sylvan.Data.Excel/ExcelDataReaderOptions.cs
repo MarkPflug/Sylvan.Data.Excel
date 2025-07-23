@@ -17,7 +17,6 @@ public sealed class ExcelDataReaderOptions
 		this.Schema = ExcelSchema.Default;
 		this.Culture = CultureInfo.InvariantCulture;
 		this.IgnoreEmptyTrailingRows = true;
-		this.ReadHiddenColumns = true;
 		this.ReadHiddenRows = true;
 	}
 
@@ -51,12 +50,6 @@ public sealed class ExcelDataReaderOptions
 	/// Defaults to false, which skips hidden sheets.
 	/// </summary>
 	public bool ReadHiddenWorksheets { get; set; }
-
-	/// <summary>
-	/// Indicates if hidden columns should be read, or skipped.
-	/// Defaults to true.
-	/// </summary>
-	public bool ReadHiddenColumns { get; set; }
 
 	/// <summary>
 	/// Indicates if hidden rows should be read, or skipped.
