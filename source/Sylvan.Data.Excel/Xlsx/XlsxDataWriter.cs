@@ -112,7 +112,7 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 
 	public override async Task<WriteResult> WriteAsync(DbDataReader data, string? worksheetName, CancellationToken cancel)
 	{
-		return await WriteInternal(data, worksheetName, true, default).ConfigureAwait(false);
+		return await WriteInternal(data, worksheetName, true, cancel).ConfigureAwait(false);
 	}
 
 	async Task<WriteResult> WriteInternal(DbDataReader data, string? worksheetName, bool async, CancellationToken cancel)
@@ -211,6 +211,8 @@ sealed partial class XlsxDataWriter : ExcelDataWriter
 					break;
 				}
 			}
+
+			cancel.ThrowIfCancellationRequested();
 
 			xw.Write("<row>");
 			for (int i = 0; i < fieldCount; i++)
