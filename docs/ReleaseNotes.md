@@ -1,5 +1,8 @@
 # Sylvan.Data.Excel Release Notes
 
+_0.4.30_
+- Fix ExcelDataWriter to use the provided `CancellationToken`.
+
 _0.4.29_
 - Restores netstandard2.0 and 2.1 TFMs. (whoops!)
 
