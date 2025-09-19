@@ -14,7 +14,7 @@ namespace Sylvan.Data.Excel;
 // containing the same content. The expectation is the behavior of the three
 // implementations is the same, so the same test code can validate the 
 // behavior of the three formats.
-public class XlsxTests
+public partial class XlsxTests
 {
 	const string FileFormat = "Data/{0}.xlsx";
 
@@ -740,7 +740,7 @@ public class XlsxTests
 		}
 	}
 
-	[Fact]
+	[Fact(Skip = "This test causes problems with other tests using the Numbers file.")]
 	public void Dispose()
 	{
 		var file = GetFile("Numbers");
@@ -754,6 +754,7 @@ public class XlsxTests
 			}
 		}
 		// implied assertion that we are able to open the file, indicating that it was properly disposed.
+		// TODO: we can't exclusively lock this file here, because other concurrent tests might need to read it.
 		var s = File.Open(file, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
 		s.Dispose();
 	}

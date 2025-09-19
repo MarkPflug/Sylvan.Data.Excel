@@ -1012,10 +1012,10 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 		{
 			if (formats.TryGetValue(fmtIdx, out var fmt))
 			{
-				return fmt.FormatValue(val, this.dateMode);
+				return fmt.FormatValue(val, this.dateMode, culture);
 			}
 		}
-		return val.ToString();
+		return val.ToString(culture);
 	}
 
 	/// <inheritdoc/>
@@ -1034,7 +1034,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 		{
 			case FieldType.String:
 			case FieldType.SharedString:
-				return double.Parse(ProcString(in cell), culture);
+				return double.Parse(ProcString(in cell), CultureInfo.InvariantCulture);
 			case FieldType.Numeric:
 				return cell.numValue;
 			case FieldType.Error:

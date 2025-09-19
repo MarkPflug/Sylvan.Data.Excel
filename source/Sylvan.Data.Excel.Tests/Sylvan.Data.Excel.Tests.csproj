@@ -13,8 +13,17 @@
 		<PackageReference Include="Sylvan.BuildTools.Resources" Version="0.6.2" PrivateAssets="all" />
 		<PackageReference Include="Sylvan.Data" Version="0.2.16" />
 		<PackageReference Include="Sylvan.Data.Csv" Version="1.4.2" />
-		<ProjectReference Include="..\Sylvan.Data.Excel\Sylvan.Data.Excel.csproj" />
+		
+		<PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+		<PackageReference Include="xunit" Version="2.9.3" />
+		<PackageReference Include="xunit.runner.visualstudio" Version="3.1.4">
+		  <PrivateAssets>all</PrivateAssets>
+		  <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+		</PackageReference>
+
 		<Reference Include="System.IO.Compression" Condition="$(TargetFramework) == 'net48'" />
+		
+		<ProjectReference Include="..\Sylvan.Data.Excel\Sylvan.Data.Excel.csproj" />
 	</ItemGroup>
 
 	
