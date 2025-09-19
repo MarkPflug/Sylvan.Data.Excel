@@ -12,14 +12,25 @@ namespace Sylvan.Data.Excel;
 
 partial class XlsxWorkbookReader
 {
-
-	bool GetBooleanRaw(ref readonly FieldInfo fi, int ordinal)
+	private protected override bool GetBooleanValue(in FieldInfo fi, int ordinal)
 	{
 		if (fi.valueLen == 1)
 		{
 			return valuesBuffer[ordinal * ValueBufferElementSize] != '0';
 		}
 		throw new FormatException(); //?
+	}
+
+	private protected override double GetDoubleValue(in FieldInfo fi, int ordinal)
+	{
+#if SPAN
+		var span = valuesBuffer.AsSpan(ordinal * ValueBufferElementSize, fi.valueLen);
+		var value = double.Parse(span, NumberStyles.Float, CultureInfo.InvariantCulture);
+#else
+		var str = new string(valuesBuffer, ordinal * ValueBufferElementSize, fi.valueLen);
+		var value = double.Parse(str, CultureInfo.InvariantCulture);
+#endif
+		return value;
 	}
 
 	public override bool GetBoolean(int ordinal)
@@ -29,9 +40,9 @@ partial class XlsxWorkbookReader
 		switch (fi.type)
 		{
 			case FieldType.Boolean:
-				return GetBooleanRaw(in fi, ordinal);
+				return GetBooleanValue(in fi, ordinal);
 			case FieldType.Numeric:
-				return this.GetDoubleRaw(ordinal) != 0;
+				return this.GetDoubleValue(in fi, ordinal) != 0;
 			case FieldType.String:
 			case FieldType.SharedString:
 
@@ -40,7 +51,7 @@ partial class XlsxWorkbookReader
 				var trueString = col?.TrueString ?? this.trueString;
 				var falseString = col?.FalseString ?? this.falseString;
 
-				var strVal = GetStringRaw(ordinal, in fi);
+				var strVal = GetStringValue(in fi, ordinal);
 				var c = StringComparer.OrdinalIgnoreCase;
 
 				if (trueString != null && c.Equals(strVal, trueString))
@@ -57,7 +68,7 @@ partial class XlsxWorkbookReader
 					{
 						return b;
 					}
-					if (int.TryParse(strVal, NumberStyles.None, culture, out int v))
+					if (int.TryParse(strVal, NumberStyles.None, CultureInfo.InvariantCulture, out int v))
 					{
 						return v != 0;
 					}
@@ -84,51 +95,9 @@ partial class XlsxWorkbookReader
 		throw new FormatException();
 	}
 
-	public override string GetString(int ordinal)
+	private protected override int GetSharedStringIndex(in FieldInfo fi, int ordinal)
 	{
-		ValidateAccess();
-
-		ref readonly FieldInfo fi = ref GetFieldValue(ordinal);
-		if (ordinal >= MaxFieldCount)
-		{
-			throw new ArgumentOutOfRangeException(nameof(ordinal));
-		}
-
-		switch (fi.type)
-		{
-			case FieldType.Error:
-				if (errorAsNull)
-				{
-					return string.Empty;
-				}
-				throw GetError(ordinal);
-			case FieldType.Boolean:
-				var boolVal = GetBooleanRaw(in fi, ordinal);
-				return boolVal ? bool.TrueString : bool.FalseString;
-			case FieldType.Numeric:
-				var numValue = GetDoubleRaw(ordinal);
-				return FormatVal(fi.xfIdx, numValue);
-			case FieldType.String:
-				return fi.strValue ?? string.Empty;
-			case FieldType.SharedString:
-				return GetStringRaw(ordinal, fi);
-			case FieldType.Null:
-				return string.Empty;
-		}
-		throw new NotSupportedException();
-	}
-
-
-	string GetStringRaw(int ordinal, in FieldInfo fi)
-	{
-		return (fi.type == FieldType.SharedString ? GetSharedStringRaw(in fi, ordinal) : fi.strValue) ?? string.Empty;
-
-	}
-
-	private protected override string GetSharedStringRaw(ref readonly FieldInfo fi, int ordinal)
-	{
-		var ssIdx = GetValueInt(ordinal);
-		return GetSharedString(ssIdx) ?? "";
+		return GetValueInt(ordinal);
 	}
 
 	public override double GetDouble(int ordinal)
@@ -138,29 +107,15 @@ partial class XlsxWorkbookReader
 		switch (cell.type)
 		{
 			case FieldType.String:
-				return double.Parse(GetStringRaw(ordinal, in cell), culture);
 			case FieldType.SharedString:
-				return double.Parse(GetSharedStringRaw(in cell, ordinal), culture);
+				return double.Parse(GetStringValue(in cell, ordinal), CultureInfo.InvariantCulture);
 			case FieldType.Numeric:
-				return GetDoubleRaw(ordinal);
+				return GetDoubleValue(in cell, ordinal);
 			case FieldType.Error:
 				throw Error(ordinal);
 		}
 
 		throw new InvalidCastException();
-	}
-
-	double GetDoubleRaw(int ordinal)
-	{
-		ref readonly var cell = ref GetFieldValue(ordinal);
-#if SPAN
-		var span = valuesBuffer.AsSpan(ordinal * ValueBufferElementSize, cell.valueLen);
-		var value = double.Parse(span, NumberStyles.Float, CultureInfo.InvariantCulture);
-#else
-		var str = new string(valuesBuffer, ordinal * ValueBufferElementSize, cell.valueLen);
-		var value = double.Parse(str, CultureInfo.InvariantCulture);
-#endif
-		return value;
 	}
 
 	private protected override ExcelFormulaException Error(int ordinal)

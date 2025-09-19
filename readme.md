@@ -4,7 +4,7 @@ A cross-platform .NET library for reading and writing Excel data files. The most
 
 ExcelDataReader provides readonly, row by row, forward-only access to the data. It provides a familiar API via `DbDataReader`, which is ideal for accessing rectangular, tabular data sets. It exposes a single, unified API for accessing all supported file formats.
 
-ExcelDataWriter supports writing data from a `DbDataReader` to an Excel worksheet in .xlsx and .xlsb formats. ExcelDataWriter can only write a new Excel, it cannot be used to edit or append to existing files. It does not support custom formatting, charts, or other common features. It is meant only to export raw, flat data to Excel.
+ExcelDataWriter supports writing data from a `DbDataReader` to an Excel worksheet in .xlsx and .xlsb formats. ExcelDataWriter can only write a new Excel, it cannot be used to edit or append to existing files. It does not support custom formatting, charts, or other common features. It is meant only to export flat, rectangular data to Excel.
 
 The library is a purely managed implementation with no external dependencies.
 
@@ -26,7 +26,7 @@ ExcelDataReader derives from DbDataReader, so it exposes an API that should be f
 
 The `GetExcelDataType` method allows inspecting the native Excel data type of a cell, which may vary from row to row. `FieldCount`, returns the number of columns in the header row, and doesn't change while processing each row in a sheet. `RowFieldCount` returns the number of fields in the current row, which might vary from row to row, and can be used to access cells in a "jagged", non-rectangular file.
 
-### Reading Raw Data
+### Reading Data Manually
 
 The ExcelDataReader provides a forward only, row by row access to the data in a worksheet. It allows iterating over sheets using the `NextResult()` method, and iterating over rows using the `Read()` method. Fields are accessed using standard accessors, most commonly `GetString()`. `GetString()` is designed to not throw an exception, except in the case that a cell contains a formula error. The `TryOpenWorksheet(string name)` method can be used to open a specific, known worksheet.
 
@@ -60,7 +60,7 @@ do
 
 ### Bind Excel data to objects using Sylvan.Data
 
-The Sylvan.Data library includes a general-purpose data binder that can bind a DbDataReader to objects.
+The Sylvan.Data library (a separate nuget package) includes a general-purpose data binder that can bind a DbDataReader to objects.
 This can be used to easily read an Excel file as a series of strongly typed objects.
 
 ```C#

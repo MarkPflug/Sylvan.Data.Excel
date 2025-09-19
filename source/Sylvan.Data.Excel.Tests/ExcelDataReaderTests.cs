@@ -16,13 +16,13 @@ namespace Sylvan.Data.Excel;
 // behavior of the three formats.
 public partial class XlsxTests
 {
-	const string FileFormat = "Data/{0}.xlsx";
-
 	public virtual ExcelWorkbookType WorkbookType => ExcelWorkbookType.ExcelXml;
 
-	protected virtual string GetFile([CallerMemberName] string name = "")
+	private protected virtual string FileExtension => ".xlsx";
+
+	protected string GetFile([CallerMemberName] string name = "")
 	{
-		var file = string.Format(FileFormat, name);
+		var file = "Data/" + name + FileExtension;
 		Assert.True(File.Exists(file), "Test data file " + file + " does not exist or could not be opened.");
 		return file;
 	}
@@ -1801,26 +1801,17 @@ public partial class XlsxTests
 #endif
 }
 
+
 public sealed class XlsTests : XlsxTests
 {
-	const string FileFormat = "Data/{0}.xls";
+	private protected override string FileExtension => ".xls";
 
 	public override ExcelWorkbookType WorkbookType => ExcelWorkbookType.Excel;
-
-	protected override string GetFile(string name)
-	{
-		return string.Format(FileFormat, name);
-	}
 }
 
 public sealed class XlsbTests : XlsxTests
 {
-	const string FileFormat = "Data/{0}.xlsb";
+	private protected override string FileExtension => ".xlsb";
 
 	public override ExcelWorkbookType WorkbookType => ExcelWorkbookType.ExcelBinary;
-
-	protected override string GetFile(string name)
-	{
-		return string.Format(FileFormat, name);
-	}
 }

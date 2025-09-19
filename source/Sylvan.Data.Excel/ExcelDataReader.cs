@@ -570,7 +570,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 		var cols = new ExcelColumn[fieldCount];
 		for (int i = 0; i < fieldCount; i++)
 		{
-			string? header = hasHeaders ? GetStringRaw(i) : null;
+			string? header = hasHeaders ? GetValueAsString(i) : null;
 			var col = schema.GetColumn(sheet, header, i);
 			var hidden = colHidden[i];
 			var ecs = new ExcelColumn(header, i, hidden, col);
@@ -825,14 +825,14 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 				var fmtStr = this.columnSchema[ordinal]?.Format ?? this.dateTimeFormat;
 				if (fmtStr != null)
 				{
-					if (DateTime.TryParseExact(str, fmtStr, culture, DateTimeStyles.None, out value))
+					if (DateTime.TryParseExact(str, fmtStr, CultureInfo.InvariantCulture, DateTimeStyles.None, out value))
 					{
 						return value;
 					}
 				}
 
 				return
-					DateTime.TryParse(str, culture, DateTimeStyles.None, out value)
+					DateTime.TryParse(str, CultureInfo.InvariantCulture, DateTimeStyles.None, out value)
 					? value
 					: throw new InvalidCastException();
 		}
@@ -959,19 +959,30 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 	/// </remarks>
 	/// <param name="ordinal">The zero-based column ordinal.</param>
 	/// <returns>A string representing the value of the column.</returns>
-	public override string GetString(int ordinal)
+	public sealed override string GetString(int ordinal)
 	{
 		ValidateAccess();
-		return GetStringRaw(ordinal);
+		return GetValueAsString(ordinal);
 	}
 
-	string GetStringRaw(int ordinal)
+	private protected string GetStringValue(in FieldInfo fi, int ordinal)
 	{
-		ref readonly FieldInfo fi = ref GetFieldValue(ordinal);
+		return 
+			(
+			fi.type == FieldType.SharedString 
+			? GetSharedString(in fi, ordinal) 
+			: fi.strValue
+			) 
+			?? string.Empty;
+	}
+
+	string GetValueAsString(int ordinal)
+	{
 		if (ordinal >= MaxFieldCount)
 		{
 			throw new ArgumentOutOfRangeException(nameof(ordinal));
 		}
+		ref readonly FieldInfo fi = ref GetFieldValue(ordinal);
 
 		switch (fi.type)
 		{
@@ -982,23 +993,43 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 				}
 				throw GetError(ordinal);
 			case FieldType.Boolean:
-				return fi.BoolValue ? bool.TrueString : bool.FalseString;
+				var boolVal = GetBooleanValue(in fi, ordinal);
+				return boolVal ? bool.TrueString : bool.FalseString;
 			case FieldType.Numeric:
-				return FormatVal(fi.xfIdx, fi.numValue);
+				var doubleVal = GetDoubleValue(in fi, ordinal);
+				return FormatVal(fi.xfIdx, doubleVal);
 			case FieldType.String:
-				return fi.strValue ?? "";
+				return fi.strValue ?? string.Empty;
 			case FieldType.SharedString:
-				return GetSharedStringRaw(in fi, ordinal);
+				return GetSharedString(in fi, ordinal);
+			case FieldType.Null:
+				return string.Empty;
 		}
 		return ProcString(in fi);
 	}
 
-	private protected virtual string GetSharedStringRaw(ref readonly FieldInfo fi, int ordinal)
+	private protected virtual bool GetBooleanValue(in FieldInfo fi, int ordinal)
 	{
-		return GetSharedString(fi.ssIdx) ?? "";
+		return fi.boolValue;
 	}
 
-	string ProcString(ref readonly FieldInfo fi)
+	private protected virtual double GetDoubleValue(in FieldInfo fi, int ordinal)
+	{
+		return fi.numValue;
+	}
+
+	private protected virtual int GetSharedStringIndex(in FieldInfo fi, int ordinal)
+	{
+		return fi.ssIdx;
+	}
+
+	private protected string GetSharedString(in FieldInfo fi, int ordinal)
+	{
+		var idx = GetSharedStringIndex(in fi, ordinal);
+		return GetSharedString(idx) ?? string.Empty;
+	}
+
+	private protected string ProcString(in FieldInfo fi)
 	{
 		return (fi.type == FieldType.SharedString ? GetSharedString(fi.ssIdx) : fi.strValue) ?? string.Empty;
 	}
