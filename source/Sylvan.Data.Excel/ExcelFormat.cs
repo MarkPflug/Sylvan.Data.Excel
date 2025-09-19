@@ -264,19 +264,26 @@ public sealed class ExcelFormat
 					// this would render in Excel as the date 
 					var fmt = "HH:mm:ss.FFFFFF";
 					dt = DateTime.MinValue.AddDays(value);
-					return dt.ToString(fmt, culture);
+					return dt.ToString(fmt, CultureInfo.InvariantCulture);
 				}
 				goto case FormatKind.Date;
 			case FormatKind.Date:
 				if (ExcelDataReader.TryGetDate(this, value, mode, out dt))
 				{
-					if (dt.TimeOfDay == TimeSpan.Zero)
+					if (culture == CultureInfo.InvariantCulture)
 					{
-						return IsoDate.ToDateStringIso(dt);
+						if (dt.TimeOfDay == TimeSpan.Zero)
+						{
+							return IsoDate.ToDateStringIso(dt);
+						}
+						else
+						{
+							return IsoDate.ToStringIso(dt);
+						}
 					}
 					else
 					{
-						return IsoDate.ToStringIso(dt);
+						return dt.ToString(culture);
 					}
 				}
 				// We arrive here for negative values which render in Excel as "########" (not meaningful)
