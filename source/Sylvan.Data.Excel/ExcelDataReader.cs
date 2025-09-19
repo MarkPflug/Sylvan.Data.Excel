@@ -74,7 +74,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 	private protected readonly string? trueString;
 	private protected readonly string? falseString;
 
-	internal readonly CultureInfo culture;
+	private protected readonly CultureInfo culture;
 	readonly string? dateTimeFormat;
 
 	private protected BitList colHidden;
@@ -959,7 +959,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 	/// </remarks>
 	/// <param name="ordinal">The zero-based column ordinal.</param>
 	/// <returns>A string representing the value of the column.</returns>
-	public override string GetString(int ordinal)
+	public sealed override string GetString(int ordinal)
 	{
 		ValidateAccess();
 		return GetValueAsString(ordinal);
@@ -976,7 +976,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 			?? string.Empty;
 	}
 
-	private protected string GetValueAsString(int ordinal)
+	string GetValueAsString(int ordinal)
 	{
 		if (ordinal >= MaxFieldCount)
 		{
