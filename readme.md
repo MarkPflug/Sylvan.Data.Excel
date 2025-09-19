@@ -60,7 +60,7 @@ do
 
 ### Bind Excel data to objects using Sylvan.Data
 
-The Sylvan.Data library includes a general-purpose data binder that can bind a DbDataReader to objects.
+The Sylvan.Data library (a separate nuget package) includes a general-purpose data binder that can bind a DbDataReader to objects.
 This can be used to easily read an Excel file as a series of strongly typed objects.
 
 ```C#
