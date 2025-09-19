@@ -155,10 +155,10 @@ partial class XlsxWorkbookReader
 		ref readonly var cell = ref GetFieldValue(ordinal);
 #if SPAN
 		var span = valuesBuffer.AsSpan(ordinal * ValueBufferElementSize, cell.valueLen);
-		var value = double.Parse(span, NumberStyles.Float, culture);
+		var value = double.Parse(span, NumberStyles.Float, CultureInfo.InvariantCulture);
 #else
-		var str = new String(valuesBuffer, ordinal * ValueBufferElementSize, cell.valueLen);
-		var value = double.Parse(str, culture);
+		var str = new string(valuesBuffer, ordinal * ValueBufferElementSize, cell.valueLen);
+		var value = double.Parse(str, CultureInfo.InvariantCulture);
 #endif
 		return value;
 	}

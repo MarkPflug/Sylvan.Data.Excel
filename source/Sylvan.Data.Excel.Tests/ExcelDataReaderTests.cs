@@ -14,7 +14,7 @@ namespace Sylvan.Data.Excel;
 // containing the same content. The expectation is the behavior of the three
 // implementations is the same, so the same test code can validate the 
 // behavior of the three formats.
-public class XlsxTests
+public partial class XlsxTests
 {
 	const string FileFormat = "Data/{0}.xlsx";
 
