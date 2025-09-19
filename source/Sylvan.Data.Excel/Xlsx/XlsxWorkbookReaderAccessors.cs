@@ -12,7 +12,7 @@ namespace Sylvan.Data.Excel;
 
 partial class XlsxWorkbookReader
 {
-	private protected override bool GetBooleanRaw(in FieldInfo fi, int ordinal)
+	private protected override bool GetBooleanValue(in FieldInfo fi, int ordinal)
 	{
 		if (fi.valueLen == 1)
 		{
@@ -21,7 +21,7 @@ partial class XlsxWorkbookReader
 		throw new FormatException(); //?
 	}
 
-	private protected override double GetDoubleRaw(in FieldInfo fi, int ordinal)
+	private protected override double GetDoubleValue(in FieldInfo fi, int ordinal)
 	{
 #if SPAN
 		var span = valuesBuffer.AsSpan(ordinal * ValueBufferElementSize, fi.valueLen);
@@ -40,9 +40,9 @@ partial class XlsxWorkbookReader
 		switch (fi.type)
 		{
 			case FieldType.Boolean:
-				return GetBooleanRaw(in fi, ordinal);
+				return GetBooleanValue(in fi, ordinal);
 			case FieldType.Numeric:
-				return this.GetDoubleRaw(in fi, ordinal) != 0;
+				return this.GetDoubleValue(in fi, ordinal) != 0;
 			case FieldType.String:
 			case FieldType.SharedString:
 
@@ -51,7 +51,7 @@ partial class XlsxWorkbookReader
 				var trueString = col?.TrueString ?? this.trueString;
 				var falseString = col?.FalseString ?? this.falseString;
 
-				var strVal = GetStringRawer(in fi, ordinal);
+				var strVal = GetStringValue(in fi, ordinal);
 				var c = StringComparer.OrdinalIgnoreCase;
 
 				if (trueString != null && c.Equals(strVal, trueString))
@@ -107,11 +107,10 @@ partial class XlsxWorkbookReader
 		switch (cell.type)
 		{
 			case FieldType.String:
-				return double.Parse(GetStringRawer(in cell, ordinal), CultureInfo.InvariantCulture);
 			case FieldType.SharedString:
-				return double.Parse(GetSharedStringRaw(in cell, ordinal), CultureInfo.InvariantCulture);
+				return double.Parse(GetStringValue(in cell, ordinal), CultureInfo.InvariantCulture);
 			case FieldType.Numeric:
-				return GetDoubleRaw(in cell, ordinal);
+				return GetDoubleValue(in cell, ordinal);
 			case FieldType.Error:
 				throw Error(ordinal);
 		}

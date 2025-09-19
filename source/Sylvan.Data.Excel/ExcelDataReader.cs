@@ -570,7 +570,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 		var cols = new ExcelColumn[fieldCount];
 		for (int i = 0; i < fieldCount; i++)
 		{
-			string? header = hasHeaders ? GetStringRaw(i) : null;
+			string? header = hasHeaders ? GetValueAsString(i) : null;
 			var col = schema.GetColumn(sheet, header, i);
 			var hidden = colHidden[i];
 			var ecs = new ExcelColumn(header, i, hidden, col);
@@ -962,21 +962,21 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 	public override string GetString(int ordinal)
 	{
 		ValidateAccess();
-		return GetStringRaw(ordinal);
+		return GetValueAsString(ordinal);
 	}
 
-	private protected string GetStringRawer(in FieldInfo fi, int ordinal)
+	private protected string GetStringValue(in FieldInfo fi, int ordinal)
 	{
 		return 
 			(
 			fi.type == FieldType.SharedString 
-			? GetSharedStringRaw(in fi, ordinal) 
+			? GetSharedString(in fi, ordinal) 
 			: fi.strValue
 			) 
 			?? string.Empty;
 	}
 
-	private protected string GetStringRaw(int ordinal)
+	private protected string GetValueAsString(int ordinal)
 	{
 		if (ordinal >= MaxFieldCount)
 		{
@@ -993,27 +993,27 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 				}
 				throw GetError(ordinal);
 			case FieldType.Boolean:
-				var boolVal = GetBooleanRaw(in fi, ordinal);
+				var boolVal = GetBooleanValue(in fi, ordinal);
 				return boolVal ? bool.TrueString : bool.FalseString;
 			case FieldType.Numeric:
-				var doubleVal = GetDoubleRaw(in fi, ordinal);
+				var doubleVal = GetDoubleValue(in fi, ordinal);
 				return FormatVal(fi.xfIdx, doubleVal);
 			case FieldType.String:
 				return fi.strValue ?? string.Empty;
 			case FieldType.SharedString:
-				return GetSharedStringRaw(in fi, ordinal);
+				return GetSharedString(in fi, ordinal);
 			case FieldType.Null:
 				return string.Empty;
 		}
 		return ProcString(in fi);
 	}
 
-	private protected virtual bool GetBooleanRaw(in FieldInfo fi, int ordinal)
+	private protected virtual bool GetBooleanValue(in FieldInfo fi, int ordinal)
 	{
 		return fi.boolValue;
 	}
 
-	private protected virtual double GetDoubleRaw(in FieldInfo fi, int ordinal)
+	private protected virtual double GetDoubleValue(in FieldInfo fi, int ordinal)
 	{
 		return fi.numValue;
 	}
@@ -1023,10 +1023,10 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 		return fi.ssIdx;
 	}
 
-	private protected string GetSharedStringRaw(in FieldInfo fi, int ordinal)
+	private protected string GetSharedString(in FieldInfo fi, int ordinal)
 	{
 		var idx = GetSharedStringIndex(in fi, ordinal);
-		return GetSharedString(idx) ?? String.Empty;
+		return GetSharedString(idx) ?? string.Empty;
 	}
 
 	private protected string ProcString(in FieldInfo fi)
