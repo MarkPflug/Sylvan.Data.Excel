@@ -14,11 +14,11 @@ namespace Sylvan.Data.Excel;
 // containing the same content. The expectation is the behavior of the three
 // implementations is the same, so the same test code can validate the 
 // behavior of the three formats.
-public class XlsxTests
+public abstract partial class ExcelTests
 {
-	const string FileFormat = "Data/{0}.xlsx";
+	public abstract ExcelWorkbookType WorkbookType { get; }
 
-	public virtual ExcelWorkbookType WorkbookType => ExcelWorkbookType.ExcelXml;
+	private protected abstract string FileFormat { get; }
 
 	protected virtual string GetFile([CallerMemberName] string name = "")
 	{
@@ -33,7 +33,7 @@ public class XlsxTests
 			Schema = ExcelSchema.NoHeaders
 		};
 
-	public XlsxTests()
+	public ExcelTests()
 	{
 #if NET6_0_OR_GREATER
 		Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
@@ -1800,9 +1800,21 @@ public class XlsxTests
 #endif
 }
 
-public sealed class XlsTests : XlsxTests
+public sealed class XlsxTests : ExcelTests
 {
-	const string FileFormat = "Data/{0}.xls";
+	private protected override string FileFormat => "Data/{0}.xlsx";
+
+	public override ExcelWorkbookType WorkbookType => ExcelWorkbookType.ExcelXml;
+
+	protected override string GetFile(string name)
+	{
+		return string.Format(FileFormat, name);
+	}
+}
+
+public sealed class XlsTests : ExcelTests
+{
+	private protected override string FileFormat => "Data/{0}.xls";
 
 	public override ExcelWorkbookType WorkbookType => ExcelWorkbookType.Excel;
 
@@ -1812,9 +1824,9 @@ public sealed class XlsTests : XlsxTests
 	}
 }
 
-public sealed class XlsbTests : XlsxTests
+public sealed class XlsbTests : ExcelTests
 {
-	const string FileFormat = "Data/{0}.xlsb";
+	private protected override string FileFormat => "Data/{0}.xlsb";
 
 	public override ExcelWorkbookType WorkbookType => ExcelWorkbookType.ExcelBinary;
 

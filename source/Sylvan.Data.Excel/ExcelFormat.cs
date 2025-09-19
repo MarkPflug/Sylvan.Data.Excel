@@ -1,6 +1,7 @@
 ﻿#nullable enable
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 
 namespace Sylvan.Data.Excel;
 
@@ -245,14 +246,14 @@ public sealed class ExcelFormat
 	/// </summary>
 	public FormatKind Kind { get; private set; }
 
-	internal string FormatValue(double value, ExcelDataReader.DateMode mode)
+	internal string FormatValue(double value, ExcelDataReader.DateMode mode, CultureInfo culture)
 	{
 		var kind = this.Kind;
 		DateTime dt;
 		switch (kind)
 		{
 			case FormatKind.Number:
-				return value.ToString("G");
+				return value.ToString("G", culture);
 			case FormatKind.Time:
 				// for values rendered as time (not including date) that are in the
 				// range 0-1 (which renders in Excel as 1900-01-00),
@@ -263,7 +264,7 @@ public sealed class ExcelFormat
 					// this would render in Excel as the date 
 					var fmt = "HH:mm:ss.FFFFFF";
 					dt = DateTime.MinValue.AddDays(value);
-					return dt.ToString(fmt);
+					return dt.ToString(fmt, culture);
 				}
 				goto case FormatKind.Date;
 			case FormatKind.Date:
@@ -284,7 +285,7 @@ public sealed class ExcelFormat
 				// The value can still be accessed via GetDouble.
 				return string.Empty;
 		}
-		return value.ToString();
+		return value.ToString(culture);
 	}
 
 	static readonly ExcelFormat[] standardFormats;
