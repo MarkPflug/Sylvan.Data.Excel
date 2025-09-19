@@ -1,5 +1,11 @@
 # Sylvan.Data.Excel Release Notes
 
+_0.5.0_
+- Fixes a few issues with Culture handling. This may cause potential breaking behavioral changes when 
+  a CultureInfo other than InvariantCulture is provided via ExcelDataReaderOptions. Specifically, numeric
+  and DateTime values accessed as strings will now properly use the provided CultureInfo, where previously
+  they would use InvariantCulture.
+
 _0.4.30_
 - Fix ExcelDataWriter to use the provided `CancellationToken`.
 
