@@ -799,7 +799,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 	/// When called on cells containing a string value, will attempt to parse the string as a DateTime.
 	/// When called on a cell containing a number value, will convert the numeric value to a DateTime.
 	/// </remarks>
-	public override DateTime GetDateTime(int ordinal)
+	public sealed override DateTime GetDateTime(int ordinal)
 	{
 		ValidateAccess();
 		var type = this.GetExcelDataType(ordinal);
@@ -877,7 +877,6 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 	}
 
 	internal abstract DateTime GetDateTimeValue(int ordinal);
-
 
 	internal bool TryGetDate(ExcelFormat fmt, double value, out DateTime dt)
 	{

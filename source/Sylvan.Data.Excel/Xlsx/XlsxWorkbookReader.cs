@@ -894,11 +894,6 @@ sealed partial class XlsxWorkbookReader : ExcelDataReader
 		Date,
 	}
 
-	internal override DateTime GetDateTimeValue(int ordinal)
-	{
-		return this.values[ordinal].dtValue;
-	}
-
 	public override int MaxFieldCount => 16384;
 
 	public override int RowNumber => rowIndex + 1;
