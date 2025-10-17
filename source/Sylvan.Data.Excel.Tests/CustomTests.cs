@@ -8,7 +8,7 @@ public class CustomTests
 	[Fact]
 	public void Strict()
 	{
-		using var edr = ExcelDataReader.Create("Data/strict.xlsx");
+		using var edr = ExcelDataReader.Create("Data/Strict.xlsx");
 		Assert.Equal("Sheet1", edr.WorksheetName);
 
 		Assert.Equal("a", edr.GetName(0));
