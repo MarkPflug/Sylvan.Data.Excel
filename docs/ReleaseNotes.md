@@ -1,5 +1,8 @@
 # Sylvan.Data.Excel Release Notes
 
+_0.5.1_
+- Add support for "strict" xlsx files.
+
 _0.5.0_
 - Fixes a few issues with Culture handling. This may cause potential breaking behavioral changes when 
   a CultureInfo other than InvariantCulture is provided via ExcelDataReaderOptions. Specifically, numeric

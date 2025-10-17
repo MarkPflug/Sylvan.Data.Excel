@@ -33,6 +33,19 @@ partial class XlsxWorkbookReader
 		return value;
 	}
 
+	internal override DateTime GetDateTimeValue(int ordinal)
+	{
+		ref readonly var fi = ref this.GetFieldValue(ordinal);
+#if SPAN
+		var span = this.valuesBuffer.AsSpan(ordinal * ValueBufferElementSize, fi.valueLen);
+		return IsoDate.TryParse(span, out DateTime dt) ? dt : throw new FormatException();
+#else
+		var str = new string(valuesBuffer, ordinal * ValueBufferElementSize, fi.valueLen);
+		return DateTime.TryParse(str, out DateTime dt) ? dt : throw new FormatException();
+#endif
+	}
+
+
 	public override bool GetBoolean(int ordinal)
 	{
 		ValidateAccess();

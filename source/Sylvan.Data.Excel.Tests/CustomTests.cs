@@ -5,6 +5,26 @@ namespace Sylvan.Data.Excel;
 
 public class CustomTests
 {
+	[Fact]
+	public void Strict()
+	{
+		using var edr = ExcelDataReader.Create("Data/Strict.xlsx");
+		Assert.Equal("Sheet1", edr.WorksheetName);
+
+		Assert.Equal("a", edr.GetName(0));
+		Assert.Equal("b", edr.GetName(1));
+		Assert.Equal("c", edr.GetName(2));
+
+		Assert.True(edr.Read());
+		Assert.Equal(1, edr.GetInt32(0));
+		Assert.Equal("alpha", edr.GetString(1));
+		Assert.Equal(new DateTime(2022, 1, 2), edr.GetDateTime(2));
+		Assert.True(edr.Read());
+		Assert.True(edr.Read());
+		Assert.True(edr.Read());
+		Assert.False(edr.Read());
+	}
+
 
 	[Fact]
 	public void BadSlash()

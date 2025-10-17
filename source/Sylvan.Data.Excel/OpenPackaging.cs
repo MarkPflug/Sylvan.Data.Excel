@@ -20,7 +20,13 @@ static class OpenPackaging
 	const string WorksheetRelType = RelationBase + "/worksheet";
 	const string StylesRelType = RelationBase + "/styles";
 	const string SharedStringsRelType = RelationBase + "/sharedStrings";
-	
+
+	const string StrictRelationBase = "http://purl.oclc.org/ooxml/officeDocument/relationships";
+	const string StrictDocRelationType = StrictRelationBase  + "/officeDocument";
+	const string StrictWorksheetRelType = StrictRelationBase + "/worksheet";
+	const string StrictStylesRelType = StrictRelationBase + "/styles";
+	const string StrictSharedStringsRelType = StrictRelationBase + "/sharedStrings";
+
 	const string PropNS = "http://schemas.openxmlformats.org/officeDocument/2006/extended-properties";
 	internal const string AppPath = "docProps/app.xml";
 
@@ -43,7 +49,10 @@ static class OpenPackaging
 		var nsm = new XmlNamespaceManager(doc.NameTable);
 		nsm.AddNamespace("r", RelationNS);
 
-		var wbPartRel = doc.SelectSingleNode($"/r:Relationships/r:Relationship[@Type='{DocRelationType}']", nsm);
+		var wbPartRel =
+			doc.SelectSingleNode($"/r:Relationships/r:Relationship[@Type='{DocRelationType}']", nsm) ??
+			doc.SelectSingleNode($"/r:Relationships/r:Relationship[@Type='{StrictDocRelationType}']", nsm);
+			
 		if (wbPartRel == null) return null;
 
 		var wbPartName = wbPartRel.Attributes?["Target"]?.Value;
@@ -99,7 +108,7 @@ static class OpenPackaging
 		var nodes = doc.SelectNodes("/r:Relationships/r:Relationship", nsm);
 
 		var root = Path.GetDirectoryName(workbookPartName) ?? "";
-		//root = Path.GetRelativePath("/", root);
+		
 
 		static string MakeRelative(string root, string path)
 		{
@@ -128,13 +137,16 @@ static class OpenPackaging
 				switch (type)
 				{
 					case WorksheetRelType:
+					case StrictWorksheetRelType:
 						var t = MakeRelative(root, target);
 						sheetRelMap.Add(id, t);
 						break;
 					case StylesRelType:
+					case StrictStylesRelType:
 						stylesPartName = MakeRelative(root, target);
 						break;
 					case SharedStringsRelType:
+					case StrictSharedStringsRelType:
 						sharedStringsPartName = MakeRelative(root, target);
 						break;
 				}
