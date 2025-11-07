@@ -618,6 +618,27 @@ sealed partial class XlsxWorkbookReader : ExcelDataReader
 				if (n == "t")
 				{
 					len = reader.ReadValueChunk(buffer, 0, buffer.Length);
+					static CellType GetCellType(char[] b, int l)
+					{
+						switch (b[0])
+						{
+							case 'b':
+								return CellType.Boolean;
+							case 'e':
+								return CellType.Error;
+							case 's':
+								return l == 1 ? CellType.SharedString : CellType.String;
+							case 'i':
+								return CellType.InlineString;
+							case 'd':
+								return CellType.Date;
+							case 'n':
+								return CellType.Numeric;
+							default:
+								// TODO:
+								throw new InvalidDataException();
+						}
+					}
 					type = GetCellType(buffer, len);
 				}
 				else
@@ -626,153 +647,142 @@ sealed partial class XlsxWorkbookReader : ExcelDataReader
 					len = reader.ReadValueChunk(buffer, 0, buffer.Length);
 					if (!TryParse(buffer.AsSpan().ToParsable(0, len), out xfIdx))
 					{
-						throw new FormatException();
+						// if the value was invalid, just use the default
+						xfIdx = 0;
 					}
 				}
 			}
-
-			if (col >= values.Length)
-			{
-				var newLen = col + 8;
-
-				Array.Resize(ref values, newLen);
-				this.values = values;
-				Array.Resize(ref valuesBuffer, newLen * ValueBufferElementSize);
-			}
-
-			static CellType GetCellType(char[] b, int l)
-			{
-				switch (b[0])
-				{
-					case 'b':
-						return CellType.Boolean;
-					case 'e':
-						return CellType.Error;
-					case 's':
-						return l == 1 ? CellType.SharedString : CellType.String;
-					case 'i':
-						return CellType.InlineString;
-					case 'd':
-						return CellType.Date;
-					case 'n':
-						return CellType.Numeric;
-					default:
-						// TODO:
-						throw new InvalidDataException();
-				}
-			}
-
-			ref FieldInfo fi = ref values[col];
-			fi.xfIdx = xfIdx;
-
+			
 			reader.MoveToElement();
 			var depth = reader.Depth;
 
-			if (type == CellType.InlineString)
+			if (col >= this.MaxFieldCount)
 			{
-				if (ReadToDescendant(reader, "is"))
-				{
-					fi.strValue = ReadString(reader);
-					fi.type = FieldType.String;
-					valueCount++;
-					this.rowFieldCount = col + 1;
-				}
-				else
-				{
-					fi.strValue = string.Empty;
-					fi.type = FieldType.Null;
-				}
+				// any columns beyond the max column length we'll just ignore.
+				// the value buffer is 1mb when MaxFieldCount is reached.
+				// A malformed/malicious file could cause an OOM with unbounded
+				// buffer growth.
 			}
 			else
-			if (ReadToDescendant(reader, "v"))
 			{
-				if (reader.IsEmptyElement)
+				while (col >= values.Length)
 				{
-					fi.type = FieldType.Null;
-					fi.valueLen = 0;
+					var newLen = Math.Max(16, values.Length * 2);
+
+					Array.Resize(ref values, newLen);
+					this.values = values;
+					Array.Resize(ref valuesBuffer, newLen * ValueBufferElementSize);
+				}
+
+				ref FieldInfo fi = ref values[col];
+				fi.xfIdx = xfIdx;
+
+				if (type == CellType.InlineString)
+				{
+					if (ReadToDescendant(reader, "is"))
+					{
+						fi.strValue = ReadString(reader);
+						fi.type = FieldType.String;
+						valueCount++;
+						this.rowFieldCount = col + 1;
+					}
+					else
+					{
+						fi.strValue = string.Empty;
+						fi.type = FieldType.Null;
+					}
 				}
 				else
+				if (ReadToDescendant(reader, "v"))
 				{
-					reader.Read();
-
-					int ReadValue(int col)
+					if (reader.IsEmptyElement)
 					{
-						return reader.ReadValueChunk(valuesBuffer, col * ValueBufferElementSize, ValueBufferElementSize);
+						fi.type = FieldType.Null;
+						fi.valueLen = 0;
 					}
-
-					if (reader.NodeType == XmlNodeType.Text)
+					else
 					{
-						switch (type)
+						reader.Read();
+
+						int ReadValue(int col)
 						{
-							case CellType.Numeric:
-								fi.type = FieldType.Numeric;
-								fi.valueLen = ReadValue(col);
-								break;
-							case CellType.Date:
-								fi.type = FieldType.DateTime;
-								fi.valueLen = ReadValue(col);
-								break;
-							case CellType.SharedString:
-								if (reader.NodeType == XmlNodeType.Text)
-								{
-									fi.type = FieldType.SharedString;
-									fi.valueLen = ReadValue(col);
-								}
-								else
-								{
-									// this handles an edge-case where the field is a shared string,
-									// but the index is empty.
-									fi.strValue = string.Empty;
-									fi.type = FieldType.String;
-								}
-								break;
-							case CellType.String:
-								if (reader.NodeType == XmlNodeType.Text)
-								{
-									var s = reader.ReadContentAsString();
-									if (reader.XmlSpace != XmlSpace.Preserve)
-									{
-										s = s.Trim();
-									}
-									fi.strValue = s;
-									fi.type = FieldType.String;
-								}
-								else
-								{
-									fi.strValue = string.Empty;
-									fi.type = FieldType.Null;
-								}
-								break;
-							case CellType.InlineString:
-								fi.strValue = ReadString(reader);
-								fi.type = FieldType.String;
-								if (fi.strValue.Length == 0)
-								{
-									fi.type = FieldType.Null;
-								}
-								break;
-							case CellType.Boolean:
-								fi.type = FieldType.Boolean;
-								fi.valueLen = ReadValue(col);
-								//fi = new FieldInfo(valueBuffer[0] != '0');
-								break;
-							case CellType.Error:
-								fi.type = FieldType.Error;
-								fi.valueLen = ReadValue(col);
-								//fi = new FieldInfo(GetErrorCode(valueBuffer.AsSpan(0, len)));
-								break;
-							default:
-								throw new InvalidDataException();
+							return reader.ReadValueChunk(valuesBuffer, col * ValueBufferElementSize, ValueBufferElementSize);
 						}
-						if (fi.type != FieldType.Null)
+
+						if (reader.NodeType == XmlNodeType.Text)
 						{
-							valueCount++;
-							this.rowFieldCount = col + 1;
+							switch (type)
+							{
+								case CellType.Numeric:
+									fi.type = FieldType.Numeric;
+									fi.valueLen = ReadValue(col);
+									break;
+								case CellType.Date:
+									fi.type = FieldType.DateTime;
+									fi.valueLen = ReadValue(col);
+									break;
+								case CellType.SharedString:
+									if (reader.NodeType == XmlNodeType.Text)
+									{
+										fi.type = FieldType.SharedString;
+										fi.valueLen = ReadValue(col);
+									}
+									else
+									{
+										// this handles an edge-case where the field is a shared string,
+										// but the index is empty.
+										fi.strValue = string.Empty;
+										fi.type = FieldType.String;
+									}
+									break;
+								case CellType.String:
+									if (reader.NodeType == XmlNodeType.Text)
+									{
+										var s = reader.ReadContentAsString();
+										if (reader.XmlSpace != XmlSpace.Preserve)
+										{
+											s = s.Trim();
+										}
+										fi.strValue = s;
+										fi.type = FieldType.String;
+									}
+									else
+									{
+										fi.strValue = string.Empty;
+										fi.type = FieldType.Null;
+									}
+									break;
+								case CellType.InlineString:
+									fi.strValue = ReadString(reader);
+									fi.type = FieldType.String;
+									if (fi.strValue.Length == 0)
+									{
+										fi.type = FieldType.Null;
+									}
+									break;
+								case CellType.Boolean:
+									fi.type = FieldType.Boolean;
+									fi.valueLen = ReadValue(col);
+									//fi = new FieldInfo(valueBuffer[0] != '0');
+									break;
+								case CellType.Error:
+									fi.type = FieldType.Error;
+									fi.valueLen = ReadValue(col);
+									//fi = new FieldInfo(GetErrorCode(valueBuffer.AsSpan(0, len)));
+									break;
+								default:
+									throw new InvalidDataException();
+							}
+							if (fi.type != FieldType.Null)
+							{
+								valueCount++;
+								this.rowFieldCount = col + 1;
+							}
 						}
 					}
 				}
-			}
 
+			}
 			while (reader.Depth > depth)
 			{
 				reader.Read();
@@ -894,7 +904,7 @@ sealed partial class XlsxWorkbookReader : ExcelDataReader
 		Date,
 	}
 
-	public override int MaxFieldCount => 16384;
+	public override int MaxFieldCount => 0x4000;
 
 	public override int RowNumber => rowIndex + 1;
 

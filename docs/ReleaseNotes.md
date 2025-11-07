@@ -1,5 +1,9 @@
 # Sylvan.Data.Excel Release Notes
 
+_0.5.2_
+- Fix growth strategy for internal buffers to avoid excessive allocations in extreme cases.
+- Fix an issue where malformed files could cause unbounded memory allocation.
+
 _0.5.1_
 - Add support for "strict" xlsx files.
 

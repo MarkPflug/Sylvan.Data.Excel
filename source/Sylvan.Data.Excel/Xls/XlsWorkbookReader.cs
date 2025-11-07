@@ -488,11 +488,13 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 	void SetRowData(int colIdx, FieldInfo cd)
 	{
 		if (colIdx >= MaxFieldCount)
-			throw new InvalidDataException();
-		// TODO: this could be cleaner
+		{
+			// ignore anything that is out of range.
+			return;
+		}
 		while (colIdx >= values.Length)
 		{
-			Array.Resize(ref values, Math.Max(8, values.Length * 2));
+			Array.Resize(ref values, Math.Max(16, values.Length * 2));
 		}
 		if (!cd.IsEmptyValue)
 		{

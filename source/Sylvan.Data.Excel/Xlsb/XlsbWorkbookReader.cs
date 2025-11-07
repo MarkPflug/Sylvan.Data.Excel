@@ -397,10 +397,18 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 				}
 			}
 
-			static void EnsureCols(ref FieldInfo[] values, int c)
+			static bool EnsureCols(ref FieldInfo[] values, int c)
 			{
-				if (values.Length <= c)
-					Array.Resize(ref values, c + 8);
+				if (c < 0x4000)
+				{
+					while (values.Length <= c)
+					{
+						var newLen = Math.Max(16, values.Length * 2);
+						Array.Resize(ref values, newLen);
+					}
+					return true;
+				}
+				return false;
 			}
 
 			//reader.DebugInfo("data");
@@ -413,7 +421,7 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 						var rk = reader.GetInt32(8);
 
 						var d = GetRKVal(rk);
-						EnsureCols(ref values, col);
+						if (!EnsureCols(ref values, col)) break;
 						ref var fi = ref values[col];
 
 						fi.type = FieldType.Numeric;
@@ -428,7 +436,7 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 						var col = reader.GetInt32(0);
 						var sf = reader.GetInt32(4) & 0xffffff;
 						double d = reader.GetDouble(8);
-						EnsureCols(ref values, col);
+						if (!EnsureCols(ref values, col)) break;
 						ref var fi = ref values[col];
 						fi.type = FieldType.Numeric;
 						fi.numValue = d;
@@ -450,7 +458,7 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 						var col = reader.GetInt32(0);
 						var sf = reader.GetInt32(4) & 0xffffff;
 
-						EnsureCols(ref values, col);
+						if (!EnsureCols(ref values, col)) break;
 						ref var fi = ref values[col];
 
 						switch (reader.RecordType)
@@ -513,7 +521,7 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 		throw new NotSupportedException();
 	}
 
-	public override int MaxFieldCount => 16384;
+	public override int MaxFieldCount => 0x4000;
 
 	public override int RowNumber => rowIndex + 1;
 
