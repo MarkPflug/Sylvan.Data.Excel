@@ -41,6 +41,13 @@ public partial class XlsxTests
 	}
 
 	[Fact]
+	public void DefinedName()
+	{
+		var file = GetFile();
+		using var edr = ExcelDataReader.Create(file);
+	}
+
+	[Fact]
 	public void Big()
 	{
 		var file = GetFile();

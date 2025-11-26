@@ -13,8 +13,8 @@ partial class ExcelDataReader
 		}
 
 		public SheetInfo(
-			string name, 
-			string part, 
+			string name,
+			string part,
 			bool hidden)
 		{
 			this.Name = name;
@@ -25,5 +25,22 @@ partial class ExcelDataReader
 		public string Name { get; }
 		public string Part { get; }
 		public bool Hidden { get; }
+	}
+
+	private protected class NamedRangeInfo
+	{
+		public NamedRangeInfo(
+			string name,
+			int sheetIdx,
+			string spec)
+		{
+			this.Name = name;
+			this.SheetIdx = sheetIdx;
+			this.Spec = spec;
+		}
+
+		public string Name { get; }
+		public int SheetIdx { get; }
+		public string Spec { get; }
 	}
 }

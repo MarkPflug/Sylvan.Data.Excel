@@ -50,6 +50,8 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 	private protected string[] sst;
 
 	private protected SheetInfo[] sheetInfos;
+
+	private protected NamedRangeInfo[] rangeInfos;
 	private protected int sheetIdx = -1;
 
 	private protected bool readHiddenSheets;
@@ -130,6 +132,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 		this.colHidden = new();
 		this.xfMap = Array.Empty<int>();
 		this.sheetInfos = Array.Empty<SheetInfo>();
+		this.rangeInfos = Array.Empty<NamedRangeInfo>();
 
 		this.columnSchema = Array.Empty<ExcelColumn>();
 		this.formats = ExcelFormat.CreateFormatCollection();
@@ -325,6 +328,51 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 	{
 		return ExcelFileType.FindForFilename(filename)?.WorkbookType ?? ExcelWorkbookType.Unknown;
 	}
+
+	/// <summary>
+	/// Opens the workbook-scoped named range.
+	/// </summary>
+	/// <param name="name">The range name.</param>
+	/// <returns>A DbDataReader.</returns>
+	public DbDataReader OpenNamedRange(string name)
+	{
+		return OpenNamedRange(name, -1);
+	}
+
+	/// <summary>
+	/// Opens the worksheet-scoped named range.
+	/// </summary>
+	/// <param name="name">The range name.</param>
+	/// <param name="sheet">The sheet name.</param>
+	/// <returns>A DbDataReader.</returns>
+	public DbDataReader OpenNamedRange(string name, string sheet)
+	{
+		for (var i = 0; i < this.sheetInfos.Length; i++)
+		{
+			if (this.sheetInfos[i].Name == sheet)
+			{
+				return OpenNamedRange(name, i);
+			}
+		}
+		// TODO
+		throw new ArgumentOutOfRangeException();
+	}
+
+
+	DbDataReader OpenNamedRange(string name, int sheetIdx)
+	{
+		for (int i = 0; i < this.rangeInfos.Length; i++)
+		{
+			var info = this.rangeInfos[i];
+			if (info.Name == name && info.SheetIdx == sheetIdx)
+			{
+				var spec = info.Spec;
+				return new RangeDataReader(this, spec);
+			}
+		}
+		throw new ArgumentException();
+	}
+
 
 	/// <summary>
 	/// Tries to open a worksheet.
@@ -966,12 +1014,12 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 
 	private protected string GetStringValue(in FieldInfo fi, int ordinal)
 	{
-		return 
+		return
 			(
-			fi.type == FieldType.SharedString 
-			? GetSharedString(in fi, ordinal) 
+			fi.type == FieldType.SharedString
+			? GetSharedString(in fi, ordinal)
 			: fi.strValue
-			) 
+			)
 			?? string.Empty;
 	}
 

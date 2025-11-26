@@ -90,9 +90,9 @@ sealed partial class XlsxWorkbookReader : ExcelDataReader
 				this.dateMode = DateMode.Mode1904;
 			}
 
-			var sheets = new List<SheetInfo>();
 			if (nodes != null)
 			{
+				var sheets = new List<SheetInfo>();
 				foreach (XmlElement sheetElem in nodes)
 				{
 					var id = int.Parse(sheetElem.GetAttribute("sheetId"));
@@ -109,8 +109,32 @@ sealed partial class XlsxWorkbookReader : ExcelDataReader
 					var si = new SheetInfo(name, part, hidden);
 					sheets.Add(si);
 				}
+				this.sheetInfos = sheets.ToArray();
 			}
-			this.sheetInfos = sheets.ToArray();
+			nodes = doc.SelectNodes("/x:workbook/x:definedNames/x:definedName", nsm);
+			if (nodes != null)
+			{
+				var ranges = new List<NamedRangeInfo>();
+				foreach (XmlElement namedRangeElem in nodes)
+				{
+					var name = namedRangeElem.GetAttribute("name");
+					if (string.IsNullOrEmpty(name))
+					{
+						// ?
+						continue;
+					}
+					var idxStr = namedRangeElem.GetAttribute("localSheetId");
+					var idx =
+						string.IsNullOrEmpty(idxStr)
+						? -1
+						: int.Parse(idxStr);
+					var spec = namedRangeElem.InnerText;
+
+					var r = new NamedRangeInfo(name, idx, spec);
+					ranges.Add(r);
+				}
+				this.rangeInfos = ranges.ToArray();
+			}
 		}
 		if (stylePart == null)
 		{
