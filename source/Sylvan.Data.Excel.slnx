@@ -1,0 +1,26 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Folder Name="/Build/">
+    <File Path="../.editorconfig" />
+    <File Path="../.github/workflows/dotnet.yml" />
+    <File Path="../Directory.Build.props" />
+    <File Path="../Directory.Build.targets" />
+    <File Path="../readme.md" />
+  </Folder>
+  <Folder Name="/Documentation/">
+    <File Path="../docs/Async.md" />
+    <File Path="../docs/Reference.md" />
+    <File Path="../docs/ReleaseNotes.md" />
+    <File Path="../docs/Schema.md" />
+    <File Path="../license.txt" />
+    <File Path="../readme.md" />
+  </Folder>
+  <Project Path="MinimalXlsx/MinimalXlsx.csproj" />
+  <Project Path="Sylvan.Data.Excel.Tests/Sylvan.Data.Excel.Tests.csproj" />
+  <Project Path="Sylvan.Data.Excel/Sylvan.Data.Excel.csproj" />
+  <Project Path="XlsbTester/XlsbTester.csproj" />
+</Solution>
