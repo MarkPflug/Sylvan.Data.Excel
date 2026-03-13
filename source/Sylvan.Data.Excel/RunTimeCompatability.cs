@@ -2,9 +2,6 @@
 
 #if !SPAN
 
-using System;
-
-
 readonly struct CharSpan
 {
 	readonly char[] buffer;
@@ -107,8 +104,6 @@ static class RunTimeCompatability
 	}
 }
 #else
-
-using System;
 
 static class RunTimeCompatability
 {

@@ -1,8 +1,6 @@
 ﻿#if NET6_0_OR_GREATER
 
-using System;
 using System.Data.Common;
-using System.IO;
 using System.Text;
 
 namespace Sylvan.Data.Excel.Xlsb;

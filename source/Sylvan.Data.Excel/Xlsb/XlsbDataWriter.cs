@@ -1,13 +1,8 @@
 ﻿#if NET6_0_OR_GREATER
 
-using System;
-using System.Collections.Generic;
 using System.Data.Common;
-using System.IO;
 using System.IO.Compression;
 using System.Runtime.InteropServices;
-using System.Threading;
-using System.Threading.Tasks;
 using System.Xml;
 
 namespace Sylvan.Data.Excel.Xlsb;

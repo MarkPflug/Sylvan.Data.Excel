@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace Sylvan.Data.Excel;
+﻿namespace Sylvan.Data.Excel;
 
 static class HexCodec
 {

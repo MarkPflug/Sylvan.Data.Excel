@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace Sylvan;
+﻿namespace Sylvan;
 
 // this is used to track hidden columns.
 // hiding columns is rare, so this is designed

@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-
-namespace Sylvan.Data.Excel;
+﻿namespace Sylvan.Data.Excel;
 
 /// <summary>
 /// Exposes information about the supported Excel file types.
