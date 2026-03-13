@@ -26,6 +26,6 @@
 	</ItemGroup>
 
 	<ItemGroup Condition="$(TargetFramework) != 'netstandard2.0'">
-		<PackageReference Include="Sylvan.IsoDate" Version="0.1.5"/>
+		<PackageReference Include="Sylvan.IsoDate" Version="0.1.5" PrivateAssets="all"/>
 	</ItemGroup>
 </Project>
