@@ -176,6 +176,7 @@ public class CustomTests
 		Assert.Equal("2000-01-01T00:00:01", reader.GetString(2));
 		Assert.Equal("2000-01-01T00:00:00.111", reader.GetString(3));
 		Assert.Equal("2000-01-01T00:00:00.11", reader.GetString(4));
+		Assert.Equal("2000-01-01T00:00:00.012", reader.GetString(5));
 	}
 
 	[Fact]
