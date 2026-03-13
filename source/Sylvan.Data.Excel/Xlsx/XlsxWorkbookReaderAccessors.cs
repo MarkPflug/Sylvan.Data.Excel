@@ -36,15 +36,30 @@ partial class XlsxWorkbookReader
 	internal override DateTime GetDateTimeValue(int ordinal)
 	{
 		ref readonly var fi = ref this.GetFieldValue(ordinal);
+		DateTime dt;
 #if SPAN
 		var span = this.valuesBuffer.AsSpan(ordinal * ValueBufferElementSize, fi.valueLen);
-		return IsoDate.TryParse(span, out DateTime dt) ? dt : throw new FormatException();
+		dt =
+			IsoDate.TryParse(span, out dt) 
+			? dt 
+			: DateTime.TryParse(span, out dt)
+			? dt
+			: throw new FormatException();
 #else
 		var str = new string(valuesBuffer, ordinal * ValueBufferElementSize, fi.valueLen);
-		return DateTime.TryParse(str, out DateTime dt) ? dt : throw new FormatException();
+		dt = DateTime.TryParse(str, out dt) ? dt : throw new FormatException();
 #endif
+		dt = RoundToMilliseconds(dt);
+		return dt;
 	}
 
+	static DateTime RoundToMilliseconds(DateTime dt)
+	{
+		var t = dt.Ticks;
+		var x = TimeSpan.TicksPerMillisecond / 2;
+		t = (t + x) / TimeSpan.TicksPerMillisecond * TimeSpan.TicksPerMillisecond;
+		return new DateTime(t, dt.Kind);
+	}
 
 	public override bool GetBoolean(int ordinal)
 	{

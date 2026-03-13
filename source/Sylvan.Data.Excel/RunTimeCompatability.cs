@@ -1,8 +1,9 @@
-﻿#if !SPAN
+﻿namespace Sylvan;
+
+#if !SPAN
 
 using System;
 
-namespace Sylvan;
 
 readonly struct CharSpan
 {
@@ -108,8 +109,6 @@ static class RunTimeCompatability
 #else
 
 using System;
-
-namespace Sylvan;
 
 static class RunTimeCompatability
 {

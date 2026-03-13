@@ -731,8 +731,8 @@ sealed partial class XlsxWorkbookReader : ExcelDataReader
 									{
 										// this handles an edge-case where the field is a shared string,
 										// but the index is empty.
-										fi.strValue = string.Empty;
 										fi.type = FieldType.String;
+										fi.strValue = string.Empty;
 									}
 									break;
 								case CellType.String:
@@ -743,18 +743,18 @@ sealed partial class XlsxWorkbookReader : ExcelDataReader
 										{
 											s = s.Trim();
 										}
-										fi.strValue = s;
 										fi.type = FieldType.String;
+										fi.strValue = s;
 									}
 									else
 									{
-										fi.strValue = string.Empty;
 										fi.type = FieldType.Null;
+										fi.strValue = string.Empty;
 									}
 									break;
 								case CellType.InlineString:
-									fi.strValue = ReadString(reader);
 									fi.type = FieldType.String;
+									fi.strValue = ReadString(reader);
 									if (fi.strValue.Length == 0)
 									{
 										fi.type = FieldType.Null;
