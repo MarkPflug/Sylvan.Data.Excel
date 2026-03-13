@@ -1,0 +1,13 @@
+﻿<styleSheet 
+	xmlns="http://purl.oclc.org/ooxml/spreadsheetml/main"
+>
+	<numFmts>
+		<numFmt numFmtId="164" formatCode="yyyy\-mm\-dd\ hh:mm:ss"/>
+	</numFmts>
+
+	<cellXfs>
+		<xf numFmtId="0" />
+		<xf numFmtId="164" applyNumberFormat="1"/>
+	</cellXfs>
+
+</styleSheet>

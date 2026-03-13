@@ -966,12 +966,12 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 
 	private protected string GetStringValue(in FieldInfo fi, int ordinal)
 	{
-		return 
+		return
 			(
-			fi.type == FieldType.SharedString 
-			? GetSharedString(in fi, ordinal) 
+			fi.type == FieldType.SharedString
+			? GetSharedString(in fi, ordinal)
 			: fi.strValue
-			) 
+			)
 			?? string.Empty;
 	}
 
@@ -1003,8 +1003,22 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 				return GetSharedString(in fi, ordinal);
 			case FieldType.Null:
 				return string.Empty;
+			case FieldType.DateTime:
+				var dtVal = GetDateTimeValue(ordinal);
+				var ticks = dtVal.Ticks;
+				ticks = RoundToMillis(ticks);
+				dtVal = new DateTime(ticks);
+				return ExcelFormat.FormatDate(fi.xfIdx, new DateTime(ticks));
 		}
 		return ProcString(in fi);
+	}
+
+	static long RoundToMillis(long value)
+	{
+		var x = TimeSpan.TicksPerMillisecond;
+		value += x / 2;
+		value = value / x * x;
+		return value;
 	}
 
 	private protected virtual bool GetBooleanValue(in FieldInfo fi, int ordinal)
@@ -1037,7 +1051,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 
 	private protected string FormatVal(int xfIdx, double val)
 	{
-		var fmtIdx = xfIdx >= this.xfMap.Length ? -1 : this.xfMap[xfIdx];
+		var fmtIdx = (uint)xfIdx >= this.xfMap.Length ? -1 : this.xfMap[xfIdx];
 		if (fmtIdx != -1)
 		{
 			if (formats.TryGetValue(fmtIdx, out var fmt))
@@ -1047,6 +1061,8 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 		}
 		return val.ToString(culture);
 	}
+
+	
 
 	/// <inheritdoc/>
 	public sealed override float GetFloat(int ordinal)

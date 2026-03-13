@@ -164,6 +164,21 @@ public class CustomTests
 	}
 
 	[Fact]
+	public void StrictDateTime()
+	{
+		// test "strict" ooxml where DateTime values are written as iso8601 format
+		var reader = XlsxBuilder.Create(TestData.StrictDateTime, null, TestData.StrictDateTimeStyle, o => o.Schema = ExcelSchema.NoHeaders);
+		Assert.True(reader.Read());
+
+
+		Assert.Equal("2000-01-01T00:00:00.333", reader.GetString(0));
+		Assert.Equal("2000-01-01T00:00:00.667", reader.GetString(1));
+		Assert.Equal("2000-01-01T00:00:01", reader.GetString(2));
+		Assert.Equal("2000-01-01T00:00:00.111", reader.GetString(3));
+		Assert.Equal("2000-01-01T00:00:00.11", reader.GetString(4));
+	}
+
+	[Fact]
 	public void NoCountSharedStrings()
 	{
 		// Test reading file produced by Crystal Reports, which doesn't write the
@@ -226,9 +241,9 @@ public class CustomTests
 	public void DateFormat()
 	{
 		var edr = XlsxBuilder.Create(
-			TestData.DateFormatData, 
-			null, 
-			TestData.DateFormatStyle, 
+			TestData.DateFormatData,
+			null,
+			TestData.DateFormatStyle,
 			o => o.DateTimeFormat = "dd/MM/yyyy"
 			);
 

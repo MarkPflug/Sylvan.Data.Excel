@@ -24,4 +24,8 @@
 		<InternalsVisibleTo Include="Sylvan.Data.Excel.Tests" />
 		<InternalsVisibleTo Condition="$(Configuration) == 'Debug'" Include="XlsbTester" />
 	</ItemGroup>
+
+	<ItemGroup Condition="$(TargetFramework) != 'netstandard2.0'">
+		<PackageReference Include="Sylvan.IsoDate" Version="0.1.5"/>
+	</ItemGroup>
 </Project>

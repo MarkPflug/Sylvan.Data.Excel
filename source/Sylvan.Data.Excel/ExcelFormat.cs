@@ -246,6 +246,10 @@ public sealed class ExcelFormat
 	/// </summary>
 	public FormatKind Kind { get; private set; }
 
+	const string TimeFmt = "HH:mm:ss.FFF";
+	const string DateFmt = "yyyy-MM-dd";
+	const string DateTimeFmt = DateFmt + "T" + TimeFmt; 
+
 	internal string FormatValue(double value, ExcelDataReader.DateMode mode, CultureInfo culture)
 	{
 		var kind = this.Kind;
@@ -262,9 +266,8 @@ public sealed class ExcelFormat
 				{
 					// omit rendering the date when the value is in the range 0-1
 					// this would render in Excel as the date 
-					var fmt = "HH:mm:ss.FFFFFF";
 					dt = DateTime.MinValue.AddDays(value);
-					return dt.ToString(fmt, CultureInfo.InvariantCulture);
+					return dt.ToString(TimeFmt, CultureInfo.InvariantCulture);
 				}
 				goto case FormatKind.Date;
 			case FormatKind.Date:
@@ -272,14 +275,25 @@ public sealed class ExcelFormat
 				{
 					if (culture == CultureInfo.InvariantCulture)
 					{
+#if SPAN
 						if (dt.TimeOfDay == TimeSpan.Zero)
 						{
 							return IsoDate.ToDateStringIso(dt);
 						}
 						else
 						{
-							return IsoDate.ToStringIso(dt);
+							return IsoDate.ToStringIso(dt, -3);
 						}
+#else
+						if (dt.TimeOfDay == TimeSpan.Zero)
+						{
+							return dt.ToString(DateFmt);
+						}
+						else
+						{
+							return dt.ToString(DateTimeFmt);
+						}
+#endif
 					}
 					else
 					{
@@ -293,6 +307,29 @@ public sealed class ExcelFormat
 				return string.Empty;
 		}
 		return value.ToString(culture);
+	}
+
+	internal static string FormatDate(int xfIdx, DateTime value)
+	{
+#if SPAN
+		if (value.TimeOfDay == TimeSpan.Zero)
+		{
+			return IsoDate.ToDateStringIso(value);
+		}
+		else
+		{
+			return IsoDate.ToStringIso(value, -3);
+		}
+#else
+		if (value.TimeOfDay == TimeSpan.Zero)
+		{
+			return value.ToString(DateFmt);
+		}
+		else
+		{
+			return value.ToString(DateTimeFmt);
+		}
+#endif
 	}
 
 	static readonly ExcelFormat[] standardFormats;
