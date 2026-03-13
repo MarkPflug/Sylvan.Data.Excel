@@ -1,10 +1,8 @@
 ﻿#if ASYNC
 // this type is only needed for buffering Excel data for async operation.
 
-using System;
 using System.Buffers;
 using System.Diagnostics;
-using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 
