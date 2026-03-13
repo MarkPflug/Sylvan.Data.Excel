@@ -1,5 +1,8 @@
 # Sylvan.Data.Excel Release Notes
 
+_0.5.3_
+- Fix handling of date values in strict xlsx files.
+
 _0.5.2_
 - Fix growth strategy for internal buffers to avoid excessive allocations in extreme cases.
 - Fix an issue where malformed files could cause unbounded memory allocation.
