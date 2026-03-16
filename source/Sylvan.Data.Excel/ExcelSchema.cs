@@ -45,23 +45,31 @@ sealed class DefaultExcelSchema : ExcelSchemaProvider
 public sealed class ExcelSchema : ExcelSchemaProvider
 {
 	/// <summary>
-	/// A schema that expects each sheet to have a header row, and describes
+	/// A schema that defines each sheet as having a header row, and defines
 	/// each column as being a nullable string.
 	/// </summary>
 	public static IExcelSchemaProvider Default = new DefaultExcelSchema(typeof(string), true);
 
 	/// <summary>
-	/// A schema that expects each sheet to have a header row, and describes
+	/// A schema that defines each sheet as not having a header row, and defines
+	/// each column as being a nullable string. Column names are exposed as the Excel column header "A", "B", etc.
+	/// </summary>
+	public static IExcelSchemaProvider NoHeaders = new DefaultExcelSchema(typeof(string), false);
+
+	/// <summary>
+	/// A schema that defines each sheet as having a header row, and defines
 	/// each column as being a nullable object. This causes each cell to be interpreted
 	/// dynamically when accessed using <see cref="ExcelDataReader.GetValue(int)"/>.
 	/// </summary>
 	public static IExcelSchemaProvider Dynamic = new DefaultExcelSchema(typeof(object), true);
 
 	/// <summary>
-	/// A schema that does not expect each sheet to have a header row, and describes
-	/// each column as being a nullable string. Column names are exposed as the Excel column header "A", "B", etc.
+	/// A schema that defines each sheet as not having a header row, and defines
+	/// each column as being a nullable object. This causes each cell to be interpreted
+	/// dynamically when accessed using <see cref="ExcelDataReader.GetValue(int)"/>.
 	/// </summary>
-	public static IExcelSchemaProvider NoHeaders = new DefaultExcelSchema(typeof(string), false);
+	public static IExcelSchemaProvider DynamicNoHeaders = new DefaultExcelSchema(typeof(object), false);
+
 
 	class ExcelSchemaColumn : DbColumn
 	{
