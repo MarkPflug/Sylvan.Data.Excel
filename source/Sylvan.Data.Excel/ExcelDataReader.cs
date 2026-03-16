@@ -1,4 +1,4 @@
-﻿#nullable enable
+﻿
 using System.Collections;
 using System.Collections.ObjectModel;
 using System.Data;

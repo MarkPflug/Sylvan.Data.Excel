@@ -1,4 +1,4 @@
-﻿#nullable enable
+﻿
 using System.Data.Common;
 
 namespace Sylvan.Data.Excel;

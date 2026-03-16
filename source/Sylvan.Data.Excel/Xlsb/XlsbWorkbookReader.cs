@@ -1,4 +1,4 @@
-﻿#nullable enable
+﻿
 using System.Diagnostics;
 using System.IO.Compression;
 using System.Text;
