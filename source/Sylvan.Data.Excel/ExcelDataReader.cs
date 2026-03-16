@@ -852,9 +852,9 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 				var fmt = GetFormat(ordinal);
 				if (fmt?.Kind == FormatKind.Time)
 				{
-					if (TryGetDate(fmt, val, out DateTime dt))
+					if (TryGetTimeSpan(val, out var ts))
 					{
-						return dt.TimeOfDay;
+						return ts;
 					}
 				}
 				break;
@@ -877,7 +877,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 		return TryGetDate(fmt, value, this.dateMode, out dt);
 	}
 
-	static internal bool TryGetDate(ExcelFormat fmt, double value, DateMode mode, out DateTime dt)
+	internal static bool TryGetDate(ExcelFormat fmt, double value, DateMode mode, out DateTime dt)
 	{
 		dt = DateTime.MinValue;
 		DateTime epoch = Epoch1904;
@@ -895,6 +895,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 					if (fmt.Kind == FormatKind.Time)
 					{
 						dt = DateTime.MinValue.AddDays(value);
+						dt = new DateTime(RoundToMilliseconds(dt.Ticks));
 						return true;
 					}
 
@@ -913,10 +914,23 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 				adjustTicks = TimeSpan.TicksPerDay;
 			}
 		}
-		var ticks = (long)(value * TimeSpan.TicksPerDay);
+		var ticks = RoundToMilliseconds((long)(value * TimeSpan.TicksPerDay));
 		dt = epoch.AddTicks(ticks + adjustTicks);
 		return true;
 	}
+
+	internal static bool TryGetTimeSpan(double value, out TimeSpan ts)
+	{
+		ts = TimeSpan.MinValue;
+		// Excel doesn't render negative values as dates.
+		if (value < 0.0)
+			return false;
+
+		ts = TimeSpan.FromDays(value);
+		ts = TimeSpan.FromTicks(RoundToMilliseconds(ts.Ticks));
+		return true;
+	}
+
 	/// <inheritdoc/>
 	public sealed override bool IsDBNull(int ordinal)
 	{
@@ -1000,14 +1014,16 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 			case FieldType.DateTime:
 				var dtVal = GetDateTimeValue(ordinal);
 				var ticks = dtVal.Ticks;
-				ticks = RoundToMillis(ticks);
+				ticks = RoundToMilliseconds(ticks);
 				dtVal = new DateTime(ticks);
 				return ExcelFormat.FormatDate(fi.xfIdx, new DateTime(ticks));
 		}
 		return ProcString(in fi);
 	}
 
-	static long RoundToMillis(long value)
+	// Excel stores dates as float point numbers, where the precision is
+	// correct to the millisecond, so we use this to adjust to the ms.
+	static long RoundToMilliseconds(long value)
 	{
 		var x = TimeSpan.TicksPerMillisecond;
 		value += x / 2;
