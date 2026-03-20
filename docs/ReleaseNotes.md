@@ -1,5 +1,8 @@
 # Sylvan.Data.Excel Release Notes
 
+_0.5.4_
+- Fix handling of timespan formatted values ('[h], [m], [s]') to be treated as .NET TimeSpan.
+
 _0.5.3_
 - Fix handling of date values in strict xlsx files.
 
