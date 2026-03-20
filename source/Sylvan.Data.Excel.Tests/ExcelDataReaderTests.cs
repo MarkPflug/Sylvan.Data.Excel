@@ -1260,8 +1260,7 @@ public partial class XlsxTests
 		var file = GetFile();
 		using var edr = ExcelDataReader.Create(file);
 		// Excel doesn't know what to do with negative date values.
-		// In some cases, it will display nonsense, and in any case
-
+		// In some cases, it will display nonsense
 		// Excel in 1904 date mode renders negative numerical values
 		// as negative dates. So, we'll throw
 		Assert.True(edr.Read());
@@ -1329,7 +1328,7 @@ public partial class XlsxTests
 		var file = GetFile();
 		using var edr = ExcelDataReader.Create(file);
 		// Excel doesn't know what to do with negative date values.
-		// In some cases, it will display nonsense, and in any case
+		// In some cases, it will display nonsense
 
 		// Excel renders negative values as as string of hash chars '#'
 		Assert.True(edr.Read());
@@ -1663,6 +1662,76 @@ public partial class XlsxTests
 		Assert.Equal("02:24:00", str);
 	}
 
+	[Fact]
+	public void TimeSpanDefault()
+	{
+		var file = GetFile("TimeSpan");
+		using var edr = ExcelDataReader.Create(file, new() { Schema = ExcelSchema.NoHeaders });
+		edr.Read();
+		// the string returned will be .NET TimeSpan string
+		// which doesn't match what Excel displays, where hours
+		// is the largest unit. I think this is reasonable, since
+		// the TimeSpan.Parse would otherwise produce an incorrect value
+		var val = edr.GetValue(0);
+		Assert.Equal("3.03:23:53.605", val);
+		var str = edr.GetString(0);
+		Assert.Equal("3.03:23:53.605", str);
+		// The returned TimeSpan is rounded to ms.
+		var ts = edr.GetTimeSpan(0);
+		Assert.Equal(new TimeSpan(0, 75, 23, 53, 605), ts);
+		var dt = edr.GetDateTime(0);
+		Assert.Equal(new DateTime(1900, 1, 3, 3, 23, 53, 605), dt);
+
+		edr.Read();
+		val = edr.GetValue(0);
+		Assert.Equal("03:23:53.605", val);
+		str = edr.GetString(0);
+		Assert.Equal("03:23:53.605", str);
+		// The returned TimeSpan is rounded to ms.
+		ts = edr.GetTimeSpan(0);
+		Assert.Equal(new TimeSpan(0, 3, 23, 53, 605), ts);
+		dt = edr.GetDateTime(0);
+		// For numeric values [0,1) Excel displays 1900-1-0, which is not a date
+		// So we push these values to DateTime.MinValue, to try to isolate
+		// the time component.
+		Assert.Equal(new DateTime(1, 1, 1, 3, 23, 53, 605), dt);
+	}
+
+
+	[Fact]
+	public void TimeSpanDynamic()
+	{
+		var file = GetFile("TimeSpan");
+		using var edr = ExcelDataReader.Create(file, new() { Schema = ExcelSchema.DynamicNoHeaders });
+		edr.Read();
+		// the string returned will be .NET TimeSpan string
+		// which doesn't match what Excel displays, where hours
+		// is the largest unit. I think this is reasonable, since
+		// the TimeSpan.Parse would otherwise produce an incorrect value
+		var val = edr.GetValue(0);
+		Assert.Equal(new TimeSpan(3, 3, 23, 53, 605), val);
+		var str = edr.GetString(0);
+		Assert.Equal("3.03:23:53.605", str);
+		// The returned TimeSpan is rounded to ms.
+		var ts = edr.GetTimeSpan(0);
+		Assert.Equal(new TimeSpan(0, 75, 23, 53, 605), ts);
+		var dt = edr.GetDateTime(0);
+		Assert.Equal(new DateTime(1900, 1, 3, 3, 23, 53, 605), dt);
+
+		edr.Read();
+		val = edr.GetValue(0);
+		Assert.Equal(new TimeSpan(0, 3, 23, 53, 605), val);
+		str = edr.GetString(0);
+		Assert.Equal("03:23:53.605", str);
+		// The returned TimeSpan is rounded to ms.
+		ts = edr.GetTimeSpan(0);
+		Assert.Equal(new TimeSpan(0, 3, 23, 53, 605), ts);
+		dt = edr.GetDateTime(0);
+		// For numeric values [0,1) Excel displays 1900-1-0, which is not a date
+		// So we push these values to DateTime.MinValue, to try to isolate
+		// the time component.
+		Assert.Equal(new DateTime(1, 1, 1, 3, 23, 53, 605), dt);
+	}
 #if NET6_0_OR_GREATER
 
 	[Fact]

@@ -124,14 +124,40 @@ public sealed class ExcelFormat
 			switch (c)
 			{
 				case '[':
+					// detect if a timespan component exists in the format
+					char code = '\0';
+					const char Unknown = (char)1;
 					for (var j = i + 1; j < spec.Length; j++)
 					{
 						c = spec[j];
-						if (c == ']')
+						switch (c)
 						{
-							i = j;
-							break;
-						}
+							case 'm':
+							case 'h':
+							case 's':
+								if (code == '\0')
+								{
+									code = c;
+								}
+								else
+								{
+									if (c != code)
+									{
+										code = Unknown;
+									}
+								}
+								break;
+							case ']':
+								if (code > Unknown)
+								{
+									hasTimeElements = true;
+								}
+								i = j;
+								break;
+							default:
+								code = Unknown;
+								break;
+						}						
 					}
 					break;
 				case '\"':
@@ -244,9 +270,10 @@ public sealed class ExcelFormat
 	/// </summary>
 	public FormatKind Kind { get; private set; }
 
+	const string TimeSpanFmt = @"d\.hh\:mm\:ss\.FFF";
 	const string TimeFmt = "HH:mm:ss.FFF";
 	const string DateFmt = "yyyy-MM-dd";
-	const string DateTimeFmt = DateFmt + "T" + TimeFmt; 
+	const string DateTimeFmt = DateFmt + "T" + TimeFmt;
 
 	internal string FormatValue(double value, ExcelDataReader.DateMode mode, CultureInfo culture)
 	{
@@ -267,7 +294,11 @@ public sealed class ExcelFormat
 					dt = DateTime.MinValue.AddDays(value);
 					return dt.ToString(TimeFmt, CultureInfo.InvariantCulture);
 				}
-				goto case FormatKind.Date;
+				if (ExcelDataReader.TryGetTimeSpan(value, out var ts))
+				{
+					return ts.ToString(TimeSpanFmt);
+				}
+				break;
 			case FormatKind.Date:
 				if (ExcelDataReader.TryGetDate(this, value, mode, out dt))
 				{
