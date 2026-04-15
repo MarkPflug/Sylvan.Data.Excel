@@ -13,6 +13,7 @@ using Xunit;
 
 namespace Sylvan.Data.Excel;
 
+
 public class XlsxDataWriterTests : ExcelDataWriterTests
 {
 	const string FileFormat = "{0}.xlsx";
@@ -40,6 +41,7 @@ public class XlsbDataWriterTests : ExcelDataWriterTests
 }
 
 #endif
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2007:Calls to methods which accept CancellationToken should use TestContext.Current.CancellationToken", Justification = "<Pending>")]
 
 public abstract class ExcelDataWriterTests
 {
@@ -626,9 +628,9 @@ public abstract class ExcelDataWriterTests
 				}
 			).AsDataReader();
 
-		await using (var edw = await ExcelDataWriter.CreateAsync(f))
+		await using (var edw = await ExcelDataWriter.CreateAsync(f, null, TestContext.Current.CancellationToken))
 		{
-			await edw.WriteAsync(data);
+			await edw.WriteAsync(data, null, TestContext.Current.CancellationToken);
 		}
 		Validate(f);
 		//Open(f);
@@ -655,9 +657,9 @@ public abstract class ExcelDataWriterTests
 			).AsDataReader();
 		var s = File.Create(f);
 		var testStream = new TestStream(s);
-		await using (var edw = await ExcelDataWriter.CreateAsync(testStream, WorkbookType))
+		await using (var edw = await ExcelDataWriter.CreateAsync(testStream, WorkbookType, null, TestContext.Current.CancellationToken))
 		{
-			await edw.WriteAsync(data);
+			await edw.WriteAsync(data, null, TestContext.Current.CancellationToken);
 		}
 		Assert.False(testStream.IsClosed);
 
@@ -689,9 +691,9 @@ public abstract class ExcelDataWriterTests
 		var testStream = new TestStream(s);
 
 		var opts = new ExcelDataWriterOptions { OwnsStream = true };
-		await using (var edw = await ExcelDataWriter.CreateAsync(testStream, WorkbookType, opts))
+		await using (var edw = await ExcelDataWriter.CreateAsync(testStream, WorkbookType, opts, TestContext.Current.CancellationToken))
 		{
-			await edw.WriteAsync(data);
+			await edw.WriteAsync(data, null, TestContext.Current.CancellationToken);
 		}
 		Assert.True(testStream.IsClosed);
 		Validate(f);

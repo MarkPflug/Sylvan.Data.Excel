@@ -517,6 +517,17 @@ public partial class XlsxTests
 		Assert.Equal(1, edr.RowNumber);
 		var dt = new DataTable();
 		dt.Load(edr);
+
+		var cols = dt.Columns;
+		Assert.Equal(typeof(int), cols[0].DataType);
+		Assert.Equal(typeof(string), cols[1].DataType);
+		Assert.Equal(typeof(DateTime), cols[2].DataType);
+		Assert.Equal(typeof(decimal), cols[3].DataType);
+		Assert.Equal(typeof(string), cols[4].DataType);
+		Assert.Equal(typeof(bool), cols[5].DataType);
+		Assert.Equal(typeof(double), cols[6].DataType);
+		Assert.Equal(typeof(double), cols[7].DataType);
+
 		Assert.Equal(4, dt.Rows.Count);
 	}
 
@@ -1527,7 +1538,7 @@ public partial class XlsxTests
 		Assert.Throws<InvalidOperationException>(() => edr.GetExcelDataType(0));
 		Assert.Throws<InvalidOperationException>(() => edr.GetExcelValue(0));
 		Assert.Throws<InvalidOperationException>(() => edr.GetFieldValue<string>(0));
-		await Assert.ThrowsAsync<InvalidOperationException>(async () => await edr.GetFieldValueAsync<string>(0));
+		await Assert.ThrowsAsync<InvalidOperationException>(async () => await edr.GetFieldValueAsync<string>(0, TestContext.Current.CancellationToken));
 		Assert.Throws<InvalidOperationException>(() => edr.GetFloat(0));
 		Assert.Throws<InvalidOperationException>(() => edr.GetFormat(0));
 		Assert.Throws<InvalidOperationException>(() => edr.GetFormulaError(0));
@@ -1542,7 +1553,7 @@ public partial class XlsxTests
 		object[] values = new object[3];
 		Assert.Throws<InvalidOperationException>(() => edr.GetValues(values));
 		Assert.Throws<InvalidOperationException>(() => edr.IsDBNull(0));
-		await Assert.ThrowsAsync<InvalidOperationException>(async () => await edr.IsDBNullAsync(0));
+		await Assert.ThrowsAsync<InvalidOperationException>(async () => await edr.IsDBNullAsync(0, TestContext.Current.CancellationToken));
 	}
 
 	[Fact]
@@ -1816,8 +1827,8 @@ public partial class XlsxTests
 	public async Task BasicAsync()
 	{
 		var name = GetFile("Big");
-		await using var edr = await ExcelDataReader.CreateAsync(name);
-		while (await edr.ReadAsync())
+		await using var edr = await ExcelDataReader.CreateAsync(name, null, TestContext.Current.CancellationToken);
+		while (await edr.ReadAsync(TestContext.Current.CancellationToken))
 		{
 			for (int i = 0; i < edr.RowFieldCount; i++)
 			{
@@ -1834,8 +1845,8 @@ public partial class XlsxTests
 
 		var testStream = new TestStream(stream);
 
-		await using var edr = await ExcelDataReader.CreateAsync(testStream, this.WorkbookType);
-		while (await edr.ReadAsync())
+		await using var edr = await ExcelDataReader.CreateAsync(testStream, this.WorkbookType, null, TestContext.Current.CancellationToken);
+		while (await edr.ReadAsync( TestContext.Current.CancellationToken))
 		{
 			for (int i = 0; i < edr.RowFieldCount; i++)
 			{
@@ -1855,8 +1866,8 @@ public partial class XlsxTests
 
 		var testStream = new TestStream(stream);
 		var opts = new ExcelDataReaderOptions { OwnsStream = true };
-		await using var edr = await ExcelDataReader.CreateAsync(testStream, this.WorkbookType, opts);
-		while (await edr.ReadAsync())
+		await using var edr = await ExcelDataReader.CreateAsync(testStream, this.WorkbookType, opts, TestContext.Current.CancellationToken);
+		while (await edr.ReadAsync(TestContext.Current.CancellationToken))
 		{
 			for (int i = 0; i < edr.RowFieldCount; i++)
 			{

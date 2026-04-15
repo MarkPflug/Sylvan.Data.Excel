@@ -3,7 +3,6 @@
 using System;
 using System.IO;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Sylvan.Data.Excel;
 

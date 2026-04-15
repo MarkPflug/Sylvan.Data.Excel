@@ -12,8 +12,9 @@ partial class XlsxTests
 	{
 		var f = GetFile("Numbers");
 
-		var opt = 
-			new ExcelDataReaderOptions { 
+		var opt =
+			new ExcelDataReaderOptions
+			{
 				Schema = ExcelSchema.NoHeaders
 				// culture defaults to invariant
 			};
@@ -61,7 +62,7 @@ partial class XlsxTests
 	{
 		var f = GetFile("DateTime");
 
-			// culture defaults to invariant
+		// culture defaults to invariant
 		var opt = new ExcelDataReaderOptions();
 		var edr = ExcelDataReader.Create(f, opt);
 
@@ -74,7 +75,7 @@ partial class XlsxTests
 		var s = edr.GetString(2);
 		var o = edr.GetValue(2);
 
-		Assert.Equal(new DateTime(1900, 1, 1, 2, 24, 0, DateTimeKind.Unspecified ), v);
+		Assert.Equal(new DateTime(1900, 1, 1, 2, 24, 0, DateTimeKind.Unspecified), v);
 		//// even though the thread culture (italian) uses  a comma for a decimal separator
 		//// the EDR returns the invariant as that is the default culture used by the options
 		Assert.Equal("1900-01-01T02:24:00", s);

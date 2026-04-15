@@ -508,6 +508,32 @@ sealed partial class XlsxWorkbookReader : ExcelDataReader
 			pos = new CellPosition() { Column = col, Row = row - 1 };
 			return true;
 		}
+
+		public static bool TryParseCol(ReadonlyCharSpan str, out int col)
+		{
+			var l = str.Length;
+			col = -1;
+			if (l == 0)
+				return false;
+
+			int i = 0;
+			char c;
+			for (; i < l; i++)
+			{
+				c = str[i];
+				var v = c - 'A';
+				if ((uint)v < 26u)
+				{
+					col = ((col + 1) * 26) + v;
+				}
+				else
+				{
+					break;
+				}
+			}
+
+			return col != -1;
+		}
 	}
 
 	public override bool Read()
@@ -599,11 +625,11 @@ sealed partial class XlsxWorkbookReader : ExcelDataReader
 				var n = reader.LocalName;
 				if (n == "r")
 				{
-					len = reader.ReadValueChunk(buffer, 0, buffer.Length);
+					len = reader.ReadValueChunk(buffer, 0, 4);
 
-					if (CellPosition.TryParse(buffer.AsSpan().ToParsable(0, len), out var pos))
+					if (CellPosition.TryParseCol(buffer.AsSpan().ToParsable(0, len), out var pos))
 					{
-						col = pos.Column;
+						col = pos;
 					}
 					else
 					{
@@ -618,20 +644,19 @@ sealed partial class XlsxWorkbookReader : ExcelDataReader
 					{
 						switch (b[0])
 						{
-							case 'b':
-								return CellType.Boolean;
-							case 'e':
-								return CellType.Error;
+							case 'n':
+								return CellType.Numeric;
 							case 's':
 								return l == 1 ? CellType.SharedString : CellType.String;
+							case 'b':
+								return CellType.Boolean;
 							case 'i':
 								return CellType.InlineString;
 							case 'd':
 								return CellType.Date;
-							case 'n':
-								return CellType.Numeric;
+							case 'e':
+								return CellType.Error;
 							default:
-								// TODO:
 								throw new InvalidDataException();
 						}
 					}
@@ -1055,13 +1080,11 @@ sealed partial class XlsxWorkbookReader : ExcelDataReader
 						Array.Resize(ref sst, sst.Length * 2);
 					}
 					sst[sstIdx] = str;
-
 				}
 			}
 			else
 			{
 				// a cell with an SST value reference out of bounds.
-				// this exception type is probably wrong
 				return false;
 			}
 		}

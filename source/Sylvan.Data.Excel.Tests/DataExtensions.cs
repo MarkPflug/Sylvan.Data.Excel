@@ -6,6 +6,8 @@ using System.Threading.Tasks;
 
 namespace Sylvan.Data;
 
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2007:Calls to methods which accept CancellationToken should use TestContext.Current.CancellationToken", Justification = "<Pending>")]
+
 static class DataExtensions
 {
 	public static void ProcessStrings(this IDataReader reader)

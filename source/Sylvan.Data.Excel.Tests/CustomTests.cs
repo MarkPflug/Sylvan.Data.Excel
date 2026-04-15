@@ -1,6 +1,8 @@
 ﻿using System;
 using Xunit;
 
+[assembly: CaptureConsole]
+
 namespace Sylvan.Data.Excel;
 
 public class CustomTests
@@ -186,6 +188,16 @@ public class CustomTests
 		// count/unique attribute on the shared strings table
 
 		var reader = XlsxBuilder.Create(TestData.NoCountSSTWS, TestData.NoCountSST);
+		Assert.True(reader.Read());
+		Assert.Equal("a", reader.GetString(0));
+		Assert.Equal("b", reader.GetString(1));
+		Assert.False(reader.Read());
+	}
+
+	[Fact]
+	public void BadCountSharedStrings()
+	{
+		var reader = XlsxBuilder.Create(TestData.BadCountSSTWS, TestData.BadCountSST);
 		Assert.True(reader.Read());
 		Assert.Equal("a", reader.GetString(0));
 		Assert.Equal("b", reader.GetString(1));
