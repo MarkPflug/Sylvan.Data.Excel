@@ -390,7 +390,6 @@ sealed partial class XlsxWorkbookReader : ExcelDataReader
 		var reader = this.reader;
 		if (reader == null) return false;
 
-		var ci = NumberFormatInfo.InvariantInfo;
 		if (ReadToFollowing(reader, "row"))
 		{
 			this.parsedRowIndex = -1;
@@ -411,6 +410,7 @@ sealed partial class XlsxWorkbookReader : ExcelDataReader
 					}
 #else
 					var str = reader.Value;
+					var ci = NumberFormatInfo.InvariantInfo;
 					if (!int.TryParse(str, NumberStyles.Integer, ci, out row))
 					{
 						row = 0;

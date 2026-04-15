@@ -1252,7 +1252,18 @@ public partial class XlsxTests
 		Assert.Equal("a ", edr.GetString(0));
 		Assert.Equal(" b", edr.GetString(1));
 		Assert.Equal(" c ", edr.GetString(2));
+	}
 
+	[Fact]
+	public void RichText()
+	{
+		var file = GetFile();
+		var opts = new ExcelDataReaderOptions { Schema = ExcelSchema.NoHeaders };
+		using var edr = ExcelDataReader.Create(file, opts);
+
+		Assert.True(edr.Read());
+		Assert.Equal("asdf qwer zxcv", edr.GetString(0));
+		Assert.False(edr.Read());
 	}
 
 	[Fact]
