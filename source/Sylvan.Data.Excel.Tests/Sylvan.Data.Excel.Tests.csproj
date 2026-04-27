@@ -11,7 +11,6 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<PackageReference Include="OpenMcdf" Version="3.1.2" />
 		<PackageReference Include="Sylvan.BuildTools.Resources" Version="0.6.2" PrivateAssets="all" />
 		<PackageReference Include="Sylvan.Data" Version="0.2.16" />
 		<PackageReference Include="Sylvan.Data.Csv" Version="1.4.2" />
