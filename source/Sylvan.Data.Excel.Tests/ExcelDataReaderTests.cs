@@ -77,13 +77,6 @@ public partial class XlsxTests
 	}
 
 	[Fact]
-	public void X()
-	{
-		using var r = ExcelDataReader.Create("C:\\Users\\markp\\source\\benchmarks\\source\\Benchmarks\\Data\\65K_Records_Data.xlsx");
-		while (r.Read()) ;
-	}
-
-	[Fact]
 	public void HeadersWithSchema()
 	{
 		var file = GetFile("Schema");
