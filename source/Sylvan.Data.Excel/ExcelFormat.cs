@@ -26,68 +26,6 @@ public enum FormatKind
 	Time,
 }
 
-/// <summary>
-/// Indicates the kind of error a formula produced.
-/// </summary>
-public enum ExcelErrorCode
-{
-	/// <summary>
-	/// A null reference error.
-	/// </summary>
-	Null = 0,
-	/// <summary>
-	/// A division by zero error.
-	/// </summary>
-	DivideByZero = 7,
-	/// <summary>
-	/// A value error indicating a function requires a numeric but was given a string.
-	/// </summary>
-	Value = 15,
-	/// <summary>
-	/// A reference error indicating a function references a location that doesn't exist.
-	/// </summary>
-	Reference = 23,
-	/// <summary>
-	/// A name error indicating the function references an unknown operation.
-	/// </summary>
-	Name = 29,
-	/// <summary>
-	/// A number error indicating the function expected a number in a certain range.
-	/// </summary>
-	Number = 36,
-	/// <summary>
-	/// An error indicating the function attempted to lookup a value that isn't available.
-	/// </summary>
-	NotAvailable = 42,
-}
-
-/// <summary>
-/// An exception that is thrown when attempting to access a value in a cell that contains a function error.
-/// </summary>
-public sealed class ExcelFormulaException : Exception
-{
-	internal ExcelFormulaException(int col, int row, ExcelErrorCode code)
-	{
-		this.Row = row;
-		this.Column = col;
-		this.ErrorCode = code;
-	}
-
-	/// <summary>
-	/// The row containing the error.
-	/// </summary>
-	public int Row { get; }
-
-	/// <summary>
-	/// The column containing the error.
-	/// </summary>
-	public int Column { get; }
-
-	/// <summary>
-	/// The error code indicating the kind of error.
-	/// </summary>
-	public ExcelErrorCode ErrorCode { get; }
-}
 
 /// <summary>
 /// An Excel format object indicating how a cell value is displayed.

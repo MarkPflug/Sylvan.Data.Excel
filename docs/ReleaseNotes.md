@@ -1,5 +1,11 @@
 # Sylvan.Data.Excel Release Notes
 
+_0.5.6_
+- Adds `ExcelDataReaderOptions.FormulaErrorHandling` which obsoletes `GetErrorAsNull`. 
+  This enumeration adds the ability to read formula errors as their string representation (`#DIV/0!`).
+  `GetErrorsAsNull` still functions, but is marked obsolete.
+- Fixes `#NUM!` error type, which wasn't previously recognized.
+
 _0.5.5_
 - Minor code optimizations.
 

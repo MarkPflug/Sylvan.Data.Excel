@@ -813,35 +813,6 @@ sealed partial class XlsxWorkbookReader : ExcelDataReader
 		return valueCount == 0 ? 0 : col + 1;
 	}
 
-	static bool Equal(ReadonlyCharSpan l, ReadonlyCharSpan r)
-	{
-		if (l.Length != r.Length) return false;
-		for (int i = 0; i < l.Length; i++)
-		{
-			if (l[i] != r[i])
-				return false;
-		}
-		return true;
-	}
-
-	static ExcelErrorCode GetErrorCode(ReadonlyCharSpan str)
-	{
-		if (Equal(str, "#DIV/0!"))
-			return ExcelErrorCode.DivideByZero;
-		if (Equal(str, "#VALUE!"))
-			return ExcelErrorCode.Value;
-		if (Equal(str, "#REF!"))
-			return ExcelErrorCode.Reference;
-		if (Equal(str, "#NAME?"))
-			return ExcelErrorCode.Name;
-		if (Equal(str, "#N/A"))
-			return ExcelErrorCode.NotAvailable;
-		if (Equal(str, "#NULL!"))
-			return ExcelErrorCode.Null;
-
-		throw new FormatException();
-	}
-
 	static bool ReadToFollowing(XmlReader reader, string localName)
 	{
 		while (reader.Read())

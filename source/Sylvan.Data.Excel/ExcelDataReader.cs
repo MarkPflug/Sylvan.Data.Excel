@@ -52,7 +52,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 	// indicates if the current data row is hidden.
 	private protected bool isRowHidden;
 
-	private protected bool errorAsNull;
+	private protected FormulaErrorHandling errorHandling;
 
 	private protected int rowCount;
 	private protected int rowFieldCount;
@@ -115,7 +115,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 		this.isAsync = false;
 		this.stream = stream;
 		this.schema = options.Schema;
-		this.errorAsNull = options.GetErrorAsNull;
+		this.errorHandling = options.FormulaErrorHandling;
 		this.readHiddenSheets = options.ReadHiddenWorksheets;
 		this.readHiddenRows = options.ReadHiddenRows;
 		this.state = State.Initializing;
@@ -948,9 +948,13 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 			case ExcelDataType.Null:
 				return true;
 			case ExcelDataType.Error:
-				if (errorAsNull)
+				switch (this.errorHandling)
 				{
-					return true;
+					case FormulaErrorHandling.Exception:
+					case FormulaErrorHandling.String:
+						return false;
+					case FormulaErrorHandling.Null:
+						return true;
 				}
 				return false;
 		}
@@ -994,11 +998,16 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 		switch (fi.type)
 		{
 			case FieldType.Error:
-				if (errorAsNull)
+				switch (this.errorHandling)
 				{
-					return string.Empty;
+					case FormulaErrorHandling.String:
+						return ExcelError.GetErrorString(GetFormulaError(ordinal));
+					case FormulaErrorHandling.Null:
+						return string.Empty;
+					case FormulaErrorHandling.Exception:
+					default:
+					throw GetError(ordinal);
 				}
-				throw GetError(ordinal);
 			case FieldType.Boolean:
 				var boolVal = GetBooleanValue(in fi, ordinal);
 				return boolVal ? bool.TrueString : bool.FalseString;

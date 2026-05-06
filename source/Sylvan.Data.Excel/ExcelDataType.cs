@@ -10,11 +10,11 @@ public enum ExcelDataType
 	/// </summary>
 	Null = 0,
 	/// <summary>
-	/// A numeric value. This is also used to represent DateTime values.
+	/// A numeric value. These cells might have a style applied that formats as a date or time value.
 	/// </summary>
 	Numeric,
 	/// <summary>
-	/// A DateTime value. This is an uncommonly used representation in .xlsx files.
+	/// A DateTime value. This is used in "strict" .xlsx files.
 	/// </summary>
 	DateTime,
 	/// <summary>

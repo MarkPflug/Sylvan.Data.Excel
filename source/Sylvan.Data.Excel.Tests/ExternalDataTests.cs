@@ -227,7 +227,7 @@ public class ValidateFiles : ExternalDataTests
 		var opts = new ExcelDataReaderOptions
 		{
 			Schema = ExcelSchema.NoHeaders,
-			GetErrorAsNull = true
+			FormulaErrorHandling = FormulaErrorHandling.Null
 		};
 		var edr = ExcelDataReader.Create(path, opts);
 		do
@@ -254,7 +254,7 @@ public class ValidateFiles : ExternalDataTests
 		var opts = new ExcelDataReaderOptions
 		{
 			Schema = ExcelSchema.NoHeaders,
-			GetErrorAsNull = true
+			FormulaErrorHandling = FormulaErrorHandling.Null
 		};
 		var edr = ExcelDataReader.Create(path, opts);
 

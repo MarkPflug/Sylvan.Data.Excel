@@ -106,7 +106,7 @@ partial class XlsxWorkbookReader
 
 				throw new InvalidCastException();
 			case FieldType.Error:
-				var code = fi.ErrorCode;
+				var code = GetFormulaError(ordinal);
 				throw new ExcelFormulaException(ordinal, RowNumber, code);
 		}
 		throw new InvalidCastException();
@@ -160,9 +160,9 @@ partial class XlsxWorkbookReader
 #if SPAN
 			var str = valuesBuffer.AsSpan(ordinal * ValueBufferElementSize, cell.valueLen);
 #else
-			var str = new String(valuesBuffer, ordinal * ValueBufferElementSize, cell.valueLen);
+			var str = new string(valuesBuffer, ordinal * ValueBufferElementSize, cell.valueLen);
 #endif
-			return GetErrorCode(str);
+			return ExcelError.GetErrorCode(str);
 		}			
 		throw new InvalidOperationException();
 	}

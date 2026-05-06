@@ -77,6 +77,13 @@ public partial class XlsxTests
 	}
 
 	[Fact]
+	public void X()
+	{
+		using var r = ExcelDataReader.Create("C:\\Users\\markp\\source\\benchmarks\\source\\Benchmarks\\Data\\65K_Records_Data.xlsx");
+		while (r.Read()) ;
+	}
+
+	[Fact]
 	public void HeadersWithSchema()
 	{
 		var file = GetFile("Schema");
@@ -233,7 +240,7 @@ public partial class XlsxTests
 	[Fact]
 	public void MultiSheet()
 	{
-		var opts = new ExcelDataReaderOptions { GetErrorAsNull = true };
+		var opts = new ExcelDataReaderOptions { FormulaErrorHandling = FormulaErrorHandling.Null };
 		var file = GetFile();
 		using var edr = ExcelDataReader.Create(file, opts);
 		Assert.Equal(2, edr.WorksheetCount);
@@ -257,7 +264,7 @@ public partial class XlsxTests
 		var opts =
 			new ExcelDataReaderOptions
 			{
-				GetErrorAsNull = true,
+				FormulaErrorHandling = FormulaErrorHandling.Null,
 				Schema = ExcelSchema.NoHeaders
 			};
 
@@ -316,6 +323,7 @@ public partial class XlsxTests
 		Assert.Equal("b", edr.GetString(1));
 		Assert.Equal(ExcelDataType.String, edr.GetExcelDataType(2));
 		Assert.Equal("ab", edr.GetString(2));
+
 		Assert.False(edr.Read());
 	}
 
@@ -336,7 +344,7 @@ public partial class XlsxTests
 		var opts = new ExcelDataReaderOptions
 		{
 			Schema = ExcelSchema.NoHeaders,
-			GetErrorAsNull = true,
+			FormulaErrorHandling = FormulaErrorHandling.Null
 		};
 
 		var file = GetFile("Func");
@@ -345,6 +353,95 @@ public partial class XlsxTests
 		Assert.True(edr.IsDBNull(2));
 		//Assert.True(edr.IsDBNullAsync(2));
 		Assert.Equal("", edr.GetString(2));
+	}
+
+	// This represents the errors as they appear in the FormulaError.xls* files.
+	static ExcelErrorCode[] FormulaErrorCodes =
+		[
+			ExcelErrorCode.DivideByZero,
+			ExcelErrorCode.Value,
+			ExcelErrorCode.Name,
+			ExcelErrorCode.Number,
+			ExcelErrorCode.NotAvailable,
+			ExcelErrorCode.Null,
+			// These are newer errors that appear differently in newer
+			// versions of Excel, but appear a "Value" errors
+			// in the file.
+			ExcelErrorCode.Value, // #SPILL!
+			ExcelErrorCode.Value, // #CALC!
+		];
+
+	[Fact]
+	public void FormulaError()
+	{
+		var opts = new ExcelDataReaderOptions
+		{
+			Schema = ExcelSchema.NoHeaders,
+		};
+
+		var file = GetFile();
+		using var edr = ExcelDataReader.Create(file, opts);
+		Assert.True(edr.Read());
+		ExcelFormulaException e;
+
+		e = Assert.Throws<ExcelFormulaException>(() => edr.GetString(6));
+
+		for (int i = 0; i < FormulaErrorCodes.Length; i++)
+		{
+			var code = FormulaErrorCodes[i];
+			e = Assert.Throws<ExcelFormulaException>(() => edr.GetString(i));
+			Assert.Equal(code, e.ErrorCode);
+			Assert.Equal(code, edr.GetFormulaError(i));
+		}
+
+	}
+
+	[Fact]
+	public void FormulaErrorAsString()
+	{
+		var opts = new ExcelDataReaderOptions
+		{
+			Schema = ExcelSchema.NoHeaders,
+			FormulaErrorHandling = FormulaErrorHandling.String
+		};
+
+		var file = GetFile("FormulaError");
+		using var edr = ExcelDataReader.Create(file, opts);
+		Assert.True(edr.Read());
+
+
+		for (int i = 0; i < FormulaErrorCodes.Length; i++)
+		{
+			var code = FormulaErrorCodes[i];
+			Assert.Equal(ExcelError.GetErrorString(code), edr.GetString(i));
+			Assert.Equal(ExcelDataType.Error, edr.GetExcelDataType(i));
+			Assert.Equal(code, edr.GetFormulaError(i));
+		}
+	}
+
+	[Fact]
+	public void FormulaErrorAsNull()
+	{
+		var opts = new ExcelDataReaderOptions
+		{
+			Schema = ExcelSchema.NoHeaders,
+			FormulaErrorHandling = FormulaErrorHandling.Null
+		};
+
+		var file = GetFile("FormulaError");
+		using var edr = ExcelDataReader.Create(file, opts);
+		Assert.True(edr.Read());
+
+		for (int i = 0; i < FormulaErrorCodes.Length; i++)
+		{
+			var code = FormulaErrorCodes[i];
+			// error cells will be seen as null/empty
+			Assert.True(edr.IsDBNull(i));
+			Assert.Equal("", edr.GetString(i));
+			// but also expose the fact that they are, indeed, an error
+			Assert.Equal(ExcelDataType.Error, edr.GetExcelDataType(i));
+			Assert.Equal(code, edr.GetFormulaError(i));
+		}
 	}
 
 	class NonNullSchema : IExcelSchemaProvider
@@ -389,14 +486,13 @@ public partial class XlsxTests
 		var opts = new ExcelDataReaderOptions
 		{
 			Schema = new NonNullSchema(),
-			GetErrorAsNull = true,
+			FormulaErrorHandling = FormulaErrorHandling.Null
 		};
 
 		var file = GetFile("Func");
 		using var edr = ExcelDataReader.Create(file, opts);
 		Assert.True(edr.Read());
 		Assert.False(edr.IsDBNull(2));
-		//Assert.False(edr.IsDBNullAsync(2).Result);
 		Assert.Equal("", edr.GetString(2));
 	}
 

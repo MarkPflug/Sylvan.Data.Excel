@@ -42,8 +42,28 @@ public sealed class ExcelDataReaderOptions
 	/// <summary>
 	/// Indicates if a cell will appear null or throw an ExcelFormulaException when accesing a cell containing a formula error.
 	/// Defaults to false, which causes errors to be thrown.
+	/// This is been replaced by <see cref="FormulaErrorHandling"/>.
 	/// </summary>
-	public bool GetErrorAsNull { get; set; }
+	[Obsolete("Use FormulaErrorHandling instead.")]
+	public bool GetErrorAsNull {
+		get
+		{
+			return this.FormulaErrorHandling == FormulaErrorHandling.Null;
+		}
+		set
+		{
+			this.FormulaErrorHandling =
+				value
+				? FormulaErrorHandling.Null
+				: FormulaErrorHandling.Exception;
+		}
+	}
+
+	/// <summary>
+	/// Indicates how formula errors should be handled. By default, <see cref="FormulaErrorHandling.Exception"/> 
+	/// will be used, which causes an exception to be thrown when cells with formula errors are accessed.
+	/// </summary>
+	public FormulaErrorHandling FormulaErrorHandling { get; set; }
 
 	/// <summary>
 	/// Indicates if hidden worksheets should be read, or skipped.
@@ -86,4 +106,25 @@ public sealed class ExcelDataReaderOptions
 	/// Indicates that the data stream should be disposed when the reader is disposed.
 	/// </summary>
 	public bool OwnsStream { get; set; }
+}
+
+/// <summary>
+/// Specifies how to handle formula errors.
+/// </summary>
+public enum FormulaErrorHandling
+{
+	/// <summary>
+	/// The default behavior. Formula errors will produce an exception when the field value is accessed.
+	/// </summary>
+	Exception = 0,
+
+	/// <summary>
+	/// Cells with formula errors will be read as if they were null/empty.
+	/// </summary>
+	Null = 1,
+
+	/// <summary>
+	/// Cells with formula errors will be read as the string representation of the error, for example "#DIV/0!".
+	/// </summary>
+	String = 2,
 }
