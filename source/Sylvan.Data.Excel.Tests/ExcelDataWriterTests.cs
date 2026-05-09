@@ -398,6 +398,10 @@ public abstract class ExcelDataWriterTests
 			new {
 				Name = "B",
 				Data = new byte[] {1,2,3,4 },
+			},
+			new {
+				Name = "C",
+				Data = new byte[200],
 			}
 		};
 

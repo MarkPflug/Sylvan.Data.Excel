@@ -22,14 +22,16 @@ partial class XlsxDataWriter
 		internal char[]? charBuffer;
 		internal byte[]? byteBuffer;
 
+		private const int ByteBufferSize = 48;
+
 		public char[] GetCharBuffer()
 		{
-			return charBuffer ??= new char[64];
+			return charBuffer ??= new char[ByteBufferSize * 2];
 		}
 
 		public byte[] GetByteBuffer()
 		{
-			return byteBuffer ??= new byte[48];
+			return byteBuffer ??= new byte[ByteBufferSize];
 		}
 	}
 
