@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.ObjectModel;
 using System.Data;
 using System.Data.Common;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Runtime.CompilerServices;
 
@@ -83,6 +84,7 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 	private protected int colCacheIdx;
 
 	/// <inheritdoc/>
+	[return: DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.PublicFields)]
 	public sealed override Type GetFieldType(int ordinal)
 	{
 		ValidateSheetRange(ordinal);
