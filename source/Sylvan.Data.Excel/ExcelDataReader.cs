@@ -84,7 +84,13 @@ public abstract partial class ExcelDataReader : DbDataReader, IDisposable, IDbCo
 	private protected int colCacheIdx;
 
 	/// <inheritdoc/>
+#if NET5_0_OR_GREATER
 	[return: DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.PublicFields)]
+	// DbColumn.DataType isn't itself annotated (and isn't virtual, so ExcelColumn can't override it to add the
+	// annotation). The values that reach it are either our own known primitives or a caller-supplied schema type,
+	// which is the caller's responsibility to keep trim-safe.
+	[UnconditionalSuppressMessage("ReflectionAnalysis", "IL2073", Justification = "DbColumn.DataType is not annotated and cannot be overridden to add the annotation.")]
+#endif
 	public sealed override Type GetFieldType(int ordinal)
 	{
 		ValidateSheetRange(ordinal);

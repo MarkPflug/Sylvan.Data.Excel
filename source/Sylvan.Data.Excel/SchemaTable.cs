@@ -1,18 +1,30 @@
 ﻿using System.Collections.ObjectModel;
 using System.Data;
 using System.Data.Common;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Sylvan.Data;
 
 static class SchemaTable
 {
-	static DataColumn Add(DataTable table, string name, Type type)
+	static DataColumn Add(
+		DataTable table,
+		string name,
+#if NET5_0_OR_GREATER
+		[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.PublicFields)]
+#endif
+		Type type)
 	{
 		var col = new DataColumn(name, type);
 		table.Columns.Add(col);
 		return col;
 	}
 
+#if NET5_0_OR_GREATER
+	// The "DataType" schema column holds System.Type values themselves (typeof(Type)), which recurses into
+	// Type.TypeInitializer's own annotated return value. Nothing here reflects over Type's members at runtime.
+	[UnconditionalSuppressMessage("ReflectionAnalysis", "IL2111", Justification = "typeof(Type) does not need its members preserved; this column just stores Type values as metadata.")]
+#endif
 	public static DataTable GetSchemaTable(ReadOnlyCollection<DbColumn> schema)
 	{
 		object dbNull = DBNull.Value;
