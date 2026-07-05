@@ -23,3 +23,9 @@ jobs:
       run: dotnet build source --no-restore
     - name: Test
       run: dotnet test source -f net8.0 --no-build --verbosity normal
+    - name: Install NativeAOT prerequisites
+      run: sudo apt-get update && sudo apt-get install -y clang zlib1g-dev
+    - name: Publish AOT smoke test
+      run: dotnet publish source/AotSmokeTest/AotSmokeTest.csproj -c Release -r linux-x64 --self-contained -o publish/AotSmokeTest
+    - name: Run AOT smoke test
+      run: ./publish/AotSmokeTest/AotSmokeTest

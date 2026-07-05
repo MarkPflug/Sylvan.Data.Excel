@@ -275,19 +275,11 @@ partial class XlsxDataWriter
 			w.Write("</v></c>");
 		}
 
-		public static void WriteEnum<T>(Context c, T value)
-			where T : struct, Enum
+		public static void WriteEnum(Context c, string value)
 		{
 			var w = c.xw;
-			string str =
-
-#if NET6_0_OR_GREATER
-			Enum.GetName<T>(value) ?? value.ToString();
-#else
-			value.ToString();
-#endif
 			w.Write("<c t=\"s\"><v>");
-			var ssIdx = c.dw.sharedStrings.GetString(str);
+			var ssIdx = c.dw.sharedStrings.GetString(value);
 			w.Write(ssIdx);
 			w.Write("</v></c>");
 		}
@@ -379,11 +371,15 @@ partial class XlsxDataWriter
 
 		public static readonly GuidFieldWriter Guid = new GuidFieldWriter();
 
-		public static FieldWriter Get(Type type)
+		public static FieldWriter Get(
+#if NET5_0_OR_GREATER
+			[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicFields)]
+#endif
+			Type type)
 		{
 			if (type.IsEnum)
 			{
-				return EnumFieldWriter.Get(type);
+				return new EnumFieldWriter(type);
 			}
 
 			var code = Type.GetTypeCode(type);
@@ -454,23 +450,27 @@ partial class XlsxDataWriter
 		}
 	}
 
-	sealed class EnumFieldWriter
+	sealed class EnumFieldWriter : FieldWriter
 	{
-		public static FieldWriter Get(Type enumType)
-		{
-			// TODO: cache the reflection
-			var type = typeof(EnumFieldWriter<>).MakeGenericType(enumType);
-			return (FieldWriter)Activator.CreateInstance(type)!;
-		}
-	}
+#if NET5_0_OR_GREATER
+		[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicFields)]
+#endif
+		readonly Type enumType;
 
-	sealed class EnumFieldWriter<T> : FieldWriter
-		where T : struct, Enum
-	{
+		public EnumFieldWriter(
+#if NET5_0_OR_GREATER
+			[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicFields)]
+#endif
+			Type enumType)
+		{
+			this.enumType = enumType;
+		}
+
 		public override void WriteField(Context c, int ordinal)
 		{
-			var value = c.dr.GetFieldValue<T>(ordinal);
-			XlsxValueWriter.WriteEnum(c, value);
+			var value = c.dr.GetValue(ordinal);
+			var name = Enum.GetName(enumType, value) ?? value.ToString() ?? string.Empty;
+			XlsxValueWriter.WriteEnum(c, name);
 		}
 	}
 
