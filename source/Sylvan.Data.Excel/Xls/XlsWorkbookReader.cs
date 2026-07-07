@@ -56,8 +56,8 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 		this.rowNumber = 0;
 		this.pendingRow = -1;
 		reader.SetPosition(info.Offset);
-		InitSheet();
 		this.sheetIdx = sheetIdx;
+		InitSheet();
 		return true;
 	}
 
