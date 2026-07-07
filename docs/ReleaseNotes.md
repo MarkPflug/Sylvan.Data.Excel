@@ -1,5 +1,10 @@
 # Sylvan.Data.Excel Release Notes
 
+_0.5.7_
+- Fix a bug that was preventing reading hex encoded binary data.
+- Fix a bug where `TryOpenWorksheet` would throw an exception when the reader had already advanced
+    to the end of the data.
+
 _0.5.6_
 - Adds `ExcelDataReaderOptions.FormulaErrorHandling` which obsoletes `GetErrorAsNull`. 
   This enumeration adds the ability to read formula errors as their string representation (`#DIV/0!`).

@@ -1917,6 +1917,16 @@ public partial class XlsxTests
 		Assert.Equal("1.5E-07", edr.GetString(7));
 	}
 
+	[Fact]
+	public void TryOpenWorksheetTest()
+	{
+		// GH#244
+		var f = GetFile("MultiSheet");
+		using var r = ExcelDataReader.Create(f);
+		while (r.NextResult()) ;
+		r.TryOpenWorksheet("Secondary");		
+	}
+
 #if NET6_0_OR_GREATER
 
 	[Fact]

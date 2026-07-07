@@ -306,8 +306,8 @@ sealed partial class XlsxWorkbookReader : ExcelDataReader
 			}
 		}
 
-		this.hasRows = InitializeSheet();
 		this.sheetIdx = sheetIdx;
+		this.hasRows = InitializeSheet();
 		return true;
 	}
 
