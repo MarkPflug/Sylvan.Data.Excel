@@ -59,6 +59,24 @@ public partial class XlsxTests
 		Assert.False(edr.Read());
 	}
 
+	// Regression test for a formula whose cached result is a string, where the formula is also
+	// the base/anchor cell of a shared formula group. In BIFF8 (.xls) this means an Array/SharedFmla/
+	// DataTable record intervenes between the Formula record and its String record.
+	[Fact]
+	public void SharedFormulaString()
+	{
+		var file = GetFile();
+
+		using var edr = ExcelDataReader.Create(file, noHeaders);
+		for (int i = 1; i <= 7; i++)
+		{
+			Assert.True(edr.Read(), "Row " + i);
+			Assert.Equal(i, edr.GetInt32(0));
+			Assert.Equal("Item " + i, edr.GetString(1));
+		}
+		Assert.False(edr.Read());
+	}
+
 	static readonly string[] ColumnHeaders = new[]
 	{
 		"Id", "Name", "Date", "Amount", "Code", "Flagged", "Lat", "Lon"
