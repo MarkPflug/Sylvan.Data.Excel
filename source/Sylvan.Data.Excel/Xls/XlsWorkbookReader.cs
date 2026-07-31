@@ -456,7 +456,19 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 			{
 				case 0: // string
 					var next = reader.NextRecord();
-					if (!next || reader.Type != RecordType.String) throw new InvalidDataException();
+
+					// when this formula is the base of a shared formula, array formula, or data table,
+					// an Array/SharedFmla/DataTable record immediately follows the Formula record, and
+					// only after that does the String record (if any) appear.
+					if (next && (reader.Type == RecordType.Array || reader.Type == RecordType.SharedFmla || reader.Type == RecordType.DataTable))
+					{
+						next = reader.NextRecord();
+					}
+
+					if (!next || reader.Type != RecordType.String)
+					{
+						throw new InvalidDataException();
+					}
 					int len = reader.ReadUInt16();
 					byte kind = reader.ReadByte();
 					var str = reader.ReadString(len, kind == 0);
@@ -468,6 +480,7 @@ sealed partial class XlsWorkbookReader : ExcelDataReader
 				case 2: // error
 					SetRowData(colIdx, new FieldInfo((ExcelErrorCode)rval));
 					break;
+				case 3: // empty string, but we treat it as null
 				default:
 					// this seems to indicate the function result is null,
 					// though the spec doesn't make this clear.
