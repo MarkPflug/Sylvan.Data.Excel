@@ -384,14 +384,7 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 		{
 			if (reader.RecordType == RecordType.DataEnd)
 			{
-				if (count == 0)
-				{
-					return -1;
-				}
-				else
-				{
-					break;
-				}
+				break;
 			}
 
 			static bool EnsureCols(ref FieldInfo[] values, int c)
@@ -483,10 +476,16 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 								break;
 							case RecordType.CellSt:
 							case RecordType.CellFmlaString:
-								type = FieldType.String;
 								fi.strValue = reader.GetString(8);
+								notNull++;
 								if (fi.strValue.Length > 0)
-									notNull++;
+								{
+									type = FieldType.String;
+								} 
+								else
+								{
+									type = FieldType.Null;
+								}
 								break;
 							case RecordType.CellFmlaNum:
 								type = FieldType.Numeric;
@@ -497,7 +496,10 @@ sealed class XlsbWorkbookReader : ExcelDataReader
 
 						fi.type = type;
 						fi.xfIdx = sf;
-						count = col + 1;
+						if (type != FieldType.Null)
+						{
+							count = col + 1;
+						}
 					}
 					break;
 				default:
