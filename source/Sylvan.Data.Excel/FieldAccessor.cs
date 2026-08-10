@@ -1,4 +1,6 @@
-﻿using System.Reflection;
+﻿using System.Diagnostics.CodeAnalysis;
+using System.Reflection;
+using System.Runtime.CompilerServices;
 
 namespace Sylvan.Data.Excel;
 
@@ -13,13 +15,50 @@ static class Accessor<T>
 		{
 			if (typeof(T).IsEnum)
 			{
-				return EnumAccessor<T>.Instance;
+#if NETSTANDARD2_0
+
+				if (true)
+#else
+				if (RuntimeFeature.IsDynamicCodeSupported)
+#endif
+				{
+					return EnumAccessor<T>.Instance;
+				} 
+				else
+				{
+
+#if NET5_0_OR_GREATER
+					return EnumAccessorAOT<T>.Instance;
+#endif
+				}
 			}
 			throw new NotSupportedException($"GetFieldValue<{typeof(T).Name}>() is not supported by {nameof(ExcelDataReader)}.");
 		}
 		return acc;
 	}
 }
+
+#if NET5_0_OR_GREATER
+
+sealed class EnumAccessorAOT<T> : IFieldAccessor<T>
+{
+	internal static EnumAccessorAOT<T> Instance = new EnumAccessorAOT<T>();
+
+	static readonly Type EnumType = typeof(T);
+	
+	public T GetValue(ExcelDataReader reader, int ordinal)
+	{
+		var str = reader.GetString(ordinal);
+		if (str.Length == 0) return default!;
+
+		return
+			Enum.TryParse(EnumType, str, true, out var value)
+			? (T)value!
+			: throw new InvalidCastException();
+	}
+}
+
+#endif
 
 delegate bool TryParse<T>(string str, bool ignoreCase, out T value);
 
@@ -55,14 +94,23 @@ sealed class EnumAccessor<T> : IFieldAccessor<T>
 
 	internal static TryParse<T>? Parser;
 
+#if NET5_0_OR_GREATER
+	[UnconditionalSuppressMessage("AOT", "IL3050:Calling members annotated with 'RequiresDynamicCodeAttribute' may break functionality when AOT compiling.", 
+		Justification = "This codepath is not invoked in AOT compilations.")]
+#endif
 	static EnumAccessor()
 	{
-		Parser = null;
-		var method = EnumParse.GenericSpanParseMethod;
-		if (method != null)
+#if !NETSTANDARD2_0
+		if (RuntimeFeature.IsDynamicCodeSupported)
+#endif
 		{
-			var gm = method.MakeGenericMethod(new[] { typeof(T) });
-			Parser = (TryParse<T>)gm.CreateDelegate(typeof(TryParse<T>));
+			Parser = null;
+			var method = EnumParse.GenericSpanParseMethod;
+			if (method != null)
+			{
+				var gm = method.MakeGenericMethod(new[] { typeof(T) });
+				Parser = (TryParse<T>)gm.CreateDelegate(typeof(TryParse<T>));
+			}
 		}
 	}
 
