@@ -226,4 +226,3 @@ reports/
 # foxpro
 *.dbf
 *.fpt
-/source/AotSmokeTest/Properties/PublishProfiles/FolderProfile.pubxml
