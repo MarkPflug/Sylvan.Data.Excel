@@ -1,5 +1,9 @@
 # Sylvan.Data.Excel Release Notes
 
+_0.5.8_
+- Add AOT support for reading/writing enum fields. This would previously fail at runtime under AOT.
+- Fix a bug when reading .xls files with shared formulas.
+
 _0.5.7_
 - Fix a bug that was preventing reading hex encoded binary data.
 - Fix a bug where `TryOpenWorksheet` would throw an exception when the reader had already advanced
