@@ -1,5 +1,7 @@
 ﻿using System.Data.Common;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
+using System.Runtime.CompilerServices;
 
 namespace Sylvan.Data.Excel.Xlsx;
 
@@ -275,11 +277,28 @@ partial class XlsxDataWriter
 			w.Write("</v></c>");
 		}
 
-		public static void WriteEnum(Context c, string value)
+		public static void WriteEnumAot(Context c, string value)
 		{
 			var w = c.xw;
 			w.Write("<c t=\"s\"><v>");
 			var ssIdx = c.dw.sharedStrings.GetString(value);
+			w.Write(ssIdx);
+			w.Write("</v></c>");
+		}
+
+		public static void WriteEnum<T>(Context c, T value)
+	where T : struct, Enum
+		{
+			var w = c.xw;
+			string str =
+
+#if NET6_0_OR_GREATER
+			Enum.GetName<T>(value) ?? value.ToString();
+#else
+			value.ToString();
+#endif
+			w.Write("<c t=\"s\"><v>");
+			var ssIdx = c.dw.sharedStrings.GetString(str);
 			w.Write(ssIdx);
 			w.Write("</v></c>");
 		}
@@ -371,15 +390,29 @@ partial class XlsxDataWriter
 
 		public static readonly GuidFieldWriter Guid = new GuidFieldWriter();
 
+		[SuppressMessage("Trimming", 
+			"IL2067:Target parameter argument does not satisfy 'DynamicallyAccessedMembersAttribute' in call to target method. The parameter of method does not have matching annotations.", 
+			Justification = "The dynamic codepath is not invoked in AOT compilations.")]
 		public static FieldWriter Get(
 #if NET5_0_OR_GREATER
-			[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicFields)]
+			[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicFields)]
 #endif
 			Type type)
 		{
 			if (type.IsEnum)
 			{
-				return new EnumFieldWriter(type);
+#if NETSTANDARD2_0
+				return EnumFieldWriter.Get(type);
+#else
+				if (RuntimeFeature.IsDynamicCodeSupported)
+				{
+					return EnumFieldWriter.Get(type);
+				}
+				else
+				{
+					return new EnumFieldWriterAOT(type);
+				}
+#endif
 			}
 
 			var code = Type.GetTypeCode(type);
@@ -450,14 +483,14 @@ partial class XlsxDataWriter
 		}
 	}
 
-	sealed class EnumFieldWriter : FieldWriter
+	sealed class EnumFieldWriterAOT : FieldWriter
 	{
 #if NET5_0_OR_GREATER
 		[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicFields)]
 #endif
 		readonly Type enumType;
 
-		public EnumFieldWriter(
+		public EnumFieldWriterAOT(
 #if NET5_0_OR_GREATER
 			[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicFields)]
 #endif
@@ -470,7 +503,61 @@ partial class XlsxDataWriter
 		{
 			var value = c.dr.GetValue(ordinal);
 			var name = Enum.GetName(enumType, value) ?? value.ToString() ?? string.Empty;
-			XlsxValueWriter.WriteEnum(c, name);
+			XlsxValueWriter.WriteEnumAot(c, name);
+		}
+	}
+
+	sealed class EnumFieldWriter
+	{
+		static Dictionary<Type, object> Cache = new Dictionary<Type, object>();
+
+#if NET5_0_OR_GREATER
+		[UnconditionalSuppressMessage("AOT",
+			"IL3050:Calling members annotated with 'RequiresDynamicCodeAttribute' may break functionality when AOT compiling.",
+			Justification = "This codepath is not invoked in AOT compilations.")]
+#endif
+		public static FieldWriter Get(
+#if NET5_0_OR_GREATER
+			[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)]
+#endif
+		Type enumType)
+		{
+			object? o;
+			lock (Cache)
+			{
+				if (!Cache.TryGetValue(enumType, out o))
+				{
+					try
+					{
+						var type = typeof(EnumFieldWriter<>).MakeGenericType(enumType);
+						var fw = (FieldWriter)Activator.CreateInstance(type)!;
+						Cache.Add(enumType, fw);
+						return fw;
+					}
+					catch (Exception ex)
+					{
+						Cache.Add(enumType, ex);
+						throw;
+					}
+				}
+			}
+			
+			if (o is FieldWriter w)
+				return w;
+			else
+				throw (Exception)o;
+		}
+	}
+
+	sealed class EnumFieldWriter<T> : FieldWriter
+		where T : struct, Enum
+	{
+		static EnumFieldWriter<T> Instance = new();
+
+		public override void WriteField(Context c, int ordinal)
+		{
+			var value = c.dr.GetFieldValue<T>(ordinal);
+			XlsxValueWriter.WriteEnum(c, value);
 		}
 	}
 
