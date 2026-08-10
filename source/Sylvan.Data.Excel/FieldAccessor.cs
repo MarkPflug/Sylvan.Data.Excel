@@ -1,6 +1,4 @@
-﻿using System.Reflection;
-
-namespace Sylvan.Data.Excel;
+﻿namespace Sylvan.Data.Excel;
 
 static class Accessor<T>
 {
@@ -21,64 +19,32 @@ static class Accessor<T>
 	}
 }
 
-delegate bool TryParse<T>(string str, bool ignoreCase, out T value);
-
-static class EnumParse
-{
-	internal static MethodInfo? GenericSpanParseMethod;
-
-	static MethodInfo? GetGenericMethod()
-	{
-		return
-			typeof(Enum)
-			.GetMethods()
-			.Where(m =>
-			{
-				if (m.Name != "TryParse")
-					return false;
-				var p = m.GetParameters();
-				return p.Count() == 3 && p[0].ParameterType == typeof(string);
-			}
-			)
-			.SingleOrDefault();
-	}
-
-	static EnumParse()
-	{
-		GenericSpanParseMethod = GetGenericMethod();
-	}
-}
-
 sealed class EnumAccessor<T> : IFieldAccessor<T>
 {
 	internal static EnumAccessor<T> Instance = new EnumAccessor<T>();
 
-	internal static TryParse<T>? Parser;
-
-	static EnumAccessor()
-	{
-		Parser = null;
-		var method = EnumParse.GenericSpanParseMethod;
-		if (method != null)
-		{
-			var gm = method.MakeGenericMethod(new[] { typeof(T) });
-			Parser = (TryParse<T>)gm.CreateDelegate(typeof(TryParse<T>));
-		}
-	}
+	static readonly Type EnumType = typeof(T);
 
 	public T GetValue(ExcelDataReader reader, int ordinal)
 	{
-		var parser = Parser;
-		if (parser == null)
+		var str = reader.GetString(ordinal);
+		if (str.Length == 0) return default!;
+#if NETSTANDARD2_0
+		// netstandard2.0 lacks the Enum.TryParse(Type, string, bool, out object) overload.
+		try
 		{
-			throw new NotSupportedException();
+			return (T)Enum.Parse(EnumType, str, true);
 		}
-		var span = reader.GetString(ordinal);
-		if (span.Length == 0) return default!;
+		catch (ArgumentException)
+		{
+			throw new InvalidCastException();
+		}
+#else
 		return
-			parser(span, true, out T value)
-			? value
+			Enum.TryParse(EnumType, str, true, out var value)
+			? (T)value!
 			: throw new InvalidCastException();
+#endif
 	}
 }
 
