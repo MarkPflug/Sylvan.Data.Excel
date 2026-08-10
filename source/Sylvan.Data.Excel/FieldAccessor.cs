@@ -92,7 +92,7 @@ sealed class EnumAccessor<T> : IFieldAccessor<T>
 {
 	internal static EnumAccessor<T> Instance = new EnumAccessor<T>();
 
-	internal static TryParse<T>? Parser;
+	static readonly Type EnumType = typeof(T);
 
 #if NET5_0_OR_GREATER
 	[UnconditionalSuppressMessage("AOT", "IL3050:Calling members annotated with 'RequiresDynamicCodeAttribute' may break functionality when AOT compiling.", 
@@ -119,14 +119,14 @@ sealed class EnumAccessor<T> : IFieldAccessor<T>
 		var parser = Parser;
 		if (parser == null)
 		{
-			throw new NotSupportedException();
+			throw new InvalidCastException();
 		}
-		var span = reader.GetString(ordinal);
-		if (span.Length == 0) return default!;
+#else
 		return
-			parser(span, true, out T value)
-			? value
+			Enum.TryParse(EnumType, str, true, out var value)
+			? (T)value!
 			: throw new InvalidCastException();
+#endif
 	}
 }
 

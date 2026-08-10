@@ -19,6 +19,7 @@
     <File Path="../license.txt" />
     <File Path="../readme.md" />
   </Folder>
+  <Project Path="AotSmokeTest/AotSmokeTest.csproj" />
   <Project Path="MinimalXlsx/MinimalXlsx.csproj" />
   <Project Path="Sylvan.Data.Excel.Tests/Sylvan.Data.Excel.Tests.csproj" />
   <Project Path="Sylvan.Data.Excel/Sylvan.Data.Excel.csproj" />

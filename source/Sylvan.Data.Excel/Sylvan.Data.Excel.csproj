@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
-		<TargetFrameworks>net6.0;netstandard2.1;netstandard2.0</TargetFrameworks>
+		<TargetFrameworks>net8.0;net6.0;netstandard2.1;netstandard2.0</TargetFrameworks>
 		<VersionPrefix>0.5.7</VersionPrefix>
 		<Description>A cross-platform .NET library for reading Excel data files.</Description>
 		<PackageTags>excel;xls;xlsx;xlsb;datareader</PackageTags>
@@ -14,8 +14,12 @@
 		<DefineConstants>$(DefineConstants);SPAN;ASYNC</DefineConstants>
 	</PropertyGroup>
 
-	<PropertyGroup Condition="$(TargetFramework) == 'net6.0'">
+	<PropertyGroup Condition="$(TargetFramework) == 'net6.0' Or $(TargetFramework) == 'net8.0'">
 		<DefineConstants>$(DefineConstants);SPAN;ASYNC;DATE_ONLY</DefineConstants>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="$(TargetFramework) == 'net8.0'">
+		<IsAotCompatible>true</IsAotCompatible>
 	</PropertyGroup>
 
 	<ItemGroup>

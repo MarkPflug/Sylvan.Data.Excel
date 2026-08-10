@@ -290,15 +290,8 @@ partial class XlsxDataWriter
 			where T : struct, Enum
 		{
 			var w = c.xw;
-			string str =
-
-#if NET6_0_OR_GREATER
-			Enum.GetName<T>(value) ?? value.ToString();
-#else
-			value.ToString();
-#endif
 			w.Write("<c t=\"s\"><v>");
-			var ssIdx = c.dw.sharedStrings.GetString(str);
+			var ssIdx = c.dw.sharedStrings.GetString(value);
 			w.Write(ssIdx);
 			w.Write("</v></c>");
 		}
@@ -550,13 +543,11 @@ partial class XlsxDataWriter
 		}
 	}
 
-	sealed class EnumFieldWriter<T> : FieldWriter
-		where T : struct, Enum
-	{
 		public override void WriteField(Context c, int ordinal)
 		{
-			var value = c.dr.GetFieldValue<T>(ordinal);
-			XlsxValueWriter.WriteEnum(c, value);
+			var value = c.dr.GetValue(ordinal);
+			var name = Enum.GetName(enumType, value) ?? value.ToString() ?? string.Empty;
+			XlsxValueWriter.WriteEnum(c, name);
 		}
 	}
 
