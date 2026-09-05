@@ -9,7 +9,8 @@ static class OpenXmlCodec
 	// replaces most control characters.
 	// also matches underscores that would end up being interpreted as the beginning of an escape sequence.
 	// Some versions of Excel *do not* tolerate over-escaping the underscores where it isn't needed.
-	static readonly Regex EncodeCharRegex = new Regex(@"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]|_(?=x[0-9a-fA-F]{4}_)", RegexOptions.Compiled);
+	// CR must be escaped before XML newline normalization can change it to LF.
+	static readonly Regex EncodeCharRegex = new Regex(@"[\x00-\x08\x0b\x0c\x0d\x0e-\x1f\x7f]|_(?=x[0-9a-fA-F]{4}_)", RegexOptions.Compiled);
 
 	static readonly Regex DecodeCharRegex = new Regex(@"_x[0-9a-fA-F]{4}_", RegexOptions.Compiled);
 

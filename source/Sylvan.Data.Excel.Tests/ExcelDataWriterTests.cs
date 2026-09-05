@@ -18,6 +18,28 @@ public class XlsxDataWriterTests : ExcelDataWriterTests
 {
 	const string FileFormat = "{0}.xlsx";
 
+	[Theory]
+	[InlineData("a\rb")]
+	[InlineData("a\r\nb")]
+	[InlineData("a\nb")]
+	[InlineData("\r=1+2")]
+	[InlineData("_x000D_")]
+	[InlineData("_x005F_x0041_")]
+	public void StringLineEndingsRoundTrip(string value)
+	{
+		using var stream = new MemoryStream();
+		using (var writer = ExcelDataWriter.Create(stream, ExcelWorkbookType.ExcelXml))
+		using (var data = new[] { new { Value = value } }.AsDataReader())
+		{
+			writer.Write(data);
+		}
+		stream.Position = 0;
+		using var reader = ExcelDataReader.Create(stream, ExcelWorkbookType.ExcelXml);
+		Assert.True(reader.Read());
+		Assert.Equal(value, reader.GetString(0));
+		Assert.False(reader.Read());
+	}
+
 	public override ExcelWorkbookType WorkbookType => ExcelWorkbookType.ExcelXml;
 
 	protected override string GetFile(string name)
